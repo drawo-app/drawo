@@ -1,4 +1,5 @@
 import {
+  useRef,
   useCallback,
   useEffect,
   useReducer,
@@ -14,6 +15,7 @@ import {
   type SceneSettings,
   updateSceneSettings,
 } from "./core/scene";
+import type { SceneElement } from "./core/elements";
 import { useInteraction } from "./canvas/useInteraction";
 import { CanvasView } from "./canvas/CanvasView";
 import "./App.css";
@@ -33,8 +35,16 @@ type AppAction =
       updater: SetStateAction<Scene>;
       trackHistory?: boolean;
     }
+  | {
+      type: "commitInteraction";
+      before: Scene;
+    }
   | { type: "undo" }
   | { type: "redo" };
+
+const createElementId = (type: SceneElement["type"]): string => {
+  return `${type}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+};
 
 const isValidTheme = (value: unknown): value is SceneSettings["theme"] => {
   return value === "light" || value === "dark";
@@ -107,6 +117,18 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
     };
   }
 
+  if (action.type === "commitInteraction") {
+    if (action.before === state.present) {
+      return state;
+    }
+
+    return {
+      past: [...state.past, action.before].slice(-MAX_HISTORY_ENTRIES),
+      present: state.present,
+      future: [],
+    };
+  }
+
   const nextScene =
     typeof action.updater === "function"
       ? action.updater(state.present)
@@ -138,8 +160,19 @@ export default function App() {
   );
   const scene = state.present;
   const isDarkMode = scene.settings.theme === "dark";
+  const clipboardRef = useRef<SceneElement[] | null>(null);
+  const pasteOffsetRef = useRef(0);
   const setScene: Dispatch<SetStateAction<Scene>> = useCallback((updater) => {
     dispatch({ type: "setScene", updater });
+  }, []);
+  const setSceneWithoutHistory: Dispatch<SetStateAction<Scene>> = useCallback(
+    (updater) => {
+      dispatch({ type: "setScene", updater, trackHistory: false });
+    },
+    [],
+  );
+  const commitInteractionHistory = useCallback((before: Scene) => {
+    dispatch({ type: "commitInteraction", before });
   }, []);
 
   useEffect(() => {
@@ -203,6 +236,61 @@ export default function App() {
         return;
       }
 
+      if (hasShortcutModifier && !event.altKey && key === "c") {
+        const selectedIds =
+          scene.selectedIds.length > 0
+            ? scene.selectedIds
+            : scene.selectedId
+              ? [scene.selectedId]
+              : [];
+
+        if (selectedIds.length === 0) {
+          return;
+        }
+
+        event.preventDefault();
+        clipboardRef.current = scene.elements
+          .filter((element) => selectedIds.includes(element.id))
+          .map((element) => ({ ...element }));
+        pasteOffsetRef.current = 0;
+        return;
+      }
+
+      if (hasShortcutModifier && !event.altKey && key === "v") {
+        const clipboardElements = clipboardRef.current;
+        if (!clipboardElements || clipboardElements.length === 0) {
+          return;
+        }
+
+        event.preventDefault();
+        pasteOffsetRef.current += 24;
+        const offset = pasteOffsetRef.current;
+
+        dispatch({
+          type: "setScene",
+          updater: (currentScene) => {
+            const pastedElements = clipboardElements.map((element) => {
+              const clonedElement: SceneElement = {
+                ...element,
+                id: createElementId(element.type),
+                x: element.x + offset,
+                y: element.y + offset,
+              };
+
+              return clonedElement;
+            });
+
+            return {
+              ...currentScene,
+              elements: [...currentScene.elements, ...pastedElements],
+              selectedId: pastedElements[0]?.id ?? null,
+              selectedIds: pastedElements.map((element) => element.id),
+            };
+          },
+        });
+        return;
+      }
+
       if (event.key === "Backspace" || event.key === "Delete") {
         if (!scene.selectedId && scene.selectedIds.length === 0) {
           return;
@@ -221,7 +309,7 @@ export default function App() {
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [scene.selectedId, scene.selectedIds.length]);
+  }, [scene]);
 
   const {
     handlePointerDown,
@@ -235,9 +323,12 @@ export default function App() {
     handleWheelZoom,
     handleCreateElement,
     handleSelectElements,
+    handleTextFontFamilyChange,
   } = useInteraction({
     scene,
     setScene,
+    setSceneWithoutHistory,
+    commitInteractionHistory,
   });
 
   const handlePaletteDragStart = (
@@ -310,6 +401,7 @@ export default function App() {
         onCreateElement={handleCreateElement}
         onSelectElements={handleSelectElements}
         onGroupResizeStart={handleGroupResizeStart}
+        onTextFontFamilyChange={handleTextFontFamilyChange}
       />
 
       <div className="insert-bar">

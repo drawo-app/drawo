@@ -7,6 +7,7 @@ import {
   type NewElementType,
   selectElement,
   selectElements,
+  updateTextElementsFontFamily,
   updateElementPosition,
   updateElementRotation,
   updateRectangleElementBounds,
@@ -18,6 +19,8 @@ import type { SceneElement } from "../core/elements";
 interface UseInteractionProps {
   scene: Scene;
   setScene: Dispatch<SetStateAction<Scene>>;
+  setSceneWithoutHistory: Dispatch<SetStateAction<Scene>>;
+  commitInteractionHistory: (before: Scene) => void;
 }
 
 interface DragItemState {
@@ -209,11 +212,21 @@ const getElementBounds = (element: SceneElement): Bounds => {
   };
 };
 
-export const useInteraction = ({ scene, setScene }: UseInteractionProps) => {
+export const useInteraction = ({
+  scene,
+  setScene,
+  setSceneWithoutHistory,
+  commitInteractionHistory,
+}: UseInteractionProps) => {
   const dragStateRef = useRef<DragState | null>(null);
   const resizeStateRef = useRef<ResizeState | null>(null);
   const groupResizeStateRef = useRef<GroupResizeState | null>(null);
   const rotationStateRef = useRef<RotationState | null>(null);
+  const interactionBeforeRef = useRef<Scene | null>(null);
+
+  const beginInteractionHistory = useCallback(() => {
+    interactionBeforeRef.current = scene;
+  }, [scene]);
 
   const createClonedElement = (element: SceneElement): SceneElement => {
     const clonedId = `${element.type}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
@@ -251,6 +264,7 @@ export const useInteraction = ({ scene, setScene }: UseInteractionProps) => {
 
           if (dragElements.length > 0) {
             if (altKey) {
+              beginInteractionHistory();
               const clonedElements = dragElements.map((element) =>
                 createClonedElement(element),
               );
@@ -286,6 +300,7 @@ export const useInteraction = ({ scene, setScene }: UseInteractionProps) => {
                 y: element.y,
               })),
             };
+            beginInteractionHistory();
 
             if (baseDragIds.length > 1) {
               return selectElements(currentScene, baseDragIds);
@@ -298,7 +313,7 @@ export const useInteraction = ({ scene, setScene }: UseInteractionProps) => {
         return selectElement(currentScene, hitId);
       });
     },
-    [setScene],
+    [beginInteractionHistory, setScene],
   );
 
   const handlePointerMove = useCallback(
@@ -313,7 +328,7 @@ export const useInteraction = ({ scene, setScene }: UseInteractionProps) => {
           ((nextPointerAngle - rotationState.startPointerAngle) * 180) /
           Math.PI;
 
-        setScene((currentScene) =>
+        setSceneWithoutHistory((currentScene) =>
           updateElementRotation(
             currentScene,
             rotationState.id,
@@ -388,7 +403,7 @@ export const useInteraction = ({ scene, setScene }: UseInteractionProps) => {
             }
           }
 
-          setScene((currentScene) =>
+          setSceneWithoutHistory((currentScene) =>
             updateRectangleElementBounds(
               currentScene,
               resizeState.id,
@@ -458,7 +473,7 @@ export const useInteraction = ({ scene, setScene }: UseInteractionProps) => {
           height: nextHeight,
         };
 
-        setScene((currentScene) =>
+        setSceneWithoutHistory((currentScene) =>
           updateTextElementLayout(
             currentScene,
             resizeState.id,
@@ -517,7 +532,7 @@ export const useInteraction = ({ scene, setScene }: UseInteractionProps) => {
             ? 1
             : nextGroupBounds.height / startBounds.height;
 
-        setScene((currentScene) => {
+        setSceneWithoutHistory((currentScene) => {
           const byId = new Map(
             groupResizeState.elements.map((item) => [item.id, item]),
           );
@@ -608,7 +623,7 @@ export const useInteraction = ({ scene, setScene }: UseInteractionProps) => {
         return;
       }
 
-      setScene((currentScene) => {
+      setSceneWithoutHistory((currentScene) => {
         const byId = new Map(dragState.elements.map((item) => [item.id, item]));
         const dx = x - dragState.startPointerX;
         const dy = y - dragState.startPointerY;
@@ -637,15 +652,21 @@ export const useInteraction = ({ scene, setScene }: UseInteractionProps) => {
         };
       });
     },
-    [setScene],
+    [setSceneWithoutHistory],
   );
 
   const handlePointerUp = useCallback(() => {
+    const interactionBefore = interactionBeforeRef.current;
+    if (interactionBefore) {
+      commitInteractionHistory(interactionBefore);
+    }
+
     dragStateRef.current = null;
     resizeStateRef.current = null;
     groupResizeStateRef.current = null;
     rotationStateRef.current = null;
-  }, []);
+    interactionBeforeRef.current = null;
+  }, [commitInteractionHistory]);
 
   const handleRotateStart = useCallback(
     (
@@ -663,6 +684,7 @@ export const useInteraction = ({ scene, setScene }: UseInteractionProps) => {
       dragStateRef.current = null;
       resizeStateRef.current = null;
       groupResizeStateRef.current = null;
+      beginInteractionHistory();
 
       rotationStateRef.current = {
         id,
@@ -672,7 +694,7 @@ export const useInteraction = ({ scene, setScene }: UseInteractionProps) => {
         startRotation: element.rotation,
       };
     },
-    [scene.elements],
+    [beginInteractionHistory, scene.elements],
   );
 
   const handleResizeStart = useCallback(
@@ -690,6 +712,7 @@ export const useInteraction = ({ scene, setScene }: UseInteractionProps) => {
 
       dragStateRef.current = null;
       groupResizeStateRef.current = null;
+      beginInteractionHistory();
 
       if (element.type === "rectangle") {
         resizeStateRef.current = {
@@ -724,7 +747,7 @@ export const useInteraction = ({ scene, setScene }: UseInteractionProps) => {
         },
       };
     },
-    [scene.elements],
+    [beginInteractionHistory, scene.elements],
   );
 
   const handleGroupResizeStart = useCallback(
@@ -771,6 +794,7 @@ export const useInteraction = ({ scene, setScene }: UseInteractionProps) => {
       dragStateRef.current = null;
       resizeStateRef.current = null;
       rotationStateRef.current = null;
+      beginInteractionHistory();
       groupResizeStateRef.current = {
         handle,
         startPointerX: pointerX,
@@ -779,7 +803,7 @@ export const useInteraction = ({ scene, setScene }: UseInteractionProps) => {
         elements,
       };
     },
-    [scene.elements],
+    [beginInteractionHistory, scene.elements],
   );
 
   const handleTextCommit = useCallback(
@@ -863,6 +887,15 @@ export const useInteraction = ({ scene, setScene }: UseInteractionProps) => {
     [setScene],
   );
 
+  const handleTextFontFamilyChange = useCallback(
+    (ids: string[], fontFamily: string) => {
+      setScene((currentScene) =>
+        updateTextElementsFontFamily(currentScene, ids, fontFamily),
+      );
+    },
+    [setScene],
+  );
+
   return {
     handlePointerDown,
     handlePointerMove,
@@ -875,5 +908,6 @@ export const useInteraction = ({ scene, setScene }: UseInteractionProps) => {
     handleCreateElement,
     handleSelectElements,
     handleGroupResizeStart,
+    handleTextFontFamilyChange,
   };
 };

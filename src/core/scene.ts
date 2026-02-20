@@ -123,6 +123,32 @@ export const updateTextElementContent = (
   }),
 });
 
+export const updateTextElementsFontFamily = (
+  scene: Scene,
+  ids: string[],
+  fontFamily: string,
+): Scene => {
+  if (ids.length === 0) {
+    return scene;
+  }
+
+  const targetIds = new Set(ids);
+
+  return {
+    ...scene,
+    elements: scene.elements.map((element) => {
+      if (!targetIds.has(element.id) || element.type !== "text") {
+        return element;
+      }
+
+      return {
+        ...element,
+        fontFamily,
+      };
+    }),
+  };
+};
+
 export const updateElementPosition = (
   scene: Scene,
   id: string,

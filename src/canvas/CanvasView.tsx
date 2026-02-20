@@ -3,6 +3,19 @@ import type { NewElementType, Scene } from "../core/scene";
 import { estimateTextWidth, getTextFont } from "../core/elements";
 import { findHitElement } from "../core/hitTest";
 import type { TextElement } from "../core/elements";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../components/select";
+import {
+  ElegantTypography,
+  HandwrittenTypography,
+  SimpleTypography,
+  TechnicalTypography,
+} from "../components/icons";
 
 type ResizeHandle = "nw" | "ne" | "se" | "sw";
 
@@ -27,6 +40,7 @@ interface CanvasViewProps {
   onWheelZoom: (screenX: number, screenY: number, deltaY: number) => void;
   onCreateElement: (type: NewElementType, x: number, y: number) => void;
   onSelectElements: (ids: string[]) => void;
+  onTextFontFamilyChange: (ids: string[], fontFamily: string) => void;
   onGroupResizeStart: (
     handle: ResizeHandle,
     pointerX: number,
@@ -412,6 +426,7 @@ export const CanvasView = ({
   onWheelZoom,
   onCreateElement,
   onSelectElements,
+  onTextFontFamilyChange,
   onGroupResizeStart,
   onResizeStart,
   onRotateStart,
@@ -586,6 +601,49 @@ export const CanvasView = ({
     };
   };
 
+  const selectionToolbarOverlay = useMemo(() => {
+    if (selectedIds.length === 0 || editingText) {
+      return null;
+    }
+
+    if (isDraggingElement || activeResizeHandle || activeRotatingHandle) {
+      return null;
+    }
+
+    const bounds = getSelectionBounds(selectedIds, undefined, true);
+    if (!bounds) {
+      return null;
+    }
+
+    const screenTopLeft = worldToScreen(bounds.x, bounds.y);
+    const screenBottomRight = worldToScreen(
+      bounds.x + bounds.width,
+      bounds.y + bounds.height,
+    );
+
+    const centerX = (screenTopLeft.x + screenBottomRight.x) / 2;
+    const top = Math.max(
+      8,
+      Math.min(screenTopLeft.y - 42, canvasSize.height - 46),
+    );
+
+    return {
+      left: centerX,
+      top,
+      key: selectedIds.join("|"),
+    };
+  }, [
+    camera.x,
+    camera.y,
+    camera.zoom,
+    canvasSize.height,
+    editingText,
+    activeResizeHandle,
+    activeRotatingHandle,
+    isDraggingElement,
+    selectedIds,
+  ]);
+
   const getHoverCornerAction = (
     pointX: number,
     pointY: number,
@@ -650,6 +708,97 @@ export const CanvasView = ({
     return findCornerAction(bounds, localPoint.x, localPoint.y, camera.zoom);
   };
 
+  function SelectionBarContents() {
+    const selectedTextElements = scene.elements.filter(
+      (element): element is TextElement =>
+        selectedIds.includes(element.id) && element.type === "text",
+    );
+    const allSameFontFamily =
+      selectedTextElements.length > 0 &&
+      selectedTextElements.every(
+        (element) => element.fontFamily === selectedTextElements[0].fontFamily,
+      );
+    const selectedFontFamily = allSameFontFamily
+      ? selectedTextElements[0].fontFamily
+      : undefined;
+
+    if (selectedIds.length > 1) {
+      return (
+        <>
+          {selectedIds.length} elements selected.
+          {selectedTextElements.length > 0 && (
+            <Select
+              value={selectedFontFamily}
+              onValueChange={(value) => {
+                onTextFontFamilyChange(
+                  selectedTextElements.map((element) => element.id),
+                  value,
+                );
+              }}
+            >
+              <SelectTrigger style={{ gap: "0px" }}>
+                <span style={{ width: "0px", overflow: "hidden" }}>
+                  <SelectValue placeholder="Fuente" />
+                </span>
+                {selectedFontFamily === "Shantell Sans" ? (
+                  <HandwrittenTypography />
+                ) : selectedFontFamily === "Cascadia Code" ? (
+                  <TechnicalTypography />
+                ) : selectedFontFamily === "Alegreya" ? (
+                  <ElegantTypography />
+                ) : (
+                  <SimpleTypography />
+                )}
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Rubik">Simple</SelectItem>
+                <SelectItem value="Shantell Sans">A mano</SelectItem>
+                <SelectItem value="Alegreya">Elegante</SelectItem>
+                <SelectItem value="Cascadia Code">Técnico</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
+        </>
+      );
+    }
+
+    if (selectedTextElements.length === 0) {
+      return <></>;
+    }
+
+    return (
+      <Select
+        value={selectedFontFamily}
+        onValueChange={(value) => {
+          onTextFontFamilyChange(
+            selectedTextElements.map((element) => element.id),
+            value,
+          );
+        }}
+      >
+        <SelectTrigger style={{ gap: "0px" }}>
+          <span style={{ width: "0px", overflow: "hidden" }}>
+            <SelectValue placeholder="Fuente" />
+          </span>
+          {selectedFontFamily === "Shantell Sans" ? (
+            <HandwrittenTypography />
+          ) : selectedFontFamily === "Cascadia Code" ? (
+            <TechnicalTypography />
+          ) : selectedFontFamily === "Alegreya" ? (
+            <ElegantTypography />
+          ) : (
+            <SimpleTypography />
+          )}
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="Rubik">Simple</SelectItem>
+          <SelectItem value="Shantell Sans">A mano</SelectItem>
+          <SelectItem value="Alegreya">Elegante</SelectItem>
+          <SelectItem value="Cascadia Code">Técnico</SelectItem>
+        </SelectContent>
+      </Select>
+    );
+  }
   const resolveIdleCursor = (
     pointX: number,
     pointY: number,
@@ -887,8 +1036,7 @@ export const CanvasView = ({
             ? "rgba(124, 92, 255, 0.45)"
             : "#7C5CFF"
           : toThemeColor(element.stroke);
-        ctx.lineWidth =
-          (isSelected ? 1 / camera.zoom : element.strokeWidth) / camera.zoom;
+        ctx.lineWidth = (isSelected ? 1 : element.strokeWidth) / camera.zoom;
         ctx.strokeRect(element.x, element.y, element.width, element.height);
         if (isSelected && canTransformSelection) {
           drawResizeHandles(ctx, bounds, camera.zoom);
@@ -1544,6 +1692,25 @@ export const CanvasView = ({
             lineHeight: `${editingText.style.fontSize * camera.zoom}px`,
           }}
         />
+      )}
+
+      {selectionToolbarOverlay && (
+        <div
+          key={selectionToolbarOverlay.key}
+          className="selection-toolbar"
+          onPointerDown={(event) => {
+            event.stopPropagation();
+          }}
+          onMouseDown={(event) => {
+            event.stopPropagation();
+          }}
+          style={{
+            left: selectionToolbarOverlay.left,
+            top: selectionToolbarOverlay.top,
+          }}
+        >
+          <SelectionBarContents />
+        </div>
       )}
     </div>
   );
