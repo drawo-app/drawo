@@ -327,11 +327,13 @@ export const useInteraction = ({ scene, setScene }: UseInteractionProps) => {
           return;
         }
 
+        const textStartElement = resizeState.startElement;
+
         const startBounds = {
-          x: resizeState.startElement.x,
-          y: resizeState.startElement.y,
-          width: resizeState.startElement.width,
-          height: resizeState.startElement.height,
+          x: textStartElement.x,
+          y: textStartElement.y,
+          width: textStartElement.width,
+          height: textStartElement.height,
         };
 
         const nextBounds = getResizedBoundsFromCorner(
@@ -354,12 +356,12 @@ export const useInteraction = ({ scene, setScene }: UseInteractionProps) => {
         const scale = Math.max(widthRatio, heightRatio);
         const nextFontSize = Math.max(
           10,
-          Math.round(resizeState.startElement.fontSize * scale),
+          Math.round(textStartElement.fontSize * scale),
         );
 
         const nextHeight = nextFontSize;
         const widthPerFontSize =
-          resizeState.startElement.width / resizeState.startElement.fontSize;
+          textStartElement.width / textStartElement.fontSize;
         const nextWidth = Math.max(16, widthPerFontSize * nextFontSize);
         const nextTextBounds = {
           x: nextBounds.x,
@@ -376,14 +378,11 @@ export const useInteraction = ({ scene, setScene }: UseInteractionProps) => {
               ? snapValue(
                   getTextXFromBounds(
                     nextTextBounds,
-                    resizeState.startElement.textAlign,
+                    textStartElement.textAlign,
                   ),
                   currentScene.settings.gridSize,
                 )
-              : getTextXFromBounds(
-                  nextTextBounds,
-                  resizeState.startElement.textAlign,
-                ),
+              : getTextXFromBounds(nextTextBounds, textStartElement.textAlign),
             currentScene.settings.snapToGrid
               ? snapValue(
                   nextTextBounds.y + nextFontSize,

@@ -74,7 +74,6 @@ const getAlignedStartX = (
 };
 
 const HANDLE_SIZE = 9;
-const HANDLE_HALF = HANDLE_SIZE / 2;
 const HANDLE_BORDER_RADIUS_PX = 2;
 const TEXT_SELECTION_PADDING_PX = 6;
 const MIN_GRID_SCREEN_SPACING = 12;
@@ -263,31 +262,6 @@ const getHandleCenter = (bounds: ElementBounds, handle: ResizeHandle) => {
   }
 
   return { x: bounds.x + bounds.width, y: bounds.y + bounds.height };
-};
-
-const findHandleHit = (
-  bounds: ElementBounds,
-  pointX: number,
-  pointY: number,
-  zoom: number,
-): ResizeHandle | null => {
-  const handleHalf = HANDLE_HALF / zoom;
-  const handles: ResizeHandle[] = ["nw", "ne", "se", "sw"];
-
-  for (const handle of handles) {
-    const center = getHandleCenter(bounds, handle);
-
-    if (
-      pointX >= center.x - handleHalf &&
-      pointX <= center.x + handleHalf &&
-      pointY >= center.y - handleHalf &&
-      pointY <= center.y + handleHalf
-    ) {
-      return handle;
-    }
-  }
-
-  return null;
 };
 
 const rotatePointAroundCenter = (
@@ -1057,6 +1031,7 @@ export const CanvasView = ({
       const tempTextElement: TextElement = {
         id: current.id,
         type: "text",
+        rotation: 0,
         x: 0,
         y: 0,
         text: nextValue,
