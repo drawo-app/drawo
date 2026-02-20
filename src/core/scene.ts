@@ -16,6 +16,7 @@ export interface SceneSettings {
 export interface Scene {
   elements: SceneElement[];
   selectedId: string | null;
+  selectedIds: string[];
   camera: Camera;
   settings: SceneSettings;
 }
@@ -78,6 +79,7 @@ export const initScene = (): Scene => ({
     },
   ],
   selectedId: null,
+  selectedIds: [],
   camera: { x: 0, y: 0, zoom: 1 },
   settings: {
     showGrid: true,
@@ -90,7 +92,18 @@ export const initScene = (): Scene => ({
 export const selectElement = (scene: Scene, id: string | null): Scene => ({
   ...scene,
   selectedId: id,
+  selectedIds: id ? [id] : [],
 });
+
+export const selectElements = (scene: Scene, ids: string[]): Scene => {
+  const uniqueIds = Array.from(new Set(ids));
+
+  return {
+    ...scene,
+    selectedId: uniqueIds[0] ?? null,
+    selectedIds: uniqueIds,
+  };
+};
 
 export const updateTextElementContent = (
   scene: Scene,
@@ -206,16 +219,22 @@ export const updateSceneSettings = (
 });
 
 export const removeSelectedElement = (scene: Scene): Scene => {
-  if (!scene.selectedId) {
+  const targetIds =
+    scene.selectedIds.length > 0
+      ? new Set(scene.selectedIds)
+      : scene.selectedId
+        ? new Set([scene.selectedId])
+        : null;
+
+  if (!targetIds) {
     return scene;
   }
 
   return {
     ...scene,
-    elements: scene.elements.filter(
-      (element) => element.id !== scene.selectedId,
-    ),
+    elements: scene.elements.filter((element) => !targetIds.has(element.id)),
     selectedId: null,
+    selectedIds: [],
   };
 };
 
@@ -262,5 +281,6 @@ export const addElementToScene = (
     ...scene,
     elements: [...scene.elements, newElement],
     selectedId: newElement.id,
+    selectedIds: [newElement.id],
   };
 };

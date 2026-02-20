@@ -6,6 +6,7 @@ import {
   addElementToScene,
   type NewElementType,
   selectElement,
+  selectElements,
   updateElementPosition,
   updateElementRotation,
   updateRectangleElementBounds,
@@ -19,10 +20,16 @@ interface UseInteractionProps {
   setScene: Dispatch<SetStateAction<Scene>>;
 }
 
-interface DragState {
+interface DragItemState {
   id: string;
-  offsetX: number;
-  offsetY: number;
+  x: number;
+  y: number;
+}
+
+interface DragState {
+  startPointerX: number;
+  startPointerY: number;
+  elements: DragItemState[];
 }
 
 type ResizeHandle = "nw" | "ne" | "se" | "sw";
@@ -56,6 +63,25 @@ interface ResizeState {
         fontSize: number;
         textAlign: CanvasTextAlign;
       };
+}
+
+interface GroupResizeElementState {
+  id: string;
+  type: SceneElement["type"];
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  textAlign?: CanvasTextAlign;
+  fontSize?: number;
+}
+
+interface GroupResizeState {
+  handle: ResizeHandle;
+  startPointerX: number;
+  startPointerY: number;
+  startGroupBounds: Bounds;
+  elements: GroupResizeElementState[];
 }
 
 interface RotationState {
@@ -157,9 +183,36 @@ const getTextXFromBounds = (
   return bounds.x;
 };
 
+const getSelectedIds = (scene: Scene): string[] => {
+  if (scene.selectedIds.length > 0) {
+    return scene.selectedIds;
+  }
+
+  return scene.selectedId ? [scene.selectedId] : [];
+};
+
+const getElementBounds = (element: SceneElement): Bounds => {
+  if (element.type === "rectangle") {
+    return {
+      x: element.x,
+      y: element.y,
+      width: element.width,
+      height: element.height,
+    };
+  }
+
+  return {
+    x: getTextStartX(element),
+    y: element.y - element.fontSize,
+    width: Math.max(16, estimateTextWidth(element)),
+    height: element.fontSize,
+  };
+};
+
 export const useInteraction = ({ scene, setScene }: UseInteractionProps) => {
   const dragStateRef = useRef<DragState | null>(null);
   const resizeStateRef = useRef<ResizeState | null>(null);
+  const groupResizeStateRef = useRef<GroupResizeState | null>(null);
   const rotationStateRef = useRef<RotationState | null>(null);
 
   const createClonedElement = (element: SceneElement): SceneElement => {
@@ -171,37 +224,72 @@ export const useInteraction = ({ scene, setScene }: UseInteractionProps) => {
   };
 
   const handlePointerDown = useCallback(
-    (x: number, y: number, altKey: boolean) => {
+    (x: number, y: number, altKey: boolean, shiftKey: boolean) => {
       setScene((currentScene) => {
         const hitId = findHitElement(currentScene.elements, x, y);
+        const selectedIds = getSelectedIds(currentScene);
 
         if (hitId) {
-          const hitElement = currentScene.elements.find(
-            (element) => element.id === hitId,
+          if (shiftKey && !altKey) {
+            dragStateRef.current = null;
+
+            if (selectedIds.includes(hitId)) {
+              return currentScene;
+            }
+
+            return selectElements(currentScene, [...selectedIds, hitId]);
+          }
+
+          const baseDragIds =
+            selectedIds.length > 1 && selectedIds.includes(hitId)
+              ? selectedIds
+              : [hitId];
+
+          const dragElements = currentScene.elements.filter((element) =>
+            baseDragIds.includes(element.id),
           );
 
-          if (hitElement) {
+          if (dragElements.length > 0) {
             if (altKey) {
-              const clonedElement = createClonedElement(hitElement);
+              const clonedElements = dragElements.map((element) =>
+                createClonedElement(element),
+              );
+              const nextElements = [
+                ...currentScene.elements,
+                ...clonedElements,
+              ];
+
               dragStateRef.current = {
-                id: clonedElement.id,
-                offsetX: x - clonedElement.x,
-                offsetY: y - clonedElement.y,
+                startPointerX: x,
+                startPointerY: y,
+                elements: clonedElements.map((element) => ({
+                  id: element.id,
+                  x: element.x,
+                  y: element.y,
+                })),
               };
 
-              const nextElements = [...currentScene.elements, clonedElement];
               return {
                 ...currentScene,
                 elements: nextElements,
-                selectedId: clonedElement.id,
+                selectedId: clonedElements[0]?.id ?? null,
+                selectedIds: clonedElements.map((element) => element.id),
               };
             }
 
             dragStateRef.current = {
-              id: hitElement.id,
-              offsetX: x - hitElement.x,
-              offsetY: y - hitElement.y,
+              startPointerX: x,
+              startPointerY: y,
+              elements: dragElements.map((element) => ({
+                id: element.id,
+                x: element.x,
+                y: element.y,
+              })),
             };
+
+            if (baseDragIds.length > 1) {
+              return selectElements(currentScene, baseDragIds);
+            }
           }
         } else {
           dragStateRef.current = null;
@@ -395,25 +483,158 @@ export const useInteraction = ({ scene, setScene }: UseInteractionProps) => {
         return;
       }
 
+      const groupResizeState = groupResizeStateRef.current;
+      if (groupResizeState) {
+        const dx = x - groupResizeState.startPointerX;
+        const dy = y - groupResizeState.startPointerY;
+        const startBounds = groupResizeState.startGroupBounds;
+        const pointerX =
+          startBounds.x +
+          dx +
+          (groupResizeState.handle === "ne" || groupResizeState.handle === "se"
+            ? startBounds.width
+            : 0);
+        const pointerY =
+          startBounds.y +
+          dy +
+          (groupResizeState.handle === "sw" || groupResizeState.handle === "se"
+            ? startBounds.height
+            : 0);
+
+        const nextGroupBounds = getResizedBoundsFromCorner(
+          startBounds,
+          groupResizeState.handle,
+          pointerX,
+          pointerY,
+        );
+
+        const widthRatio =
+          startBounds.width === 0
+            ? 1
+            : nextGroupBounds.width / startBounds.width;
+        const heightRatio =
+          startBounds.height === 0
+            ? 1
+            : nextGroupBounds.height / startBounds.height;
+
+        setScene((currentScene) => {
+          const byId = new Map(
+            groupResizeState.elements.map((item) => [item.id, item]),
+          );
+
+          return {
+            ...currentScene,
+            elements: currentScene.elements.map((element) => {
+              const startElement = byId.get(element.id);
+              if (!startElement) {
+                return element;
+              }
+
+              const nextX =
+                nextGroupBounds.x +
+                (startElement.x - startBounds.x) * widthRatio;
+              const nextY =
+                nextGroupBounds.y +
+                (startElement.y - startBounds.y) * heightRatio;
+              const nextWidth = Math.max(
+                startElement.type === "rectangle" ? MIN_ELEMENT_SIZE : 16,
+                startElement.width * widthRatio,
+              );
+              const nextHeight = Math.max(
+                startElement.type === "rectangle" ? MIN_ELEMENT_SIZE : 10,
+                startElement.height * heightRatio,
+              );
+
+              if (element.type === "rectangle") {
+                return {
+                  ...element,
+                  x: currentScene.settings.snapToGrid
+                    ? snapValue(nextX, currentScene.settings.gridSize)
+                    : nextX,
+                  y: currentScene.settings.snapToGrid
+                    ? snapValue(nextY, currentScene.settings.gridSize)
+                    : nextY,
+                  width: currentScene.settings.snapToGrid
+                    ? Math.max(
+                        MIN_ELEMENT_SIZE,
+                        snapValue(nextWidth, currentScene.settings.gridSize),
+                      )
+                    : nextWidth,
+                  height: currentScene.settings.snapToGrid
+                    ? Math.max(
+                        MIN_ELEMENT_SIZE,
+                        snapValue(nextHeight, currentScene.settings.gridSize),
+                      )
+                    : nextHeight,
+                };
+              }
+
+              const scale = Math.max(widthRatio, heightRatio);
+              const startFontSize = startElement.fontSize ?? element.fontSize;
+              const nextFontSize = Math.max(
+                10,
+                Math.round(startFontSize * scale),
+              );
+              const nextTextX = getTextXFromBounds(
+                {
+                  x: nextX,
+                  y: nextY,
+                  width: nextWidth,
+                  height: nextHeight,
+                },
+                startElement.textAlign ?? element.textAlign,
+              );
+              const nextTextY = nextY + nextFontSize;
+
+              return {
+                ...element,
+                x: currentScene.settings.snapToGrid
+                  ? snapValue(nextTextX, currentScene.settings.gridSize)
+                  : nextTextX,
+                y: currentScene.settings.snapToGrid
+                  ? snapValue(nextTextY, currentScene.settings.gridSize)
+                  : nextTextY,
+                fontSize: nextFontSize,
+              };
+            }),
+          };
+        });
+
+        return;
+      }
+
       const dragState = dragStateRef.current;
       if (!dragState) {
         return;
       }
 
       setScene((currentScene) => {
-        const nextX = x - dragState.offsetX;
-        const nextY = y - dragState.offsetY;
+        const byId = new Map(dragState.elements.map((item) => [item.id, item]));
+        const dx = x - dragState.startPointerX;
+        const dy = y - dragState.startPointerY;
 
-        return updateElementPosition(
-          currentScene,
-          dragState.id,
-          currentScene.settings.snapToGrid
-            ? snapValue(nextX, currentScene.settings.gridSize)
-            : nextX,
-          currentScene.settings.snapToGrid
-            ? snapValue(nextY, currentScene.settings.gridSize)
-            : nextY,
-        );
+        return {
+          ...currentScene,
+          elements: currentScene.elements.map((element) => {
+            const startElement = byId.get(element.id);
+            if (!startElement) {
+              return element;
+            }
+
+            const nextX = startElement.x + dx;
+            const nextY = startElement.y + dy;
+
+            return {
+              ...element,
+              x: currentScene.settings.snapToGrid
+                ? snapValue(nextX, currentScene.settings.gridSize)
+                : nextX,
+              y: currentScene.settings.snapToGrid
+                ? snapValue(nextY, currentScene.settings.gridSize)
+                : nextY,
+            };
+          }),
+        };
       });
     },
     [setScene],
@@ -422,6 +643,7 @@ export const useInteraction = ({ scene, setScene }: UseInteractionProps) => {
   const handlePointerUp = useCallback(() => {
     dragStateRef.current = null;
     resizeStateRef.current = null;
+    groupResizeStateRef.current = null;
     rotationStateRef.current = null;
   }, []);
 
@@ -440,6 +662,7 @@ export const useInteraction = ({ scene, setScene }: UseInteractionProps) => {
 
       dragStateRef.current = null;
       resizeStateRef.current = null;
+      groupResizeStateRef.current = null;
 
       rotationStateRef.current = {
         id,
@@ -466,6 +689,7 @@ export const useInteraction = ({ scene, setScene }: UseInteractionProps) => {
       }
 
       dragStateRef.current = null;
+      groupResizeStateRef.current = null;
 
       if (element.type === "rectangle") {
         resizeStateRef.current = {
@@ -498,6 +722,61 @@ export const useInteraction = ({ scene, setScene }: UseInteractionProps) => {
           fontSize: element.fontSize,
           textAlign: element.textAlign,
         },
+      };
+    },
+    [scene.elements],
+  );
+
+  const handleGroupResizeStart = useCallback(
+    (
+      handle: ResizeHandle,
+      pointerX: number,
+      pointerY: number,
+      groupBounds: Bounds,
+      ids: string[],
+    ) => {
+      const selectedSet = new Set(ids);
+      const elements = scene.elements
+        .filter((element) => selectedSet.has(element.id))
+        .map((element): GroupResizeElementState => {
+          const bounds = getElementBounds(element);
+
+          if (element.type === "rectangle") {
+            return {
+              id: element.id,
+              type: element.type,
+              x: bounds.x,
+              y: bounds.y,
+              width: bounds.width,
+              height: bounds.height,
+            };
+          }
+
+          return {
+            id: element.id,
+            type: element.type,
+            x: bounds.x,
+            y: bounds.y,
+            width: bounds.width,
+            height: bounds.height,
+            textAlign: element.textAlign,
+            fontSize: element.fontSize,
+          };
+        });
+
+      if (elements.length === 0) {
+        return;
+      }
+
+      dragStateRef.current = null;
+      resizeStateRef.current = null;
+      rotationStateRef.current = null;
+      groupResizeStateRef.current = {
+        handle,
+        startPointerX: pointerX,
+        startPointerY: pointerY,
+        startGroupBounds: groupBounds,
+        elements,
       };
     },
     [scene.elements],
@@ -577,6 +856,13 @@ export const useInteraction = ({ scene, setScene }: UseInteractionProps) => {
     [setScene],
   );
 
+  const handleSelectElements = useCallback(
+    (ids: string[]) => {
+      setScene((currentScene) => selectElements(currentScene, ids));
+    },
+    [setScene],
+  );
+
   return {
     handlePointerDown,
     handlePointerMove,
@@ -587,5 +873,7 @@ export const useInteraction = ({ scene, setScene }: UseInteractionProps) => {
     handleWheelPan,
     handleWheelZoom,
     handleCreateElement,
+    handleSelectElements,
+    handleGroupResizeStart,
   };
 };

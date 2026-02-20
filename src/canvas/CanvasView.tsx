@@ -15,12 +15,25 @@ interface ElementBounds {
 
 interface CanvasViewProps {
   scene: Scene;
-  onPointerDown: (x: number, y: number, altKey: boolean) => void;
+  onPointerDown: (
+    x: number,
+    y: number,
+    altKey: boolean,
+    shiftKey: boolean,
+  ) => void;
   onPointerMove: (x: number, y: number, shiftKey: boolean) => void;
   onPointerUp: () => void;
   onWheelPan: (deltaX: number, deltaY: number) => void;
   onWheelZoom: (screenX: number, screenY: number, deltaY: number) => void;
   onCreateElement: (type: NewElementType, x: number, y: number) => void;
+  onSelectElements: (ids: string[]) => void;
+  onGroupResizeStart: (
+    handle: ResizeHandle,
+    pointerX: number,
+    pointerY: number,
+    bounds: ElementBounds,
+    ids: string[],
+  ) => void;
   onResizeStart: (
     id: string,
     handle: ResizeHandle,
@@ -55,6 +68,13 @@ interface EditingTextState {
     | "color"
     | "textAlign"
   >;
+}
+
+interface MarqueeSelection {
+  startX: number;
+  startY: number;
+  currentX: number;
+  currentY: number;
 }
 
 const getAlignedStartX = (
@@ -248,6 +268,20 @@ const getResizeCursor = (handle: ResizeHandle): string => {
   return "nesw-resize";
 };
 
+const getRotateCursor = (handle: ResizeHandle): string => {
+  switch (handle) {
+    case "nw":
+      return "rotate-down-left";
+    case "ne":
+      return "rotate-down-right";
+    case "sw":
+      return "rotate-up-left";
+    case "se":
+      return "rotate-up-right";
+    default:
+      return "nesw-resize";
+  }
+};
 const getHandleCenter = (bounds: ElementBounds, handle: ResizeHandle) => {
   if (handle === "nw") {
     return { x: bounds.x, y: bounds.y };
@@ -348,6 +382,27 @@ const findCornerAction = (
   return null;
 };
 
+const findResizeHandle = (
+  bounds: ElementBounds,
+  pointX: number,
+  pointY: number,
+  zoom: number,
+): ResizeHandle | null => {
+  const resizeRadius = HANDLE_RESIZE_RADIUS_PX / zoom;
+  const handles: ResizeHandle[] = ["nw", "ne", "se", "sw"];
+
+  for (const handle of handles) {
+    const center = getHandleCenter(bounds, handle);
+    const distance = Math.hypot(pointX - center.x, pointY - center.y);
+
+    if (distance <= resizeRadius) {
+      return handle;
+    }
+  }
+
+  return null;
+};
+
 export const CanvasView = ({
   scene,
   onPointerDown,
@@ -356,6 +411,8 @@ export const CanvasView = ({
   onWheelPan,
   onWheelZoom,
   onCreateElement,
+  onSelectElements,
+  onGroupResizeStart,
   onResizeStart,
   onRotateStart,
   onTextCommit,
@@ -370,8 +427,22 @@ export const CanvasView = ({
   const [canvasCursor, setCanvasCursor] = useState("default");
   const [activeResizeHandle, setActiveResizeHandle] =
     useState<ResizeHandle | null>(null);
-  const [isRotatingElement, setIsRotatingElement] = useState(false);
+  const [activeRotatingHandle, setActiveRotatingHandle] =
+    useState<ResizeHandle | null>(null);
   const [isDraggingElement, setIsDraggingElement] = useState(false);
+  const [isDuplicateDragging, setIsDuplicateDragging] = useState(false);
+  const [isAltPressed, setIsAltPressed] = useState(false);
+  const [marqueeSelection, setMarqueeSelection] =
+    useState<MarqueeSelection | null>(null);
+  const lastPointerRef = useRef<{ x: number; y: number } | null>(null);
+  const selectedIds =
+    scene.selectedIds.length > 0
+      ? scene.selectedIds
+      : scene.selectedId
+        ? [scene.selectedId]
+        : [];
+  const canTransformSelection = selectedIds.length === 1;
+  const selectedElementId = canTransformSelection ? selectedIds[0] : null;
   const camera = scene.camera;
   const isDarkMode = scene.settings.theme === "dark";
   const toThemeColor = (color: string): string =>
@@ -481,11 +552,45 @@ export const CanvasView = ({
     }
   };
 
+  const getSelectionBounds = (
+    ids: string[],
+    ctx?: CanvasRenderingContext2D,
+    includeTextPadding: boolean = true,
+  ): ElementBounds | null => {
+    if (ids.length === 0) {
+      return null;
+    }
+
+    const elementBounds = ids
+      .map((id) => getElementBounds(id, ctx, includeTextPadding))
+      .filter((value): value is ElementBounds => value !== null);
+
+    if (elementBounds.length === 0) {
+      return null;
+    }
+
+    const minX = Math.min(...elementBounds.map((bounds) => bounds.x));
+    const minY = Math.min(...elementBounds.map((bounds) => bounds.y));
+    const maxX = Math.max(
+      ...elementBounds.map((bounds) => bounds.x + bounds.width),
+    );
+    const maxY = Math.max(
+      ...elementBounds.map((bounds) => bounds.y + bounds.height),
+    );
+
+    return {
+      x: minX,
+      y: minY,
+      width: maxX - minX,
+      height: maxY - minY,
+    };
+  };
+
   const getHoverCornerAction = (
     pointX: number,
     pointY: number,
   ): CornerAction | null => {
-    if (!scene.selectedId || editingText) {
+    if (editingText) {
       return null;
     }
 
@@ -499,15 +604,35 @@ export const CanvasView = ({
       return null;
     }
 
+    if (selectedIds.length > 1) {
+      const selectionBounds = getSelectionBounds(selectedIds, ctx, true);
+      if (!selectionBounds) {
+        return null;
+      }
+
+      const handle = findResizeHandle(
+        selectionBounds,
+        pointX,
+        pointY,
+        camera.zoom,
+      );
+
+      return handle ? { handle, mode: "resize" } : null;
+    }
+
+    if (!selectedElementId) {
+      return null;
+    }
+
     const selectedElement = scene.elements.find(
-      (element) => element.id === scene.selectedId,
+      (element) => element.id === selectedElementId,
     );
 
     if (selectedElement?.type === "text") {
       ctx.font = getTextFont(selectedElement);
     }
 
-    const bounds = getElementBounds(scene.selectedId, ctx);
+    const bounds = getElementBounds(selectedElementId, ctx);
     if (!bounds) {
       return null;
     }
@@ -525,20 +650,63 @@ export const CanvasView = ({
     return findCornerAction(bounds, localPoint.x, localPoint.y, camera.zoom);
   };
 
-  const resolveIdleCursor = (pointX: number, pointY: number): string => {
+  const resolveIdleCursor = (
+    pointX: number,
+    pointY: number,
+    altKey: boolean,
+  ): string => {
     const cornerAction = getHoverCornerAction(pointX, pointY);
     if (cornerAction) {
       return cornerAction.mode === "resize"
         ? getResizeCursor(cornerAction.handle)
-        : "crosshair";
+        : getRotateCursor(cornerAction.handle);
     }
 
     const hitId = findHitElement(scene.elements, pointX, pointY);
     if (hitId) {
-      return "grab";
+      return altKey ? "clone" : "grab";
     }
 
     return "default";
+  };
+
+  const getMarqueeBounds = (selection: MarqueeSelection): ElementBounds => {
+    const x = Math.min(selection.startX, selection.currentX);
+    const y = Math.min(selection.startY, selection.currentY);
+    const width = Math.abs(selection.currentX - selection.startX);
+    const height = Math.abs(selection.currentY - selection.startY);
+
+    return { x, y, width, height };
+  };
+
+  const intersectsBounds = (a: ElementBounds, b: ElementBounds): boolean => {
+    return (
+      a.x < b.x + b.width &&
+      a.x + a.width > b.x &&
+      a.y < b.y + b.height &&
+      a.y + a.height > b.y
+    );
+  };
+
+  const getElementsInsideMarquee = (selection: MarqueeSelection): string[] => {
+    const canvas = canvasRef.current;
+    const ctx = canvas?.getContext("2d");
+    const marqueeBounds = getMarqueeBounds(selection);
+
+    return scene.elements
+      .filter((element) => {
+        if (element.type === "text" && ctx) {
+          ctx.font = getTextFont(element);
+        }
+
+        const elementBounds = getElementBounds(element.id, ctx, true);
+        if (!elementBounds) {
+          return false;
+        }
+
+        return intersectsBounds(marqueeBounds, elementBounds);
+      })
+      .map((element) => element.id);
   };
 
   const beginTextEditing = (element: TextElement) => {
@@ -693,7 +861,8 @@ export const CanvasView = ({
     }
 
     for (const element of scene.elements) {
-      const isSelected = element.id === scene.selectedId;
+      const isSelected = selectedIds.includes(element.id);
+      const isMultiSelection = selectedIds.length > 1;
       const rotationRadians = (element.rotation * Math.PI) / 180;
 
       if (element.type === "rectangle") {
@@ -713,11 +882,15 @@ export const CanvasView = ({
         ctx.fillStyle = toThemeColor(element.fill);
         ctx.fillRect(element.x, element.y, element.width, element.height);
 
-        ctx.strokeStyle = isSelected ? "#7C5CFF" : toThemeColor(element.stroke);
+        ctx.strokeStyle = isSelected
+          ? isMultiSelection
+            ? "rgba(124, 92, 255, 0.45)"
+            : "#7C5CFF"
+          : toThemeColor(element.stroke);
         ctx.lineWidth =
           (isSelected ? 1 / camera.zoom : element.strokeWidth) / camera.zoom;
         ctx.strokeRect(element.x, element.y, element.width, element.height);
-        if (isSelected) {
+        if (isSelected && canTransformSelection) {
           drawResizeHandles(ctx, bounds, camera.zoom);
         }
 
@@ -757,7 +930,8 @@ export const CanvasView = ({
           continue;
         }
 
-        ctx.strokeStyle = "#7C5CFF";
+        ctx.strokeStyle =
+          selectedIds.length > 1 ? "rgba(124, 92, 255, 0.45)" : "#7C5CFF";
         ctx.lineWidth = 1 / camera.zoom;
         ctx.strokeRect(
           textBounds.x,
@@ -766,13 +940,53 @@ export const CanvasView = ({
           textBounds.height,
         );
 
-        drawResizeHandles(ctx, textBounds, camera.zoom);
+        if (canTransformSelection) {
+          drawResizeHandles(ctx, textBounds, camera.zoom);
+        }
       }
 
       ctx.restore();
     }
+
+    if (selectedIds.length > 1) {
+      const groupBounds = getSelectionBounds(selectedIds, ctx, true);
+      if (groupBounds) {
+        ctx.save();
+        ctx.strokeStyle = "#7C5CFF";
+        ctx.lineWidth = 1 / camera.zoom;
+        ctx.setLineDash([6 / camera.zoom, 4 / camera.zoom]);
+        ctx.strokeRect(
+          groupBounds.x,
+          groupBounds.y,
+          groupBounds.width,
+          groupBounds.height,
+        );
+        ctx.setLineDash([]);
+        drawResizeHandles(ctx, groupBounds, camera.zoom);
+        ctx.restore();
+      }
+    }
+
+    if (marqueeSelection) {
+      const marqueeBounds = getMarqueeBounds(marqueeSelection);
+      const marqueeRadius = 8 / camera.zoom;
+      ctx.fillStyle = "rgba(124, 92, 255, 0.12)";
+      ctx.strokeStyle = "#7C5CFF";
+      ctx.lineWidth = 1 / camera.zoom;
+      drawRoundedRect(
+        ctx,
+        marqueeBounds.x,
+        marqueeBounds.y,
+        marqueeBounds.width,
+        marqueeBounds.height,
+        marqueeRadius,
+      );
+      ctx.fill();
+      ctx.stroke();
+    }
+
     ctx.restore();
-  }, [scene, editingText, canvasSize, camera]);
+  }, [scene, editingText, canvasSize, camera, marqueeSelection]);
 
   useEffect(() => {
     if (!editingText) {
@@ -795,7 +1009,7 @@ export const CanvasView = ({
       }
 
       const selectedElement = scene.elements.find(
-        (element) => element.id === scene.selectedId,
+        (element) => element.id === selectedElementId,
       );
 
       if (!selectedElement || selectedElement.type !== "text") {
@@ -811,13 +1025,61 @@ export const CanvasView = ({
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [scene.elements, scene.selectedId, editingText]);
+  }, [scene.elements, selectedElementId, editingText]);
 
   useEffect(() => {
     if (editingText && !selectedText) {
       setEditingText(null);
     }
   }, [editingText, selectedText]);
+
+  useEffect(() => {
+    const handleAltStateChange = (event: KeyboardEvent) => {
+      if (event.key !== "Alt") {
+        return;
+      }
+
+      setIsAltPressed(event.type === "keydown");
+    };
+
+    const handleBlur = () => {
+      setIsAltPressed(false);
+    };
+
+    window.addEventListener("keydown", handleAltStateChange);
+    window.addEventListener("keyup", handleAltStateChange);
+    window.addEventListener("blur", handleBlur);
+
+    return () => {
+      window.removeEventListener("keydown", handleAltStateChange);
+      window.removeEventListener("keyup", handleAltStateChange);
+      window.removeEventListener("blur", handleBlur);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (activeRotatingHandle || activeResizeHandle || isDraggingElement) {
+      return;
+    }
+
+    const lastPointer = lastPointerRef.current;
+    if (!lastPointer) {
+      return;
+    }
+
+    setCanvasCursor(
+      resolveIdleCursor(lastPointer.x, lastPointer.y, isAltPressed),
+    );
+  }, [
+    activeResizeHandle,
+    activeRotatingHandle,
+    editingText,
+    isAltPressed,
+    isDraggingElement,
+    scene.elements,
+    selectedElementId,
+    selectedIds,
+  ]);
 
   const handlePointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
@@ -827,22 +1089,56 @@ export const CanvasView = ({
     const screenX = e.clientX - rect.left;
     const screenY = e.clientY - rect.top;
     const pointer = screenToWorld(screenX, screenY);
+    lastPointerRef.current = pointer;
 
-    if (scene.selectedId && !editingText) {
+    if (selectedIds.length > 1 && !editingText) {
+      const ctx = canvas.getContext("2d");
+      if (ctx) {
+        const groupBounds = getSelectionBounds(selectedIds, ctx, true);
+        if (groupBounds) {
+          const groupHandle = findResizeHandle(
+            groupBounds,
+            pointer.x,
+            pointer.y,
+            camera.zoom,
+          );
+
+          if (groupHandle) {
+            onGroupResizeStart(
+              groupHandle,
+              pointer.x,
+              pointer.y,
+              groupBounds,
+              selectedIds,
+            );
+            setActiveResizeHandle(groupHandle);
+            setActiveRotatingHandle(null);
+            setIsDraggingElement(false);
+            setIsDuplicateDragging(false);
+            setMarqueeSelection(null);
+            setCanvasCursor(getResizeCursor(groupHandle));
+            canvas.setPointerCapture(e.pointerId);
+            return;
+          }
+        }
+      }
+    }
+
+    if (selectedElementId && !editingText) {
       const ctx = canvas.getContext("2d");
       if (ctx) {
         const selectedElement = scene.elements.find(
-          (element) => element.id === scene.selectedId,
+          (element) => element.id === selectedElementId,
         );
 
         if (selectedElement?.type === "text") {
           ctx.font = getTextFont(selectedElement);
         }
 
-        const bounds = getElementBounds(scene.selectedId, ctx, true);
+        const bounds = getElementBounds(selectedElementId, ctx, true);
         if (bounds) {
           const selectedElement = scene.elements.find(
-            (element) => element.id === scene.selectedId,
+            (element) => element.id === selectedElementId,
           );
           const rotationRadians =
             ((selectedElement?.rotation ?? 0) * Math.PI) / 180;
@@ -863,37 +1159,39 @@ export const CanvasView = ({
           );
           if (cornerAction?.mode === "rotate") {
             onRotateStart(
-              scene.selectedId,
+              selectedElementId,
               center.x,
               center.y,
               pointer.x,
               pointer.y,
             );
-            setIsRotatingElement(true);
+            setActiveRotatingHandle(cornerAction.handle);
             setActiveResizeHandle(null);
             setIsDraggingElement(false);
-            setCanvasCursor("grabbing");
+            setIsDuplicateDragging(false);
+            setCanvasCursor(getRotateCursor(cornerAction.handle));
             canvas.setPointerCapture(e.pointerId);
             return;
           }
 
           if (cornerAction?.mode === "resize") {
             const contentBounds = getElementBounds(
-              scene.selectedId,
+              selectedElementId,
               ctx,
               false,
             );
 
             onResizeStart(
-              scene.selectedId,
+              selectedElementId,
               cornerAction.handle,
               pointer.x,
               pointer.y,
               contentBounds ?? bounds,
             );
             setActiveResizeHandle(cornerAction.handle);
-            setIsRotatingElement(false);
+            setActiveRotatingHandle(null);
             setIsDraggingElement(false);
+            setIsDuplicateDragging(false);
             setCanvasCursor(getResizeCursor(cornerAction.handle));
             canvas.setPointerCapture(e.pointerId);
             return;
@@ -907,13 +1205,35 @@ export const CanvasView = ({
     }
 
     const hitId = findHitElement(scene.elements, pointer.x, pointer.y);
-    const dragging = Boolean(hitId);
-    setIsRotatingElement(false);
-    setIsDraggingElement(dragging);
-    setActiveResizeHandle(null);
-    setCanvasCursor(dragging ? "grabbing" : "default");
 
-    onPointerDown(pointer.x, pointer.y, e.altKey);
+    if (!hitId) {
+      setActiveRotatingHandle(null);
+      setActiveResizeHandle(null);
+      setIsDraggingElement(false);
+      setIsDuplicateDragging(false);
+      setMarqueeSelection({
+        startX: pointer.x,
+        startY: pointer.y,
+        currentX: pointer.x,
+        currentY: pointer.y,
+      });
+      setCanvasCursor("default");
+      canvas.setPointerCapture(e.pointerId);
+      return;
+    }
+
+    const dragging = Boolean(hitId);
+    const duplicateDragging = dragging && e.altKey;
+    setActiveRotatingHandle(null);
+    setActiveResizeHandle(null);
+    setMarqueeSelection(null);
+    setIsDraggingElement(dragging);
+    setIsDuplicateDragging(duplicateDragging);
+    setCanvasCursor(
+      dragging ? (duplicateDragging ? "clone" : "grabbing") : "default",
+    );
+
+    onPointerDown(pointer.x, pointer.y, e.altKey, e.shiftKey);
     canvas.setPointerCapture(e.pointerId);
   };
 
@@ -927,11 +1247,28 @@ export const CanvasView = ({
     const screenX = e.clientX - rect.left;
     const screenY = e.clientY - rect.top;
     const pointer = screenToWorld(screenX, screenY);
+    lastPointerRef.current = pointer;
+
+    if (marqueeSelection) {
+      setMarqueeSelection((current) => {
+        if (!current) {
+          return current;
+        }
+
+        return {
+          ...current,
+          currentX: pointer.x,
+          currentY: pointer.y,
+        };
+      });
+      setCanvasCursor("default");
+      return;
+    }
 
     onPointerMove(pointer.x, pointer.y, e.shiftKey);
 
-    if (isRotatingElement) {
-      setCanvasCursor("grabbing");
+    if (activeRotatingHandle) {
+      setCanvasCursor(getRotateCursor(activeRotatingHandle));
       return;
     }
 
@@ -941,11 +1278,11 @@ export const CanvasView = ({
     }
 
     if (isDraggingElement) {
-      setCanvasCursor("grabbing");
+      setCanvasCursor(isDuplicateDragging ? "clone" : "grabbing");
       return;
     }
 
-    setCanvasCursor(resolveIdleCursor(pointer.x, pointer.y));
+    setCanvasCursor(resolveIdleCursor(pointer.x, pointer.y, e.altKey));
   };
 
   const handlePointerUp = (e: React.PointerEvent<HTMLCanvasElement>) => {
@@ -954,26 +1291,58 @@ export const CanvasView = ({
       canvas.releasePointerCapture(e.pointerId);
     }
 
+    if (marqueeSelection) {
+      const selectedInMarquee = getElementsInsideMarquee(marqueeSelection);
+      onSelectElements(selectedInMarquee);
+      setMarqueeSelection(null);
+      setActiveRotatingHandle(null);
+      setActiveResizeHandle(null);
+      setIsDraggingElement(false);
+      setIsDuplicateDragging(false);
+
+      const rect = canvas?.getBoundingClientRect();
+      if (rect) {
+        const screenX = e.clientX - rect.left;
+        const screenY = e.clientY - rect.top;
+        const pointer = screenToWorld(screenX, screenY);
+        lastPointerRef.current = pointer;
+        setCanvasCursor(resolveIdleCursor(pointer.x, pointer.y, e.altKey));
+      } else {
+        setCanvasCursor("default");
+      }
+
+      return;
+    }
+
     onPointerUp();
 
-    setIsRotatingElement(false);
+    setActiveRotatingHandle(null);
     setActiveResizeHandle(null);
     setIsDraggingElement(false);
+    setIsDuplicateDragging(false);
 
     const rect = canvas?.getBoundingClientRect();
     if (rect) {
       const screenX = e.clientX - rect.left;
       const screenY = e.clientY - rect.top;
       const pointer = screenToWorld(screenX, screenY);
-      setCanvasCursor(resolveIdleCursor(pointer.x, pointer.y));
+      lastPointerRef.current = pointer;
+      setCanvasCursor(resolveIdleCursor(pointer.x, pointer.y, e.altKey));
     } else {
       setCanvasCursor("default");
     }
   };
 
   const handlePointerLeave = () => {
-    if (isRotatingElement) {
-      setCanvasCursor("grabbing");
+    lastPointerRef.current = null;
+
+    if (marqueeSelection) {
+      setCanvasCursor("default");
+      return;
+    }
+
+    if (activeRotatingHandle) {
+      setCanvasCursor(getRotateCursor(activeRotatingHandle));
       return;
     }
 
@@ -983,7 +1352,7 @@ export const CanvasView = ({
     }
 
     if (isDraggingElement) {
-      setCanvasCursor("grabbing");
+      setCanvasCursor(isDuplicateDragging ? "clone" : "grabbing");
       return;
     }
 
@@ -1140,7 +1509,9 @@ export const CanvasView = ({
           cursor:
             'url("/cursors/' +
             canvasCursor +
-            '.svg"), url("/cursors/default.svg"), auto',
+            '.svg")' +
+            (["default", "pointer"].includes(canvasCursor) ? "" : " 12 12") +
+            ', url("/cursors/default.svg"), auto',
           touchAction: "none",
         }}
       />
@@ -1161,7 +1532,7 @@ export const CanvasView = ({
             padding: 0,
             border: "none",
             outline: "none",
-            cursor: 'url("/cursors/text.svg"), auto',
+            cursor: 'url("/cursors/text.svg") 12 12, auto',
             background: "transparent",
             boxShadow: "none",
             color: toThemeColor(editingText.style.color),

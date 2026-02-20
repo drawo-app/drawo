@@ -9,6 +9,7 @@ import {
   initScene,
   type NewElementType,
   removeSelectedElement,
+  selectElements,
   type Scene,
   type SceneSettings,
   updateSceneSettings,
@@ -189,8 +190,21 @@ export default function App() {
         return;
       }
 
+      if (hasShortcutModifier && !event.altKey && key === "a") {
+        event.preventDefault();
+        dispatch({
+          type: "setScene",
+          updater: (currentScene) =>
+            selectElements(
+              currentScene,
+              currentScene.elements.map((element) => element.id),
+            ),
+        });
+        return;
+      }
+
       if (event.key === "Backspace" || event.key === "Delete") {
-        if (!scene.selectedId) {
+        if (!scene.selectedId && scene.selectedIds.length === 0) {
           return;
         }
 
@@ -207,18 +221,20 @@ export default function App() {
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [scene.selectedId]);
+  }, [scene.selectedId, scene.selectedIds.length]);
 
   const {
     handlePointerDown,
     handlePointerMove,
     handlePointerUp,
     handleResizeStart,
+    handleGroupResizeStart,
     handleRotateStart,
     handleTextCommit,
     handleWheelPan,
     handleWheelZoom,
     handleCreateElement,
+    handleSelectElements,
   } = useInteraction({
     scene,
     setScene,
@@ -292,6 +308,8 @@ export default function App() {
         onWheelPan={handleWheelPan}
         onWheelZoom={handleWheelZoom}
         onCreateElement={handleCreateElement}
+        onSelectElements={handleSelectElements}
+        onGroupResizeStart={handleGroupResizeStart}
       />
 
       <div className="insert-bar">
