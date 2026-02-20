@@ -1,0 +1,102 @@
+body,
+html {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    overscroll-behavior: none;
+}
+
+#root {
+    width: 100%;
+    height: 100%;
+}
+
+
+.app-root {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+    background: #ffffff;
+    color: #1f2937;
+}
+
+.app-root--dark {
+    background: #0f0f0f;
+    color: #f3f4f6;
+}
+
+.toolbar {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    z-index: 10;
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    padding: 8px 10px;
+    background: rgba(255, 255, 255, 0.92);
+    border: 1px solid #d9d9d9;
+    border-radius: 8px;
+}
+
+.app-root--dark .toolbar {
+    background: rgba(20, 20, 20, 0.92);
+    border-color: #424242;
+}
+
+.switch-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    font-family: Inter, sans-serif;
+}
+
+.app-root--dark .switch-row {
+    color: #f3f4f6;
+}
+
+.insert-bar {
+    position: absolute;
+    left: 50%;
+    bottom: 16px;
+    transform: translateX(-50%);
+    z-index: 10;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    padding: 8px 10px;
+    background: rgba(255, 255, 255, 0.94);
+    border: 1px solid #d9d9d9;
+    border-radius: 10px;
+}
+
+.app-root--dark .insert-bar {
+    background: rgba(20, 20, 20, 0.94);
+    border-color: #424242;
+}
+
+.insert-item {
+    border: 1px solid #cfcfcf;
+    border-radius: 8px;
+    background: #ffffff;
+    color: #2f3b52;
+    font:
+        500 13px Inter,
+        sans-serif;
+    padding: 7px 12px;
+    cursor: grab;
+}
+
+.app-root--dark .insert-item {
+    border-color: #5a5a5a;
+    background: #1f1f1f;
+    color: #e5e7eb;
+}
+
+.insert-item:active {
+    cursor: grabbing;
+}
