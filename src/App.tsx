@@ -57,7 +57,10 @@ const loadInitialScene = (): Scene => {
     if (typeof parsed.snapToGrid === "boolean") {
       nextSettings.snapToGrid = parsed.snapToGrid;
     }
-    if (typeof parsed.gridSize === "number" && Number.isFinite(parsed.gridSize)) {
+    if (
+      typeof parsed.gridSize === "number" &&
+      Number.isFinite(parsed.gridSize)
+    ) {
       nextSettings.gridSize = parsed.gridSize;
     }
     if (isValidTheme(parsed.theme)) {
@@ -127,7 +130,11 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
 };
 
 export default function App() {
-  const [state, dispatch] = useReducer(appReducer, undefined, createInitialAppState);
+  const [state, dispatch] = useReducer(
+    appReducer,
+    undefined,
+    createInitialAppState,
+  );
   const scene = state.present;
   const isDarkMode = scene.settings.theme === "dark";
   const setScene: Dispatch<SetStateAction<Scene>> = useCallback((updater) => {
@@ -145,7 +152,11 @@ export default function App() {
       }
 
       const tagName = target.tagName.toLowerCase();
-      if (tagName === "input" || tagName === "textarea" || tagName === "select") {
+      if (
+        tagName === "input" ||
+        tagName === "textarea" ||
+        tagName === "select"
+      ) {
         return true;
       }
 
