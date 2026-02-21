@@ -562,13 +562,15 @@ export const useInteraction = ({
                 nextGroupBounds.y +
                 (startElement.y - startBounds.y) * heightRatio;
               const nextWidth = Math.max(
-                startElement.type === "rectangle" || startElement.type === "circle"
+                startElement.type === "rectangle" ||
+                  startElement.type === "circle"
                   ? MIN_ELEMENT_SIZE
                   : 16,
                 startElement.width * widthRatio,
               );
               const nextHeight = Math.max(
-                startElement.type === "rectangle" || startElement.type === "circle"
+                startElement.type === "rectangle" ||
+                  startElement.type === "circle"
                   ? MIN_ELEMENT_SIZE
                   : 10,
                 startElement.height * heightRatio,
