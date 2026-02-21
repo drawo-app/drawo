@@ -28,6 +28,7 @@ interface ElementBounds {
 
 interface CanvasViewProps {
   scene: Scene;
+  interactionMode: "select" | "pan";
   onPointerDown: (
     x: number,
     y: number,
@@ -274,6 +275,21 @@ const invertLightnessPreservingHue = (value: string): string => {
   return `rgb(${nextRgb.r}, ${nextRgb.g}, ${nextRgb.b})`;
 };
 
+const normalizeRgbTriplet = (value: string): string | null => {
+  const channels = value.match(/\d+(?:\.\d+)?/g);
+  if (!channels || channels.length < 3) {
+    return null;
+  }
+
+  return channels
+    .slice(0, 3)
+    .map((channel) => {
+      const numeric = Number(channel);
+      return Math.max(0, Math.min(255, Math.round(numeric)));
+    })
+    .join(", ");
+};
+
 const getResizeCursor = (handle: ResizeHandle): string => {
   if (handle === "nw" || handle === "se") {
     return "nwse-resize";
@@ -419,6 +435,7 @@ const findResizeHandle = (
 
 export const CanvasView = ({
   scene,
+  interactionMode,
   onPointerDown,
   onPointerMove,
   onPointerUp,
@@ -450,6 +467,7 @@ export const CanvasView = ({
   const [marqueeSelection, setMarqueeSelection] =
     useState<MarqueeSelection | null>(null);
   const lastPointerRef = useRef<{ x: number; y: number } | null>(null);
+  const panStateRef = useRef<{ screenX: number; screenY: number } | null>(null);
   const selectedIds =
     scene.selectedIds.length > 0
       ? scene.selectedIds
@@ -461,7 +479,11 @@ export const CanvasView = ({
   const camera = scene.camera;
   const isDarkMode = scene.settings.theme === "dark";
   const toThemeColor = (color: string): string =>
-    isDarkMode ? invertLightnessPreservingHue(color) : color;
+    isDarkMode
+      ? color.toLowerCase() === "#f4f5f4"
+        ? "#101010"
+        : invertLightnessPreservingHue(color)
+      : color;
 
   const screenToWorld = (screenX: number, screenY: number) => {
     return {
@@ -500,7 +522,7 @@ export const CanvasView = ({
       return null;
     }
 
-    if (element.type === "rectangle") {
+    if (element.type === "rectangle" || element.type === "circle") {
       return {
         x: element.x,
         y: element.y,
@@ -540,13 +562,14 @@ export const CanvasView = ({
     ctx: CanvasRenderingContext2D,
     bounds: ElementBounds,
     zoom: number,
+    accentColor: string,
   ) => {
     const handleSize = HANDLE_SIZE / zoom;
     const handleHalf = handleSize / 2;
     const handleRadius = HANDLE_BORDER_RADIUS_PX / zoom;
     const handles: ResizeHandle[] = ["nw", "ne", "se", "sw"];
-    ctx.fillStyle = toThemeColor("#ffffff");
-    ctx.strokeStyle = isDarkMode ? "#b19eff" : "#7C5CFF";
+    ctx.fillStyle = toThemeColor("#F4F5F4");
+    ctx.strokeStyle = accentColor;
     ctx.lineWidth = 1 / zoom;
 
     for (const handle of handles) {
@@ -724,41 +747,7 @@ export const CanvasView = ({
 
     if (selectedIds.length > 1) {
       return (
-        <>
-          {selectedIds.length} elements selected.
-          {selectedTextElements.length > 0 && (
-            <Select
-              value={selectedFontFamily}
-              onValueChange={(value) => {
-                onTextFontFamilyChange(
-                  selectedTextElements.map((element) => element.id),
-                  value,
-                );
-              }}
-            >
-              <SelectTrigger style={{ gap: "0px" }}>
-                <span style={{ width: "0px", overflow: "hidden" }}>
-                  <SelectValue placeholder="Fuente" />
-                </span>
-                {selectedFontFamily === "Shantell Sans" ? (
-                  <HandwrittenTypography />
-                ) : selectedFontFamily === "Cascadia Code" ? (
-                  <TechnicalTypography />
-                ) : selectedFontFamily === "Alegreya" ? (
-                  <ElegantTypography />
-                ) : (
-                  <SimpleTypography />
-                )}
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Rubik">Simple</SelectItem>
-                <SelectItem value="Shantell Sans">A mano</SelectItem>
-                <SelectItem value="Alegreya">Elegante</SelectItem>
-                <SelectItem value="Cascadia Code">Técnico</SelectItem>
-              </SelectContent>
-            </Select>
-          )}
-        </>
+        <p className="bar-text">{selectedIds.length} elements selected.</p>
       );
     }
 
@@ -790,7 +779,7 @@ export const CanvasView = ({
             <SimpleTypography />
           )}
         </SelectTrigger>
-        <SelectContent>
+        <SelectContent position="popper">
           <SelectItem value="Rubik">Simple</SelectItem>
           <SelectItem value="Shantell Sans">A mano</SelectItem>
           <SelectItem value="Alegreya">Elegante</SelectItem>
@@ -804,6 +793,10 @@ export const CanvasView = ({
     pointY: number,
     altKey: boolean,
   ): string => {
+    if (interactionMode === "pan") {
+      return "grab";
+    }
+
     const cornerAction = getHoverCornerAction(pointX, pointY);
     if (cornerAction) {
       return cornerAction.mode === "resize"
@@ -971,6 +964,16 @@ export const CanvasView = ({
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
+    const canvasStyles = getComputedStyle(canvas);
+    const accentColor =
+      canvasStyles.getPropertyValue("--accent").trim() || "#7c5cff";
+    const accentRgb =
+      normalizeRgbTriplet(canvasStyles.getPropertyValue("--accent-rgb")) ||
+      normalizeRgbTriplet(accentColor) ||
+      "124, 92, 255";
+    const accentSelectionColor = `rgba(${accentRgb}, 0.45)`;
+    const accentMarqueeFillColor = `rgba(${accentRgb}, 0.12)`;
+
     ctx.fillStyle = toThemeColor("#F4F5F4");
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -1000,7 +1003,7 @@ export const CanvasView = ({
       const startX = Math.floor(worldLeft / renderGridStep) * renderGridStep;
       const startY = Math.floor(worldTop / renderGridStep) * renderGridStep;
 
-      ctx.fillStyle = toThemeColor("#B3B2B370");
+      ctx.fillStyle = isDarkMode ? "#ffffff10" : "#B3B2B370";
 
       for (let x = startX; x <= worldRight; x += renderGridStep) {
         for (let y = startY; y <= worldBottom; y += renderGridStep) {
@@ -1014,7 +1017,7 @@ export const CanvasView = ({
       const isMultiSelection = selectedIds.length > 1;
       const rotationRadians = (element.rotation * Math.PI) / 180;
 
-      if (element.type === "rectangle") {
+      if (element.type === "rectangle" || element.type === "circle") {
         const bounds = {
           x: element.x,
           y: element.y,
@@ -1029,17 +1032,50 @@ export const CanvasView = ({
         ctx.translate(-center.x, -center.y);
 
         ctx.fillStyle = toThemeColor(element.fill);
-        ctx.fillRect(element.x, element.y, element.width, element.height);
+        if (element.type === "circle") {
+          ctx.beginPath();
+          ctx.ellipse(
+            element.x + element.width / 2,
+            element.y + element.height / 2,
+            element.width / 2,
+            element.height / 2,
+            0,
+            0,
+            Math.PI * 2,
+          );
+          ctx.fill();
+        } else {
+          ctx.fillRect(element.x, element.y, element.width, element.height);
+        }
 
-        ctx.strokeStyle = isSelected
-          ? isMultiSelection
-            ? "rgba(124, 92, 255, 0.45)"
-            : "#7C5CFF"
-          : toThemeColor(element.stroke);
-        ctx.lineWidth = (isSelected ? 1 : element.strokeWidth) / camera.zoom;
-        ctx.strokeRect(element.x, element.y, element.width, element.height);
+        ctx.strokeStyle = toThemeColor(element.stroke);
+        ctx.lineWidth = element.strokeWidth / camera.zoom;
+        if (element.type === "circle") {
+          ctx.beginPath();
+          ctx.ellipse(
+            element.x + element.width / 2,
+            element.y + element.height / 2,
+            element.width / 2,
+            element.height / 2,
+            0,
+            0,
+            Math.PI * 2,
+          );
+          ctx.stroke();
+        } else {
+          ctx.strokeRect(element.x, element.y, element.width, element.height);
+        }
+
+        if (isSelected) {
+          ctx.strokeStyle = isMultiSelection
+            ? accentSelectionColor
+            : accentColor;
+          ctx.lineWidth = 1 / camera.zoom;
+          ctx.strokeRect(element.x, element.y, element.width, element.height);
+        }
+
         if (isSelected && canTransformSelection) {
-          drawResizeHandles(ctx, bounds, camera.zoom);
+          drawResizeHandles(ctx, bounds, camera.zoom, accentColor);
         }
 
         ctx.restore();
@@ -1079,7 +1115,7 @@ export const CanvasView = ({
         }
 
         ctx.strokeStyle =
-          selectedIds.length > 1 ? "rgba(124, 92, 255, 0.45)" : "#7C5CFF";
+          selectedIds.length > 1 ? accentSelectionColor : accentColor;
         ctx.lineWidth = 1 / camera.zoom;
         ctx.strokeRect(
           textBounds.x,
@@ -1089,7 +1125,7 @@ export const CanvasView = ({
         );
 
         if (canTransformSelection) {
-          drawResizeHandles(ctx, textBounds, camera.zoom);
+          drawResizeHandles(ctx, textBounds, camera.zoom, accentColor);
         }
       }
 
@@ -1100,7 +1136,7 @@ export const CanvasView = ({
       const groupBounds = getSelectionBounds(selectedIds, ctx, true);
       if (groupBounds) {
         ctx.save();
-        ctx.strokeStyle = "#7C5CFF";
+        ctx.strokeStyle = accentColor;
         ctx.lineWidth = 1 / camera.zoom;
         ctx.setLineDash([6 / camera.zoom, 4 / camera.zoom]);
         ctx.strokeRect(
@@ -1110,7 +1146,7 @@ export const CanvasView = ({
           groupBounds.height,
         );
         ctx.setLineDash([]);
-        drawResizeHandles(ctx, groupBounds, camera.zoom);
+        drawResizeHandles(ctx, groupBounds, camera.zoom, accentColor);
         ctx.restore();
       }
     }
@@ -1118,8 +1154,8 @@ export const CanvasView = ({
     if (marqueeSelection) {
       const marqueeBounds = getMarqueeBounds(marqueeSelection);
       const marqueeRadius = 8 / camera.zoom;
-      ctx.fillStyle = "rgba(124, 92, 255, 0.12)";
-      ctx.strokeStyle = "#7C5CFF";
+      ctx.fillStyle = accentMarqueeFillColor;
+      ctx.strokeStyle = accentColor;
       ctx.lineWidth = 1 / camera.zoom;
       drawRoundedRect(
         ctx,
@@ -1227,6 +1263,7 @@ export const CanvasView = ({
     scene.elements,
     selectedElementId,
     selectedIds,
+    interactionMode,
   ]);
 
   const handlePointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
@@ -1238,6 +1275,18 @@ export const CanvasView = ({
     const screenY = e.clientY - rect.top;
     const pointer = screenToWorld(screenX, screenY);
     lastPointerRef.current = pointer;
+
+    if (interactionMode === "pan") {
+      panStateRef.current = { screenX, screenY };
+      setActiveRotatingHandle(null);
+      setActiveResizeHandle(null);
+      setMarqueeSelection(null);
+      setIsDraggingElement(false);
+      setIsDuplicateDragging(false);
+      setCanvasCursor("grabbing");
+      canvas.setPointerCapture(e.pointerId);
+      return;
+    }
 
     if (selectedIds.length > 1 && !editingText) {
       const ctx = canvas.getContext("2d");
@@ -1397,6 +1446,25 @@ export const CanvasView = ({
     const pointer = screenToWorld(screenX, screenY);
     lastPointerRef.current = pointer;
 
+    if (interactionMode === "pan") {
+      const panState = panStateRef.current;
+      if (panState) {
+        const deltaX = screenX - panState.screenX;
+        const deltaY = screenY - panState.screenY;
+
+        if (deltaX !== 0 || deltaY !== 0) {
+          onWheelPan(-deltaX, -deltaY);
+          panStateRef.current = { screenX, screenY };
+        }
+
+        setCanvasCursor("grabbing");
+      } else {
+        setCanvasCursor("grab");
+      }
+
+      return;
+    }
+
     if (marqueeSelection) {
       setMarqueeSelection((current) => {
         if (!current) {
@@ -1437,6 +1505,12 @@ export const CanvasView = ({
     const canvas = canvasRef.current;
     if (canvas?.hasPointerCapture(e.pointerId)) {
       canvas.releasePointerCapture(e.pointerId);
+    }
+
+    if (interactionMode === "pan") {
+      panStateRef.current = null;
+      setCanvasCursor("grab");
+      return;
     }
 
     if (marqueeSelection) {
@@ -1484,6 +1558,11 @@ export const CanvasView = ({
   const handlePointerLeave = () => {
     lastPointerRef.current = null;
 
+    if (interactionMode === "pan") {
+      setCanvasCursor(panStateRef.current ? "grabbing" : "grab");
+      return;
+    }
+
     if (marqueeSelection) {
       setCanvasCursor("default");
       return;
@@ -1508,6 +1587,10 @@ export const CanvasView = ({
   };
 
   const handleDoubleClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (interactionMode === "pan") {
+      return;
+    }
+
     const canvas = canvasRef.current;
     if (!canvas) {
       return;
@@ -1613,7 +1696,7 @@ export const CanvasView = ({
       event.dataTransfer.getData("application/x-drawo-element") ||
       event.dataTransfer.getData("text/plain");
 
-    if (rawType !== "rectangle" && rawType !== "text") {
+    if (rawType !== "rectangle" && rawType !== "circle" && rawType !== "text") {
       return;
     }
 
@@ -1631,6 +1714,9 @@ export const CanvasView = ({
 
     onCreateElement(rawType, worldPoint.x, worldPoint.y);
   };
+
+  const uniColor = (color: string) =>
+    isDarkMode ? invertLightnessPreservingHue(color) : color;
 
   return (
     <div
@@ -1658,11 +1744,75 @@ export const CanvasView = ({
             'url("/cursors/' +
             canvasCursor +
             '.svg")' +
-            (["default", "pointer"].includes(canvasCursor) ? "" : " 12 12") +
+            (["default", "pointer", "clone"].includes(canvasCursor)
+              ? ""
+              : " 12 12") +
             ', url("/cursors/default.svg"), auto',
           touchAction: "none",
         }}
       />
+
+      {scene.elements.length === 0 && (
+        <div
+          style={{
+            position: "absolute",
+            left: "50%",
+            top: "50%",
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            opacity: 0.5,
+            flexDirection: "column",
+            transform: "translate(-50%, -50%)",
+            pointerEvents: "none",
+            userSelect: "none",
+          }}
+        >
+          <svg
+            height="10vh"
+            viewBox="0 0 102 20"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              fill-rule="evenodd"
+              clip-rule="evenodd"
+              d="M1.46447 18.5355C2.92893 20 5.28595 20 10 20C14.714 20 17.0711 20 18.5355 18.5355C20 17.0711 20 14.714 20 10C20 5.28595 20 2.92893 18.5355 1.46447C17.0711 -1.19209e-07 14.714 0 10 0C5.28595 0 2.92893 -1.19209e-07 1.46447 1.46447C-1.19209e-07 2.92893 0 5.28595 0 10C0 14.714 -1.19209e-07 17.0711 1.46447 18.5355Z"
+              fill={"var(--accent)"}
+            />
+            <path
+              d="M8.0773 14.8618L4.5652 5.69598C4.2836 4.96107 4.9611 4.28361 5.696 4.56521L14.8618 8.0773C15.6922 8.3955 15.7192 9.56 14.9019 9.8083L11.4249 10.8648C11.1545 10.947 10.947 11.1545 10.8648 11.4249L9.8083 14.9019C9.56 15.7192 8.3955 15.6922 8.0773 14.8618Z"
+              fill={"#FFFFFF"}
+            />
+            <g opacity="0.8">
+              <path
+                d="M31.1877 19.4999H26.9043C25.2474 19.4999 23.9043 18.1568 23.9043 16.4999V3.57056C23.9043 1.9137 25.2474 0.570557 26.9043 0.570557H31.1137C33.0609 0.570557 34.7431 0.949514 36.1603 1.70743C37.5837 2.45918 38.6806 3.54368 39.4508 4.96092C40.2272 6.37199 40.6154 8.06344 40.6154 10.0352C40.6154 12.0071 40.2303 13.7016 39.46 15.1188C38.6898 16.5299 37.5991 17.6144 36.1881 18.3723C34.777 19.1241 33.1102 19.4999 31.1877 19.4999ZM29.0433 13.1778C29.0433 14.26 29.9206 15.1373 31.0028 15.1373C31.9394 15.1373 32.7374 14.9863 33.3967 14.6844C34.0622 14.3825 34.5675 13.8618 34.9125 13.1224C35.2638 12.3829 35.4394 11.3539 35.4394 10.0352C35.4394 8.7166 35.2607 7.68756 34.9033 6.94813C34.5521 6.2087 34.0345 5.68802 33.3505 5.38609C32.6727 5.08416 31.8408 4.93319 30.8549 4.93319C29.8544 4.93319 29.0433 5.74427 29.0433 6.74479V13.1778Z"
+                fill="var(--accent)"
+              />
+              <path
+                d="M44.577 19.4999C43.1681 19.4999 42.0259 18.3578 42.0259 16.9489V7.77999C42.0259 6.41193 43.135 5.3029 44.503 5.3029H45.6307C46.376 5.3029 46.9801 5.90708 46.9801 6.65236V7.91845C46.9801 7.96449 47.0175 8.00182 47.0635 8.00182C47.1015 8.00182 47.1347 7.97599 47.1445 7.9393C47.4041 6.97305 47.8083 6.2637 48.3573 5.81126C48.9242 5.34912 49.5866 5.11805 50.3445 5.11805C50.5664 5.11805 50.7851 5.13653 51.0008 5.1735C51.3851 5.22688 51.6385 5.57748 51.6385 5.96546V8.7103C51.6385 9.17873 51.1703 9.52572 50.705 9.47144C50.3353 9.4283 50.0179 9.40674 49.753 9.40674C49.2539 9.40674 48.804 9.52073 48.4035 9.74872C48.0092 9.97055 47.698 10.2848 47.47 10.6915C47.242 11.092 47.128 11.5634 47.128 12.1057V16.9489C47.128 18.3578 45.9859 19.4999 44.577 19.4999Z"
+                fill="var(--accent)"
+              />
+              <path
+                d="M55.5655 19.7218C54.6596 19.7218 53.8586 19.5739 53.1623 19.2781C52.4722 18.9762 51.9299 18.5202 51.5356 17.9102C51.1412 17.3001 50.944 16.5237 50.944 15.581C50.944 14.8046 51.0765 14.1422 51.3415 13.5938C51.6064 13.0392 51.9761 12.5863 52.4506 12.2351C52.9251 11.8838 53.4766 11.6158 54.1051 11.4309C54.7398 11.2461 55.4237 11.1259 56.157 11.0705C56.9519 11.0088 57.5896 10.9349 58.0703 10.8486C58.5571 10.7562 58.9083 10.6299 59.124 10.4697C59.3396 10.3033 59.4475 10.0845 59.4475 9.81342V9.77645C59.4475 9.40674 59.3057 9.12329 59.0223 8.92611C58.7388 8.72893 58.3753 8.63033 57.9316 8.63033C57.4448 8.63033 57.0474 8.73817 56.7393 8.95384C56.1987 9.32892 55.7047 9.92434 55.0467 9.92434H54.0504C52.6715 9.92434 51.5541 8.68551 52.3212 7.53968C52.8142 6.80641 53.532 6.22103 54.4748 5.78353C55.4176 5.33988 56.5945 5.11805 58.0056 5.11805C59.0223 5.11805 59.9342 5.2382 60.7415 5.47852C61.5487 5.71267 62.2357 6.04233 62.8026 6.4675C63.3695 6.88651 63.8008 7.37947 64.0966 7.94636C64.3985 8.5071 64.5495 9.11713 64.5495 9.77645V17.1153C64.5495 18.4323 63.4819 19.4999 62.1649 19.4999H60.7784C60.2271 19.4999 59.7802 19.053 59.7802 18.5017V17.5728C59.7802 17.5345 59.7491 17.5035 59.7108 17.5035C59.6853 17.5035 59.6618 17.5176 59.6495 17.5401C59.3698 18.0532 59.0314 18.4692 58.6341 18.7882C58.2336 19.1148 57.7745 19.3521 57.2569 19.4999C56.7455 19.6478 56.1816 19.7218 55.5655 19.7218ZM57.2292 16.5053C57.6174 16.5053 57.9809 16.4252 58.3198 16.2649C58.6649 16.1047 58.9453 15.8737 59.1609 15.5717C59.3766 15.2698 59.4844 14.9032 59.4844 14.4718V13.7508C59.4844 13.5303 59.26 13.3787 59.05 13.4459C58.9021 13.4952 58.7419 13.5414 58.5694 13.5845C58.403 13.6276 58.2243 13.6677 58.0333 13.7047C57.8484 13.7416 57.6543 13.7755 57.451 13.8063C57.0566 13.868 56.7331 13.9696 56.4805 14.1114C56.234 14.2469 56.0492 14.4164 55.9259 14.6197C55.8088 14.8169 55.7503 15.0387 55.7503 15.2852C55.7503 15.6796 55.889 15.9815 56.1662 16.191C56.4435 16.4005 56.7978 16.5053 57.2292 16.5053Z"
+                fill="var(--accent)"
+              />
+              <path
+                d="M70.8026 19.4999C69.426 19.4999 68.226 18.5631 67.8922 17.2275L65.662 8.30702C65.2805 6.78108 66.4347 5.3029 68.0076 5.3029C69.1706 5.3029 70.1688 6.1309 70.3837 7.27385L71.6295 13.8992C71.6355 13.9311 71.6634 13.9542 71.6958 13.9542C71.7278 13.9542 71.7554 13.9318 71.762 13.9005L73.0629 7.68804C73.3539 6.2983 74.5793 5.3029 75.9992 5.3029H76.1044C77.513 5.3029 78.732 6.28299 79.0344 7.6588L80.3904 13.8271C80.3972 13.8582 80.4247 13.8803 80.4564 13.8803C80.4892 13.8803 80.5172 13.8569 80.523 13.8247L81.707 7.28457C81.9147 6.13723 82.9136 5.3029 84.0796 5.3029C85.6483 5.3029 86.7993 6.77708 86.4188 8.29889L84.1867 17.2275C83.8528 18.5631 82.6528 19.4999 81.2762 19.4999H80.4248C79.0609 19.4999 77.8687 18.58 77.5228 17.2606L76.1321 11.9553C76.1211 11.9132 76.083 11.8838 76.0394 11.8838C75.9958 11.8838 75.9578 11.9132 75.9467 11.9553L74.556 17.2606C74.2102 18.58 73.0179 19.4999 71.6541 19.4999H70.8026Z"
+                fill="var(--accent)"
+              />
+              <path
+                d="M94.2651 19.7587C92.7246 19.7587 91.4059 19.4537 90.3091 18.8437C89.2123 18.2275 88.3712 17.371 87.7858 16.2742C87.2004 15.1712 86.9077 13.8926 86.9077 12.4384C86.9077 10.9842 87.2004 9.70867 87.7858 8.61185C88.3712 7.50887 89.2123 6.65236 90.3091 6.04233C91.4059 5.42614 92.7246 5.11805 94.2651 5.11805C95.8055 5.11805 97.1242 5.42614 98.221 6.04233C99.3178 6.65236 100.159 7.50887 100.744 8.61185C101.33 9.70867 101.622 10.9842 101.622 12.4384C101.622 13.8926 101.33 15.1712 100.744 16.2742C100.159 17.371 99.3178 18.2275 98.221 18.8437C97.1242 19.4537 95.8055 19.7587 94.2651 19.7587ZM94.302 15.9877C94.7334 15.9877 95.1062 15.8429 95.4204 15.5532C95.7347 15.2636 95.9781 14.8508 96.1506 14.3147C96.3231 13.7786 96.4094 13.1409 96.4094 12.4014C96.4094 11.6558 96.3231 11.0181 96.1506 10.4882C95.9781 9.95206 95.7347 9.53922 95.4204 9.24961C95.1062 8.96 94.7334 8.81519 94.302 8.81519C93.846 8.81519 93.4548 8.96 93.1282 9.24961C92.8016 9.53922 92.552 9.95206 92.3795 10.4882C92.207 11.0181 92.1207 11.6558 92.1207 12.4014C92.1207 13.1409 92.207 13.7786 92.3795 14.3147C92.552 14.8508 92.8016 15.2636 93.1282 15.5532C93.4548 15.8429 93.846 15.9877 94.302 15.9877Z"
+                fill="var(--accent)"
+              />
+            </g>
+          </svg>
+          <p style={{ fontFamily: "Shantell Sans", fontSize: "24px" }}>
+            {/* placeholder asthetick here */}
+            The modern whiteboard editing tool.
+          </p>
+        </div>
+      )}
 
       {editingText && (
         <input

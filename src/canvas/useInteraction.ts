@@ -58,6 +58,13 @@ interface ResizeState {
         height: number;
       }
     | {
+        type: "circle";
+        x: number;
+        y: number;
+        width: number;
+        height: number;
+      }
+    | {
         type: "text";
         x: number;
         y: number;
@@ -195,7 +202,7 @@ const getSelectedIds = (scene: Scene): string[] => {
 };
 
 const getElementBounds = (element: SceneElement): Bounds => {
-  if (element.type === "rectangle") {
+  if (element.type === "rectangle" || element.type === "circle") {
     return {
       x: element.x,
       y: element.y,
@@ -343,7 +350,10 @@ export const useInteraction = ({
         const dx = x - resizeState.startPointerX;
         const dy = y - resizeState.startPointerY;
 
-        if (resizeState.startElement.type === "rectangle") {
+        if (
+          resizeState.startElement.type === "rectangle" ||
+          resizeState.startElement.type === "circle"
+        ) {
           const startBounds = {
             x: resizeState.startElement.x,
             y: resizeState.startElement.y,
@@ -552,15 +562,19 @@ export const useInteraction = ({
                 nextGroupBounds.y +
                 (startElement.y - startBounds.y) * heightRatio;
               const nextWidth = Math.max(
-                startElement.type === "rectangle" ? MIN_ELEMENT_SIZE : 16,
+                startElement.type === "rectangle" || startElement.type === "circle"
+                  ? MIN_ELEMENT_SIZE
+                  : 16,
                 startElement.width * widthRatio,
               );
               const nextHeight = Math.max(
-                startElement.type === "rectangle" ? MIN_ELEMENT_SIZE : 10,
+                startElement.type === "rectangle" || startElement.type === "circle"
+                  ? MIN_ELEMENT_SIZE
+                  : 10,
                 startElement.height * heightRatio,
               );
 
-              if (element.type === "rectangle") {
+              if (element.type === "rectangle" || element.type === "circle") {
                 return {
                   ...element,
                   x: currentScene.settings.snapToGrid
@@ -714,14 +728,14 @@ export const useInteraction = ({
       groupResizeStateRef.current = null;
       beginInteractionHistory();
 
-      if (element.type === "rectangle") {
+      if (element.type === "rectangle" || element.type === "circle") {
         resizeStateRef.current = {
           id,
           handle,
           startPointerX: pointerX,
           startPointerY: pointerY,
           startElement: {
-            type: "rectangle",
+            type: element.type,
             x: element.x,
             y: element.y,
             width: element.width,
@@ -764,7 +778,7 @@ export const useInteraction = ({
         .map((element): GroupResizeElementState => {
           const bounds = getElementBounds(element);
 
-          if (element.type === "rectangle") {
+          if (element.type === "rectangle" || element.type === "circle") {
             return {
               id: element.id,
               type: element.type,

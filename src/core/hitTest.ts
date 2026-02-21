@@ -1,4 +1,9 @@
-import { hitTestRectangle, hitTestText, type SceneElement } from "./elements";
+import {
+  hitTestCircle,
+  hitTestRectangle,
+  hitTestText,
+  type SceneElement,
+} from "./elements";
 
 export const hitTestElement = (
   element: SceneElement,
@@ -7,6 +12,10 @@ export const hitTestElement = (
 ): boolean => {
   if (element.type === "rectangle") {
     return hitTestRectangle(element, pointX, pointY);
+  }
+
+  if (element.type === "circle") {
+    return hitTestCircle(element, pointX, pointY);
   }
 
   return hitTestText(element, pointX, pointY);

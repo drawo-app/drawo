@@ -7,7 +7,17 @@ html {
     overflow: hidden;
     overscroll-behavior: none;
 }
+* {
+    --accent: #7c5cff;
+    --accent-rgb: 124, 92, 255;
+    --text-rgb: 0, 0, 0;
+}
 
+.app-root--dark * {
+    --accent: #b19eff !important;
+    --accent-rgb: 177, 158, 255 !important;
+    --text-rgb: 255, 255, 255;
+}
 #root {
     width: 100%;
     height: 100%;
@@ -27,9 +37,10 @@ html {
     color: #f3f4f6;
 }
 
-.toolbar {
+.settings-bar {
     position: absolute;
     top: 12px;
+
     left: 12px;
     z-index: 10;
     display: flex;
@@ -41,7 +52,7 @@ html {
     border-radius: 8px;
 }
 
-.app-root--dark .toolbar {
+.app-root--dark .settings-bar {
     background: rgba(20, 20, 20, 0.92);
     border-color: #424242;
 }
@@ -58,61 +69,110 @@ html {
     color: #f3f4f6;
 }
 
-.insert-bar {
+.selection-toolbar .bar-text {
+    margin: 0;
+    padding: 8px 8px;
+}
+.tool-bar {
     position: absolute;
     left: 50%;
     bottom: 16px;
     transform: translateX(-50%);
     z-index: 10;
     display: flex;
-    gap: 10px;
+    corner-shape: squircle;
+    gap: 1px;
     align-items: center;
-    padding: 8px 10px;
+    cursor:
+        url("/cursors/default.svg") 12 12,
+        auto;
+    padding: 8px 9px;
     background: rgba(255, 255, 255, 0.94);
-    border: 1px solid #d9d9d9;
-    border-radius: 10px;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+    border-radius: 30px;
 }
 
-.app-root--dark .insert-bar {
-    background: rgba(20, 20, 20, 0.94);
-    border-color: #424242;
+.app-root--dark .tool-bar {
+    background: #1e1e1e;
 }
 
+.insert-item:hover,
+.tool-item:hover {
+    background: rgba(var(--text-rgb), 0.1) !important;
+}
+.insert-item:active {
+    cursor:
+        url("/cursors/grabbing.svg") 12 12,
+        auto;
+}
 .insert-item {
-    border: 1px solid #cfcfcf;
-    border-radius: 8px;
-    background: #ffffff;
-    color: #2f3b52;
+    cursor:
+        url("/cursors/grab.svg") 12 12,
+        auto;
+}
+.tool-item {
+    cursor:
+        url("/cursors/pointer.svg") 12 12,
+        auto;
+}
+.insert-item,
+.tool-item {
+    border: none;
+    border-radius: 22px;
+    background: transparent;
+    corner-shape: squircle;
+    color: black;
+    transition: 0.1s;
     font:
         500 13px Inter,
         sans-serif;
-    padding: 7px 12px;
-    cursor: grab;
+    padding: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.tool-separator {
+    width: 1px;
+    opacity: 0.3;
+    margin: 0 4px;
+    border-left: 1px solid currentColor;
+    height: 20px;
+}
+.insert-item svg,
+.tool-item svg {
+    width: 20px;
+    height: 20px;
+}
+.insert-item.active,
+.tool-item.active {
+    background: var(--accent) !important;
+    color: white !important;
+}
+.app-root--dark .insert-item.active,
+.app-root--dark .tool-item.active {
+    background: rgba(var(--accent-rgb), 0.5) !important;
 }
 
-.app-root--dark .insert-item {
-    border-color: #5a5a5a;
-    background: #1f1f1f;
+.app-root--dark .insert-item,
+.app-root--dark .tool-item {
+    background: transparent;
     color: #e5e7eb;
-}
-
-.insert-item:active {
-    cursor: grabbing;
 }
 
 .selection-toolbar {
     position: absolute;
     z-index: 20;
-    transform: translateX(-50%);
-    padding: 5px 7px;
-    border-radius: 12px;
+    transform: translateX(-50%) translateY(-8px);
+    padding: 5px 5px;
+    border-radius: 24px;
     color: white;
+    corner-shape: squircle;
     background: #1e1e1e;
     font:
         600 13px Inter,
         sans-serif;
     letter-spacing: 0.02em;
-    box-shadow: 0 8px 20px rgba(74, 58, 161, 0.3);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
     pointer-events: auto;
     animation: selection-toolbar-in 180ms ease-out;
 }
@@ -128,7 +188,8 @@ html {
     align-items: center;
     justify-content: space-between;
     padding: 0 10px;
-    border-radius: 8px;
+    border-radius: 24px;
+    corner-shape: squircle;
     border: none;
     background: transparent;
     color: #f3f4f6;
@@ -140,7 +201,7 @@ html {
 }
 
 .selection-toolbar .select-trigger:hover {
-    background: #303030;
+    background: rgba(255, 255, 255, 0.05);
 }
 
 .selection-toolbar .select-trigger-icon {
@@ -153,9 +214,17 @@ html {
 
 .select-content {
     z-index: 40;
-    overflow: hidden;
+    overflow-x: hidden;
+    overflow-y: auto;
+    corner-shape: squircle;
     min-width: 120px;
-    border-radius: 10px;
+    position: relative !important;
+    transition: 0.1s;
+    border-radius: 20px;
+    top: 0px !important;
+    transform: translateY(0px) !important;
+    max-height: var(--radix-select-content-available-height);
+    transform-origin: var(--radix-select-content-transform-origin);
     background: #232323;
     color: #f3f4f6;
     box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35);
@@ -163,17 +232,20 @@ html {
 
 .select-viewport {
     padding: 6px;
+    height: var(--radix-select-trigger-height);
 }
 
 .select-item {
     position: relative;
     display: flex;
+    corner-shape: squircle;
     align-items: center;
-    padding: 10px 12px;
-    border-radius: 7px;
+    padding: 8px 19px;
+    border-radius: 12px;
     font:
         500 13px Inter,
         sans-serif;
+    transition: 0.1s;
     user-select: none;
     cursor: pointer;
     outline: none;
@@ -182,11 +254,17 @@ html {
 .select-item[data-highlighted] {
     background: #313131;
 }
+.select-item:active {
+    scale: 0.98;
+}
 
+.select-item-indicator > span {
+    display: flex;
+}
 .select-item-indicator {
     position: absolute;
-    right: 8px;
-    display: inline-flex;
+    right: 10px;
+    display: flex;
     align-items: center;
     justify-content: center;
     width: 14px;
@@ -210,11 +288,11 @@ html {
 @keyframes selection-toolbar-in {
     from {
         opacity: 0;
-        transform: translateX(-50%) translateY(6px) scale(0.96);
+        transform: translateX(-50%) translateY(0px) scale(0.96);
     }
 
     to {
         opacity: 1;
-        transform: translateX(-50%) translateY(0) scale(1);
+        transform: translateX(-50%) translateY(-8px) scale(1);
     }
 }

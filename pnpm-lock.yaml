@@ -14,6 +14,9 @@ importers:
       '@gravity-ui/icons':
         specifier: ^2.17.0
         version: 2.17.0(react@19.2.4)
+      '@solar-icons/react':
+        specifier: ^1.1.0
+        version: 1.1.0(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       lucide-react:
         specifier: ^0.575.0
         version: 0.575.0(react@19.2.4)
@@ -1021,6 +1024,13 @@ packages:
 
   '@rolldown/pluginutils@1.0.0-rc.4':
     resolution: {integrity: sha512-1BrrmTu0TWfOP1riA8uakjFc9bpIUGzVKETsOtzY39pPga8zELGDl8eu1Dx7/gjM5CAz14UknsUMpBO8L+YntQ==}
+
+  '@solar-icons/react@1.1.0':
+    resolution: {integrity: sha512-3DGDrolCV3ToaAqGHHHqambhveaTlAGv0h84bQTSUne6UbxJ95G3TiHW39w/43q1F53QylPwfS29Xa4Khy2p1w==}
+    engines: {node: '>=16'}
+    peerDependencies:
+      react: '>= 16.8'
+      react-dom: '>= 16.8'
 
   '@swc/core-darwin-arm64@1.15.11':
     resolution: {integrity: sha512-QoIupRWVH8AF1TgxYyeA5nS18dtqMuxNwchjBIwJo3RdwLEFiJq6onOx9JAxHtuPwUkIVuU2Xbp+jCJ7Vzmgtg==}
@@ -2873,6 +2883,11 @@ snapshots:
   '@rolldown/pluginutils@1.0.0-rc.2': {}
 
   '@rolldown/pluginutils@1.0.0-rc.4': {}
+
+  '@solar-icons/react@1.1.0(react-dom@19.2.4(react@19.2.4))(react@19.2.4)':
+    dependencies:
+      react: 19.2.4
+      react-dom: 19.2.4(react@19.2.4)
 
   '@swc/core-darwin-arm64@1.15.11':
     optional: true

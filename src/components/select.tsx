@@ -2,8 +2,7 @@
 
 import * as React from "react";
 import { Select as SelectPrimitive } from "radix-ui";
-
-import { ChevronDownIcon, CheckIcon, ChevronUpIcon } from "lucide-react";
+import { Check, ChevronDownWide, ChevronUpWide } from "@gravity-ui/icons";
 
 function Select({
   ...props
@@ -47,7 +46,7 @@ function SelectTrigger({
     >
       {children}
       <SelectPrimitive.Icon asChild>
-        <ChevronDownIcon className="select-trigger-icon" />
+        <ChevronDownWide className="select-trigger-icon" />
       </SelectPrimitive.Icon>
     </SelectPrimitive.Trigger>
   );
@@ -109,7 +108,7 @@ function SelectItem({
     >
       <span className="select-item-indicator">
         <SelectPrimitive.ItemIndicator>
-          <CheckIcon className="select-item-check" />
+          <Check className="select-item-check" />
         </SelectPrimitive.ItemIndicator>
       </span>
       <SelectPrimitive.ItemText>{children}</SelectPrimitive.ItemText>
@@ -140,7 +139,7 @@ function SelectScrollUpButton({
       className={`select-scroll-button ${className ?? ""}`.trim()}
       {...props}
     >
-      <ChevronUpIcon />
+      <ChevronUpWide />
     </SelectPrimitive.ScrollUpButton>
   );
 }
@@ -155,7 +154,7 @@ function SelectScrollDownButton({
       className={`select-scroll-button ${className ?? ""}`.trim()}
       {...props}
     >
-      <ChevronDownIcon />
+      <ChevronDownWide />
     </SelectPrimitive.ScrollDownButton>
   );
 }

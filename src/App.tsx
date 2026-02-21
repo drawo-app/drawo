@@ -3,6 +3,7 @@ import {
   useCallback,
   useEffect,
   useReducer,
+  useState,
   type Dispatch,
   type SetStateAction,
 } from "react";
@@ -19,6 +20,9 @@ import type { SceneElement } from "./core/elements";
 import { useInteraction } from "./canvas/useInteraction";
 import { CanvasView } from "./canvas/CanvasView";
 import "./App.css";
+import { MapArrowUp, Text } from "@solar-icons/react";
+import { GrabHandBold, GrabHandLinear, SquareLinear } from "./components/icons";
+import { Circle } from "lucide-react";
 
 const SETTINGS_STORAGE_KEY = "settings";
 const MAX_HISTORY_ENTRIES = 200;
@@ -153,6 +157,9 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
 };
 
 export default function App() {
+  const [interactionMode, setInteractionMode] = useState<"select" | "pan">(
+    "select",
+  );
   const [state, dispatch] = useReducer(
     appReducer,
     undefined,
@@ -256,6 +263,31 @@ export default function App() {
         return;
       }
 
+      if (hasShortcutModifier && !event.altKey && key === "x") {
+        const selectedIds =
+          scene.selectedIds.length > 0
+            ? scene.selectedIds
+            : scene.selectedId
+              ? [scene.selectedId]
+              : [];
+
+        if (selectedIds.length === 0) {
+          return;
+        }
+
+        event.preventDefault();
+        clipboardRef.current = scene.elements
+          .filter((element) => selectedIds.includes(element.id))
+          .map((element) => ({ ...element }));
+        pasteOffsetRef.current = 0;
+
+        dispatch({
+          type: "setScene",
+          updater: (currentScene) => removeSelectedElement(currentScene),
+        });
+        return;
+      }
+
       if (hasShortcutModifier && !event.altKey && key === "v") {
         const clipboardElements = clipboardRef.current;
         if (!clipboardElements || clipboardElements.length === 0) {
@@ -341,7 +373,7 @@ export default function App() {
 
   return (
     <div className={`app-root${isDarkMode ? " app-root--dark" : ""}`}>
-      <div className="toolbar">
+      <div className="settings-bar">
         <label className="switch-row">
           <input
             type="checkbox"
@@ -390,6 +422,7 @@ export default function App() {
 
       <CanvasView
         scene={scene}
+        interactionMode={interactionMode}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
@@ -404,23 +437,51 @@ export default function App() {
         onTextFontFamilyChange={handleTextFontFamilyChange}
       />
 
-      <div className="insert-bar">
+      <div className="tool-bar">
         <button
           type="button"
-          draggable
-          className="insert-item"
-          onDragStart={(event) => handlePaletteDragStart(event, "rectangle")}
+          className={`tool-item${interactionMode === "select" ? " active" : ""}`}
+          onClick={() => setInteractionMode("select")}
         >
-          Rectangle
+          <MapArrowUp
+            weight={interactionMode === "select" ? "Bold" : "Linear"}
+            style={{
+              transform: "translateY(-2px) translateX(-3px) rotate(-46deg)",
+            }}
+            strokeWidth={0.1}
+          />
         </button>
-
+        <button
+          type="button"
+          className={`tool-item${interactionMode === "pan" ? " active" : ""}`}
+          onClick={() => setInteractionMode("pan")}
+        >
+          {interactionMode === "pan" ? <GrabHandBold /> : <GrabHandLinear />}
+        </button>
+        <div className="tool-separator" />
         <button
           type="button"
           draggable
           className="insert-item"
           onDragStart={(event) => handlePaletteDragStart(event, "text")}
         >
-          Text
+          <Text strokeWidth={0.1} />
+        </button>
+        <button
+          type="button"
+          draggable
+          className="insert-item"
+          onDragStart={(event) => handlePaletteDragStart(event, "rectangle")}
+        >
+          <SquareLinear />
+        </button>
+        <button
+          type="button"
+          draggable
+          className="insert-item"
+          onDragStart={(event) => handlePaletteDragStart(event, "circle")}
+        >
+          <Circle strokeWidth={1.5} />
         </button>
       </div>
     </div>

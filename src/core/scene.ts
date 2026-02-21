@@ -21,7 +21,7 @@ export interface Scene {
   settings: SceneSettings;
 }
 
-export type NewElementType = "rectangle" | "text";
+export type NewElementType = "rectangle" | "circle" | "text";
 
 export const initScene = (): Scene => ({
   elements: [
@@ -34,7 +34,7 @@ export const initScene = (): Scene => ({
       text: "Hello Drawo",
       fontFamily: "Inter, sans-serif",
       fontSize: 28,
-      fontWeight: "600",
+      fontWeight: "200",
       fontStyle: "normal",
       color: "#2f3b52",
       textAlign: "left",
@@ -179,7 +179,10 @@ export const updateRectangleElementBounds = (
 ): Scene => ({
   ...scene,
   elements: scene.elements.map((element) => {
-    if (element.id !== id || element.type !== "rectangle") {
+    if (
+      element.id !== id ||
+      (element.type !== "rectangle" && element.type !== "circle")
+    ) {
       return element;
     }
 
@@ -274,34 +277,50 @@ export const addElementToScene = (
   x: number,
   y: number,
 ): Scene => {
-  const newElement =
-    type === "rectangle"
-      ? {
-          id: createElementId("rectangle"),
-          type: "rectangle" as const,
-          rotation: 0,
-          x: x - 80,
-          y: y - 50,
-          width: 100,
-          height: 100,
-          fill: "#f5f5f5",
-          stroke: "#cccccc",
-          strokeWidth: 1,
-        }
-      : {
-          id: createElementId("text"),
-          type: "text" as const,
-          rotation: 0,
-          x,
-          y: y + 20,
-          text: "New text",
-          fontFamily: "Shantell Sans, sans-serif",
-          fontSize: 24,
-          fontWeight: "200",
-          fontStyle: "normal" as const,
-          color: "#2f3b52",
-          textAlign: "left" as const,
-        };
+  let newElement: SceneElement;
+
+  if (type === "rectangle") {
+    newElement = {
+      id: createElementId("rectangle"),
+      type: "rectangle",
+      rotation: 0,
+      x: x - 80,
+      y: y - 50,
+      width: 100,
+      height: 100,
+      fill: "#f5f5f5",
+      stroke: "#cccccc",
+      strokeWidth: 1,
+    };
+  } else if (type === "circle") {
+    newElement = {
+      id: createElementId("circle"),
+      type: "circle",
+      rotation: 0,
+      x: x - 50,
+      y: y - 50,
+      width: 100,
+      height: 100,
+      fill: "#f5f5f5",
+      stroke: "#cccccc",
+      strokeWidth: 1,
+    };
+  } else {
+    newElement = {
+      id: createElementId("text"),
+      type: "text",
+      rotation: 0,
+      x,
+      y: y + 20,
+      text: "New text",
+      fontFamily: "Shantell Sans, sans-serif",
+      fontSize: 24,
+      fontWeight: "200",
+      fontStyle: "normal",
+      color: "#2f3b52",
+      textAlign: "left",
+    };
+  }
 
   return {
     ...scene,
