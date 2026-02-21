@@ -21,6 +21,13 @@ export interface Scene {
   settings: SceneSettings;
 }
 
+export interface ElementCreationBounds {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
 export type NewElementType = "rectangle" | "circle" | "text";
 
 export const initScene = (): Scene => ({
@@ -223,45 +230,69 @@ export const addElementToScene = (
   type: NewElementType,
   x: number,
   y: number,
+  bounds?: ElementCreationBounds,
 ): Scene => {
+  const normalizedBounds = bounds
+    ? {
+        x: Math.min(bounds.x, bounds.x + bounds.width),
+        y: Math.min(bounds.y, bounds.y + bounds.height),
+        width: Math.max(1, Math.abs(bounds.width)),
+        height: Math.max(1, Math.abs(bounds.height)),
+      }
+    : null;
+
   let newElement: SceneElement;
 
   if (type === "rectangle") {
+    const width = normalizedBounds ? Math.max(20, normalizedBounds.width) : 100;
+    const height = normalizedBounds
+      ? Math.max(20, normalizedBounds.height)
+      : 100;
+
     newElement = {
       id: createElementId("rectangle"),
       type: "rectangle",
       rotation: 0,
-      x: x - 80,
-      y: y - 50,
-      width: 100,
-      height: 100,
+      x: normalizedBounds ? normalizedBounds.x : x - 80,
+      y: normalizedBounds ? normalizedBounds.y : y - 50,
+      width,
+      height,
       fill: "#f5f5f5",
       stroke: "#cccccc",
       strokeWidth: 1,
     };
   } else if (type === "circle") {
+    const width = normalizedBounds ? Math.max(20, normalizedBounds.width) : 100;
+    const height = normalizedBounds
+      ? Math.max(20, normalizedBounds.height)
+      : 100;
+
     newElement = {
       id: createElementId("circle"),
       type: "circle",
       rotation: 0,
-      x: x - 50,
-      y: y - 50,
-      width: 100,
-      height: 100,
+      x: normalizedBounds ? normalizedBounds.x : x - 50,
+      y: normalizedBounds ? normalizedBounds.y : y - 50,
+      width,
+      height,
       fill: "#f5f5f5",
       stroke: "#cccccc",
       strokeWidth: 1,
     };
   } else {
+    const fontSize = normalizedBounds
+      ? Math.max(10, Math.round(normalizedBounds.height))
+      : 24;
+
     newElement = {
       id: createElementId("text"),
       type: "text",
       rotation: 0,
-      x,
-      y: y + 20,
+      x: normalizedBounds ? normalizedBounds.x : x,
+      y: normalizedBounds ? normalizedBounds.y + fontSize : y + 20,
       text: "New text",
       fontFamily: "Shantell Sans, sans-serif",
-      fontSize: 24,
+      fontSize,
       fontWeight: "200",
       fontStyle: "normal",
       color: "#2f3b52",

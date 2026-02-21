@@ -1,5 +1,9 @@
 import { useRef, useEffect, useMemo, useState } from "react";
-import type { NewElementType, Scene } from "../core/scene";
+import type {
+  ElementCreationBounds,
+  NewElementType,
+  Scene,
+} from "../core/scene";
 import { estimateTextWidth, getTextFont } from "../core/elements";
 import { findHitElement } from "../core/hitTest";
 import type { TextElement } from "../core/elements";
@@ -18,6 +22,13 @@ import {
 } from "../components/icons";
 
 type ResizeHandle = "nw" | "ne" | "se" | "sw";
+interface DrawingSelection {
+  type: NewElementType;
+  startX: number;
+  startY: number;
+  currentX: number;
+  currentY: number;
+}
 
 interface ElementBounds {
   x: number;
@@ -29,6 +40,7 @@ interface ElementBounds {
 interface CanvasViewProps {
   scene: Scene;
   interactionMode: "select" | "pan";
+  drawingTool: NewElementType | null;
   onPointerDown: (
     x: number,
     y: number,
@@ -39,7 +51,13 @@ interface CanvasViewProps {
   onPointerUp: () => void;
   onWheelPan: (deltaX: number, deltaY: number) => void;
   onWheelZoom: (screenX: number, screenY: number, deltaY: number) => void;
-  onCreateElement: (type: NewElementType, x: number, y: number) => void;
+  onCreateElement: (
+    type: NewElementType,
+    x: number,
+    y: number,
+    bounds?: ElementCreationBounds,
+  ) => void;
+  onDrawingToolComplete: () => void;
   onSelectElements: (ids: string[]) => void;
   onTextFontFamilyChange: (ids: string[], fontFamily: string) => void;
   onGroupResizeStart: (
@@ -436,12 +454,14 @@ const findResizeHandle = (
 export const CanvasView = ({
   scene,
   interactionMode,
+  drawingTool,
   onPointerDown,
   onPointerMove,
   onPointerUp,
   onWheelPan,
   onWheelZoom,
   onCreateElement,
+  onDrawingToolComplete,
   onSelectElements,
   onTextFontFamilyChange,
   onGroupResizeStart,
@@ -466,6 +486,8 @@ export const CanvasView = ({
   const [isAltPressed, setIsAltPressed] = useState(false);
   const [marqueeSelection, setMarqueeSelection] =
     useState<MarqueeSelection | null>(null);
+  const [drawingSelection, setDrawingSelection] =
+    useState<DrawingSelection | null>(null);
   const lastPointerRef = useRef<{ x: number; y: number } | null>(null);
   const panStateRef = useRef<{ screenX: number; screenY: number } | null>(null);
   const selectedIds =
@@ -793,6 +815,10 @@ export const CanvasView = ({
     pointY: number,
     altKey: boolean,
   ): string => {
+    if (drawingTool) {
+      return "crosshair";
+    }
+
     if (interactionMode === "pan") {
       return "grab";
     }
@@ -1169,8 +1195,93 @@ export const CanvasView = ({
       ctx.stroke();
     }
 
+    if (drawingSelection) {
+      const drawingBounds = getMarqueeBounds(drawingSelection);
+
+      if (drawingSelection.type === "rectangle") {
+        ctx.fillStyle = toThemeColor("#f5f5f5");
+        ctx.fillRect(
+          drawingBounds.x,
+          drawingBounds.y,
+          drawingBounds.width,
+          drawingBounds.height,
+        );
+        ctx.strokeStyle = accentColor;
+        ctx.lineWidth = 1 / camera.zoom;
+        ctx.strokeRect(
+          drawingBounds.x,
+          drawingBounds.y,
+          drawingBounds.width,
+          drawingBounds.height,
+        );
+      } else if (drawingSelection.type === "circle") {
+        const centerX = drawingBounds.x + drawingBounds.width / 2;
+        const centerY = drawingBounds.y + drawingBounds.height / 2;
+
+        ctx.fillStyle = toThemeColor("#f5f5f5");
+        ctx.beginPath();
+        ctx.ellipse(
+          centerX,
+          centerY,
+          drawingBounds.width / 2,
+          drawingBounds.height / 2,
+          0,
+          0,
+          Math.PI * 2,
+        );
+        ctx.fill();
+
+        ctx.strokeStyle = accentColor;
+        ctx.lineWidth = 1 / camera.zoom;
+        ctx.beginPath();
+        ctx.ellipse(
+          centerX,
+          centerY,
+          drawingBounds.width / 2,
+          drawingBounds.height / 2,
+          0,
+          0,
+          Math.PI * 2,
+        );
+        ctx.stroke();
+      } else {
+        const fontSize = Math.max(10, Math.round(drawingBounds.height));
+        const previewTextElement: TextElement = {
+          id: "preview-text",
+          type: "text",
+          rotation: 0,
+          x: drawingBounds.x,
+          y: drawingBounds.y + fontSize,
+          text: "New text",
+          fontFamily: "Shantell Sans, sans-serif",
+          fontSize,
+          fontWeight: "200",
+          fontStyle: "normal",
+          color: "#2f3b52",
+          textAlign: "left",
+        };
+
+        ctx.font = getTextFont(previewTextElement);
+        ctx.fillStyle = toThemeColor(previewTextElement.color);
+        ctx.textAlign = "left";
+        ctx.textBaseline = "alphabetic";
+        ctx.fillText(
+          previewTextElement.text,
+          previewTextElement.x,
+          previewTextElement.y,
+        );
+      }
+    }
+
     ctx.restore();
-  }, [scene, editingText, canvasSize, camera, marqueeSelection]);
+  }, [
+    scene,
+    editingText,
+    canvasSize,
+    camera,
+    marqueeSelection,
+    drawingSelection,
+  ]);
 
   useEffect(() => {
     if (!editingText) {
@@ -1242,7 +1353,12 @@ export const CanvasView = ({
   }, []);
 
   useEffect(() => {
-    if (activeRotatingHandle || activeResizeHandle || isDraggingElement) {
+    if (
+      activeRotatingHandle ||
+      activeResizeHandle ||
+      isDraggingElement ||
+      drawingSelection
+    ) {
       return;
     }
 
@@ -1263,6 +1379,8 @@ export const CanvasView = ({
     scene.elements,
     selectedElementId,
     selectedIds,
+    drawingSelection,
+    drawingTool,
     interactionMode,
   ]);
 
@@ -1284,6 +1402,28 @@ export const CanvasView = ({
       setIsDraggingElement(false);
       setIsDuplicateDragging(false);
       setCanvasCursor("grabbing");
+      canvas.setPointerCapture(e.pointerId);
+      return;
+    }
+
+    if (drawingTool) {
+      if (editingText) {
+        commitEditingText();
+      }
+
+      setDrawingSelection({
+        type: drawingTool,
+        startX: pointer.x,
+        startY: pointer.y,
+        currentX: pointer.x,
+        currentY: pointer.y,
+      });
+      setCanvasCursor("crosshair");
+      setActiveRotatingHandle(null);
+      setActiveResizeHandle(null);
+      setMarqueeSelection(null);
+      setIsDraggingElement(false);
+      setIsDuplicateDragging(false);
       canvas.setPointerCapture(e.pointerId);
       return;
     }
@@ -1465,6 +1605,25 @@ export const CanvasView = ({
       return;
     }
 
+    if (drawingTool) {
+      if (drawingSelection) {
+        setDrawingSelection((current) => {
+          if (!current) {
+            return current;
+          }
+
+          return {
+            ...current,
+            currentX: pointer.x,
+            currentY: pointer.y,
+          };
+        });
+      }
+
+      setCanvasCursor("crosshair");
+      return;
+    }
+
     if (marqueeSelection) {
       setMarqueeSelection((current) => {
         if (!current) {
@@ -1510,6 +1669,23 @@ export const CanvasView = ({
     if (interactionMode === "pan") {
       panStateRef.current = null;
       setCanvasCursor("grab");
+      return;
+    }
+
+    if (drawingTool) {
+      if (drawingSelection) {
+        const drawingBounds = getMarqueeBounds(drawingSelection);
+        onCreateElement(
+          drawingSelection.type,
+          drawingBounds.x,
+          drawingBounds.y,
+          drawingBounds,
+        );
+        setDrawingSelection(null);
+        onDrawingToolComplete();
+      }
+
+      setCanvasCursor("crosshair");
       return;
     }
 
@@ -1563,6 +1739,11 @@ export const CanvasView = ({
       return;
     }
 
+    if (drawingTool) {
+      setCanvasCursor("crosshair");
+      return;
+    }
+
     if (marqueeSelection) {
       setCanvasCursor("default");
       return;
@@ -1587,7 +1768,7 @@ export const CanvasView = ({
   };
 
   const handleDoubleClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (interactionMode === "pan") {
+    if (interactionMode === "pan" || drawingTool) {
       return;
     }
 
@@ -1681,40 +1862,6 @@ export const CanvasView = ({
     }
   };
 
-  const handleDragOver = (event: React.DragEvent<HTMLCanvasElement>) => {
-    if (
-      event.dataTransfer.types.includes("application/x-drawo-element") ||
-      event.dataTransfer.types.includes("text/plain")
-    ) {
-      event.preventDefault();
-      event.dataTransfer.dropEffect = "copy";
-    }
-  };
-
-  const handleDrop = (event: React.DragEvent<HTMLCanvasElement>) => {
-    const rawType =
-      event.dataTransfer.getData("application/x-drawo-element") ||
-      event.dataTransfer.getData("text/plain");
-
-    if (rawType !== "rectangle" && rawType !== "circle" && rawType !== "text") {
-      return;
-    }
-
-    event.preventDefault();
-
-    const canvas = canvasRef.current;
-    if (!canvas) {
-      return;
-    }
-
-    const rect = canvas.getBoundingClientRect();
-    const screenX = event.clientX - rect.left;
-    const screenY = event.clientY - rect.top;
-    const worldPoint = screenToWorld(screenX, screenY);
-
-    onCreateElement(rawType, worldPoint.x, worldPoint.y);
-  };
-
   const uniColor = (color: string) =>
     isDarkMode ? invertLightnessPreservingHue(color) : color;
 
@@ -1736,8 +1883,6 @@ export const CanvasView = ({
         onPointerCancel={handlePointerUp}
         onPointerLeave={handlePointerLeave}
         onDoubleClick={handleDoubleClick}
-        onDragOver={handleDragOver}
-        onDrop={handleDrop}
         style={{
           display: "block",
           cursor:

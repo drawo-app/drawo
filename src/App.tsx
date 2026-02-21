@@ -160,6 +160,7 @@ export default function App() {
   const [interactionMode, setInteractionMode] = useState<"select" | "pan">(
     "select",
   );
+  const [drawingTool, setDrawingTool] = useState<NewElementType | null>(null);
   const [state, dispatch] = useReducer(
     appReducer,
     undefined,
@@ -323,6 +324,43 @@ export default function App() {
         return;
       }
 
+      if (!hasShortcutModifier && !event.altKey) {
+        if (key === "v") {
+          event.preventDefault();
+          setInteractionMode("select");
+          setDrawingTool(null);
+          return;
+        }
+
+        if (key === "h") {
+          event.preventDefault();
+          setInteractionMode("pan");
+          setDrawingTool(null);
+          return;
+        }
+
+        if (event.code === "Digit1") {
+          event.preventDefault();
+          setInteractionMode("select");
+          setDrawingTool("text");
+          return;
+        }
+
+        if (event.code === "Digit2") {
+          event.preventDefault();
+          setInteractionMode("select");
+          setDrawingTool("rectangle");
+          return;
+        }
+
+        if (event.code === "Digit3") {
+          event.preventDefault();
+          setInteractionMode("select");
+          setDrawingTool("circle");
+          return;
+        }
+      }
+
       if (event.key === "Backspace" || event.key === "Delete") {
         if (!scene.selectedId && scene.selectedIds.length === 0) {
           return;
@@ -362,14 +400,6 @@ export default function App() {
     setSceneWithoutHistory,
     commitInteractionHistory,
   });
-
-  const handlePaletteDragStart = (
-    event: React.DragEvent<HTMLButtonElement>,
-    type: NewElementType,
-  ) => {
-    event.dataTransfer.setData("application/x-drawo-element", type);
-    event.dataTransfer.effectAllowed = "copy";
-  };
 
   return (
     <div className={`app-root${isDarkMode ? " app-root--dark" : ""}`}>
@@ -423,6 +453,7 @@ export default function App() {
       <CanvasView
         scene={scene}
         interactionMode={interactionMode}
+        drawingTool={drawingTool}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
@@ -432,6 +463,7 @@ export default function App() {
         onWheelPan={handleWheelPan}
         onWheelZoom={handleWheelZoom}
         onCreateElement={handleCreateElement}
+        onDrawingToolComplete={() => setDrawingTool(null)}
         onSelectElements={handleSelectElements}
         onGroupResizeStart={handleGroupResizeStart}
         onTextFontFamilyChange={handleTextFontFamilyChange}
@@ -440,11 +472,16 @@ export default function App() {
       <div className="tool-bar">
         <button
           type="button"
-          className={`tool-item${interactionMode === "select" ? " active" : ""}`}
-          onClick={() => setInteractionMode("select")}
+          className={`tool-item${interactionMode === "select" && !drawingTool ? " active" : ""}`}
+          onClick={() => {
+            setInteractionMode("select");
+            setDrawingTool(null);
+          }}
         >
           <MapArrowUp
-            weight={interactionMode === "select" ? "Bold" : "Linear"}
+            weight={
+              interactionMode === "select" && !drawingTool ? "Bold" : "Linear"
+            }
             style={{
               transform: "translateY(-2px) translateX(-3px) rotate(-46deg)",
             }}
@@ -454,32 +491,41 @@ export default function App() {
         <button
           type="button"
           className={`tool-item${interactionMode === "pan" ? " active" : ""}`}
-          onClick={() => setInteractionMode("pan")}
+          onClick={() => {
+            setInteractionMode("pan");
+            setDrawingTool(null);
+          }}
         >
           {interactionMode === "pan" ? <GrabHandBold /> : <GrabHandLinear />}
         </button>
         <div className="tool-separator" />
         <button
           type="button"
-          draggable
-          className="insert-item"
-          onDragStart={(event) => handlePaletteDragStart(event, "text")}
+          className={`tool-item${drawingTool === "text" ? " active" : ""}`}
+          onClick={() => {
+            setInteractionMode("select");
+            setDrawingTool("text");
+          }}
         >
           <Text strokeWidth={0.1} />
         </button>
         <button
           type="button"
-          draggable
-          className="insert-item"
-          onDragStart={(event) => handlePaletteDragStart(event, "rectangle")}
+          className={`tool-item${drawingTool === "rectangle" ? " active" : ""}`}
+          onClick={() => {
+            setInteractionMode("select");
+            setDrawingTool("rectangle");
+          }}
         >
           <SquareLinear />
         </button>
         <button
           type="button"
-          draggable
-          className="insert-item"
-          onDragStart={(event) => handlePaletteDragStart(event, "circle")}
+          className={`tool-item${drawingTool === "circle" ? " active" : ""}`}
+          onClick={() => {
+            setInteractionMode("select");
+            setDrawingTool("circle");
+          }}
         >
           <Circle strokeWidth={1.5} />
         </button>

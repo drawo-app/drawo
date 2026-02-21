@@ -4,6 +4,7 @@ import { estimateTextWidth, getTextStartX } from "../core/elements";
 import { findHitElement } from "../core/hitTest";
 import {
   addElementToScene,
+  type ElementCreationBounds,
   type NewElementType,
   selectElement,
   selectElements,
@@ -881,7 +882,12 @@ export const useInteraction = ({
   );
 
   const handleCreateElement = useCallback(
-    (type: NewElementType, x: number, y: number) => {
+    (
+      type: NewElementType,
+      x: number,
+      y: number,
+      bounds?: ElementCreationBounds,
+    ) => {
       setScene((currentScene) => {
         const nextX = currentScene.settings.snapToGrid
           ? snapValue(x, currentScene.settings.gridSize)
@@ -890,7 +896,30 @@ export const useInteraction = ({
           ? snapValue(y, currentScene.settings.gridSize)
           : y;
 
-        return addElementToScene(currentScene, type, nextX, nextY);
+        const nextBounds = bounds
+          ? {
+              x: currentScene.settings.snapToGrid
+                ? snapValue(bounds.x, currentScene.settings.gridSize)
+                : bounds.x,
+              y: currentScene.settings.snapToGrid
+                ? snapValue(bounds.y, currentScene.settings.gridSize)
+                : bounds.y,
+              width: currentScene.settings.snapToGrid
+                ? Math.max(
+                    1,
+                    snapValue(bounds.width, currentScene.settings.gridSize),
+                  )
+                : bounds.width,
+              height: currentScene.settings.snapToGrid
+                ? Math.max(
+                    1,
+                    snapValue(bounds.height, currentScene.settings.gridSize),
+                  )
+                : bounds.height,
+            }
+          : undefined;
+
+        return addElementToScene(currentScene, type, nextX, nextY, nextBounds);
       });
     },
     [setScene],
