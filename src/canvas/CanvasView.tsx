@@ -49,6 +49,17 @@ interface DrawSelection {
   strokeWidth: number;
 }
 
+interface LaserTrailPoint {
+  x: number;
+  y: number;
+  t: number;
+}
+
+interface LaserTrail {
+  id: string;
+  points: LaserTrailPoint[];
+}
+
 interface ElementBounds {
   x: number;
   y: number;
@@ -59,7 +70,7 @@ interface ElementBounds {
 interface CanvasViewProps {
   scene: Scene;
   interactionMode: "select" | "pan";
-  drawingTool: NewElementType | null;
+  drawingTool: NewElementType | "laser" | null;
   onPointerDown: (
     x: number,
     y: number,
@@ -176,6 +187,9 @@ const HANDLE_ROTATE_RADIUS_PX = 20;
 const RADIUS_HANDLE_SIZE_PX = 12;
 const RADIUS_HANDLE_OFFSET_PX = 14;
 const DRAW_STROKE_OPTIONS = [1, 2, 4, 7, 12] as const;
+const LASER_LIFETIME_MS = 600;
+const LASER_BASE_WIDTH_PX = 11;
+const LASER_MIN_WIDTH_PX = 0.3;
 const DRAW_STROKE_SVGS = [
   <svg
     width="556"
@@ -566,6 +580,90 @@ const getVisibleStrokeWidth = (strokeWidth: number): number => {
   return safeStrokeWidth;
 };
 
+const getLaserWidthFactor = (ageMs: number): number => {
+  const normalized = clamp01(1 - ageMs / LASER_LIFETIME_MS);
+  // Very smooth curve to avoid harsh edges while fading out quickly
+  return Math.pow(normalized, 1.3);
+};
+
+// Catmull-Rom curve interpolation for smooth laser trails
+const drawCatmullRomCurve = (
+  ctx: CanvasRenderingContext2D,
+  points: Array<{ x: number; y: number; t: number }>,
+  laserNow: number,
+  camera: { zoom: number },
+) => {
+  if (points.length < 2) return;
+
+  ctx.lineJoin = "round";
+  ctx.lineCap = "round";
+  ctx.strokeStyle = "#ff1424";
+
+  const resolution = 5; // subdivisions between points for smooth curves
+
+  let firstPoint = true;
+
+  for (let i = 0; i < points.length - 1; i++) {
+    const p0 = points[i === 0 ? 0 : i - 1];
+    const p1 = points[i];
+    const p2 = points[i + 1];
+    const p3 = points[i + 2] || points[i + 1];
+
+    for (let t = 0; t <= 1; t += 1 / resolution) {
+      const t2 = t * t;
+      const t3 = t2 * t;
+
+      const v0 = (p2.x - p0.x) * 0.5;
+      const v1 = (p3.x - p1.x) * 0.5;
+      const x =
+        p1.x +
+        v0 * t +
+        (3 * (p2.x - p1.x) - 2 * v0 - v1) * t2 +
+        (2 * (p1.x - p2.x) + v0 + v1) * t3;
+
+      const v0y = (p2.y - p0.y) * 0.5;
+      const v1y = (p3.y - p1.y) * 0.5;
+      const y =
+        p1.y +
+        v0y * t +
+        (3 * (p2.y - p1.y) - 2 * v0y - v1y) * t2 +
+        (2 * (p1.y - p2.y) + v0y + v1y) * t3;
+
+      const pointT = p1.t + (p2.t - p1.t) * t;
+      const widthFactor = getLaserWidthFactor(laserNow - pointT);
+      const widthPx = Math.max(
+        LASER_MIN_WIDTH_PX,
+        LASER_BASE_WIDTH_PX * widthFactor,
+      );
+
+      if (widthPx > LASER_MIN_WIDTH_PX + 0.01) {
+        if (firstPoint) {
+          ctx.beginPath();
+          ctx.moveTo(x, y);
+          firstPoint = false;
+        } else {
+          ctx.lineWidth = widthPx / camera.zoom;
+          ctx.lineTo(x, y);
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.moveTo(x, y);
+        }
+      }
+    }
+  }
+};
+
+const pruneLaserTrails = (trails: LaserTrail[], now: number): LaserTrail[] => {
+  return trails
+    .map((trail) => ({
+      ...trail,
+      points: trail.points.filter(
+        (point) => now - point.t <= LASER_LIFETIME_MS,
+      ),
+    }))
+    .filter((trail) => trail.points.length > 0);
+};
+
 type CornerAction = {
   handle: ResizeHandle;
   mode: "resize" | "rotate";
@@ -666,6 +764,10 @@ export const CanvasView = ({
   const [drawSelection, setDrawSelection] = useState<DrawSelection | null>(
     null,
   );
+  const [laserTrails, setLaserTrails] = useState<LaserTrail[]>([]);
+  const [isLaserDrawing, setIsLaserDrawing] = useState(false);
+  const [laserNow, setLaserNow] = useState(() => performance.now());
+  const activeLaserTrailIdRef = useRef<string | null>(null);
   const [activeRadiusElementId, setActiveRadiusElementId] = useState<
     string | null
   >(null);
@@ -1193,10 +1295,10 @@ export const CanvasView = ({
             )}
           </SelectTrigger>
           <SelectContent position="popper">
-            <SelectItem value="Rubik">Simple</SelectItem>
-            <SelectItem value="Shantell Sans">A mano</SelectItem>
-            <SelectItem value="Alegreya">Elegante</SelectItem>
-            <SelectItem value="Cascadia Code">Técnico</SelectItem>
+            <SelectItem check={false} value="Rubik">Simple</SelectItem>
+            <SelectItem check={false} value="Shantell Sans">A mano</SelectItem>
+            <SelectItem check={false} value="Alegreya">Elegante</SelectItem>
+            <SelectItem check={false} value="Cascadia Code">Técnico</SelectItem>
           </SelectContent>
         </Select>
         <div className="selectionbar-separator" />
@@ -1211,12 +1313,12 @@ export const CanvasView = ({
         >
           <SelectTrigger style={{ gap: "0px" }}>
             <span style={{ width: "0px", overflow: "hidden" }}>
-              <SelectValue placeholder="Fuente" />
+              <SelectValue placeholder="" />
             </span>
             {selectedFontSize ?? ""}
           </SelectTrigger>
           <SelectContent position="popper">
-            <SelectItem className="fontSize-item" value="16">
+            <SelectItem check={false} className="fontSize-item" value="16">
               Pequeño{" "}
               <span
                 style={{ opacity: 0.5, marginLeft: "auto", display: "flex" }}
@@ -1224,7 +1326,7 @@ export const CanvasView = ({
                 16
               </span>
             </SelectItem>
-            <SelectItem className="fontSize-item" value="24">
+            <SelectItem check={false} className="fontSize-item" value="24">
               Mediano{" "}
               <span
                 style={{ opacity: 0.5, marginLeft: "auto", display: "flex" }}
@@ -1232,7 +1334,7 @@ export const CanvasView = ({
                 24
               </span>
             </SelectItem>
-            <SelectItem className="fontSize-item" value="40">
+            <SelectItem check={false} className="fontSize-item" value="40">
               Grande{" "}
               <span
                 style={{ opacity: 0.5, marginLeft: "auto", display: "flex" }}
@@ -1240,7 +1342,7 @@ export const CanvasView = ({
                 40
               </span>
             </SelectItem>
-            <SelectItem className="fontSize-item" value="64">
+            <SelectItem check={false} className="fontSize-item" value="64">
               Extra grande{" "}
               <span
                 style={{ opacity: 0.5, marginLeft: "auto", display: "flex" }}
@@ -1248,7 +1350,7 @@ export const CanvasView = ({
                 64
               </span>
             </SelectItem>
-            <SelectItem className="fontSize-item" value="96">
+            <SelectItem check={false} className="fontSize-item" value="96">
               Enorme{" "}
               <span
                 style={{ opacity: 0.5, marginLeft: "auto", display: "flex" }}
@@ -2078,6 +2180,21 @@ export const CanvasView = ({
       ctx.restore();
     }
 
+    if (laserTrails.length > 0) {
+      ctx.save();
+      ctx.fillStyle = "#ff1424";
+
+      for (const trail of laserTrails) {
+        if (trail.points.length === 0) {
+          continue;
+        }
+
+        drawCatmullRomCurve(ctx, trail.points, laserNow, camera);
+      }
+
+      ctx.restore();
+    }
+
     ctx.restore();
   }, [
     scene,
@@ -2087,6 +2204,8 @@ export const CanvasView = ({
     marqueeSelection,
     drawingSelection,
     drawSelection,
+    laserTrails,
+    laserNow,
   ]);
 
   useEffect(() => {
@@ -2209,7 +2328,8 @@ export const CanvasView = ({
       activeRadiusElementId ||
       isDraggingElement ||
       drawingSelection ||
-      drawSelection
+      drawSelection ||
+      isLaserDrawing
     ) {
       return;
     }
@@ -2234,9 +2354,31 @@ export const CanvasView = ({
     selectedIds,
     drawingSelection,
     drawSelection,
+    isLaserDrawing,
     drawingTool,
     interactionMode,
   ]);
+
+  useEffect(() => {
+    if (laserTrails.length === 0) {
+      return;
+    }
+
+    let animationFrame = 0;
+
+    const animate = () => {
+      const now = performance.now();
+      setLaserNow(now);
+      setLaserTrails((current) => pruneLaserTrails(current, now));
+      animationFrame = window.requestAnimationFrame(animate);
+    };
+
+    animationFrame = window.requestAnimationFrame(animate);
+
+    return () => {
+      window.cancelAnimationFrame(animationFrame);
+    };
+  }, [laserTrails.length]);
 
   const handlePointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
@@ -2265,7 +2407,21 @@ export const CanvasView = ({
         commitEditingText();
       }
 
-      if (drawingTool === "draw") {
+      if (drawingTool === "laser") {
+        const now = performance.now();
+        const trailId = `laser-${now}-${Math.random().toString(36).slice(2, 7)}`;
+
+        setLaserNow(now);
+        setLaserTrails((current) => [
+          ...pruneLaserTrails(current, now),
+          {
+            id: trailId,
+            points: [{ x: pointer.x, y: pointer.y, t: now }],
+          },
+        ]);
+        setIsLaserDrawing(true);
+        activeLaserTrailIdRef.current = trailId;
+      } else if (drawingTool === "draw") {
         const drawStyle = getActiveDrawStyle();
 
         setDrawSelection({
@@ -2525,7 +2681,47 @@ export const CanvasView = ({
     }
 
     if (drawingTool) {
-      if (drawingTool === "draw") {
+      if (drawingTool === "laser") {
+        const now = performance.now();
+
+        setLaserNow(now);
+        setLaserTrails((current) => {
+          const trailId = activeLaserTrailIdRef.current;
+          if (!trailId) {
+            return pruneLaserTrails(current, now);
+          }
+
+          return pruneLaserTrails(
+            current.map((trail) => {
+              if (trail.id !== trailId) {
+                return trail;
+              }
+
+              const previousPoint = trail.points[trail.points.length - 1];
+              const minimumDistance = 0.3 / camera.zoom;
+
+              if (
+                previousPoint &&
+                Math.hypot(
+                  pointer.x - previousPoint.x,
+                  pointer.y - previousPoint.y,
+                ) < minimumDistance
+              ) {
+                return trail;
+              }
+
+              return {
+                ...trail,
+                points: [
+                  ...trail.points,
+                  { x: pointer.x, y: pointer.y, t: now },
+                ],
+              };
+            }),
+            now,
+          );
+        });
+      } else if (drawingTool === "draw") {
         setDrawSelection((current) => {
           if (!current) {
             return current;
@@ -2545,6 +2741,7 @@ export const CanvasView = ({
           }
 
           return {
+            ...current,
             points: [...current.points, pointer],
           };
         });
@@ -2679,7 +2876,10 @@ export const CanvasView = ({
     }
 
     if (drawingTool) {
-      if (drawingTool === "draw") {
+      if (drawingTool === "laser") {
+        activeLaserTrailIdRef.current = null;
+        setIsLaserDrawing(false);
+      } else if (drawingTool === "draw") {
         if (drawSelection && drawSelection.points.length > 1) {
           onCreateDrawElement(drawSelection.points, {
             stroke: drawSelection.stroke,
@@ -2773,6 +2973,10 @@ export const CanvasView = ({
     }
 
     if (drawingTool) {
+      if (drawingTool === "laser") {
+        activeLaserTrailIdRef.current = null;
+        setIsLaserDrawing(false);
+      }
       setCanvasCursor("crosshair");
       return;
     }
