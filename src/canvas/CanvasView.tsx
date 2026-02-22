@@ -2768,12 +2768,22 @@ export const CanvasView = ({
             return current;
           }
 
-          // For line mode (shift key), keep only start and end points
-          if (current.isLine) {
-            return {
-              ...current,
-              points: [current.points[0], pointer],
-            };
+          let constrainedPointer = pointer;
+
+          // For line mode (shift key), constrain to horizontal or vertical
+          if (current.isLine && current.points.length > 0) {
+            const startPoint = current.points[0];
+            const deltaX = Math.abs(pointer.x - startPoint.x);
+            const deltaY = Math.abs(pointer.y - startPoint.y);
+
+            // Determine direction based on which delta is larger
+            if (deltaX > deltaY) {
+              // Horizontal ruler: lock Y to start point
+              constrainedPointer = { x: pointer.x, y: startPoint.y };
+            } else {
+              // Vertical ruler: lock X to start point
+              constrainedPointer = { x: startPoint.x, y: pointer.y };
+            }
           }
 
           const previousPoint = current.points[current.points.length - 1];
@@ -2782,8 +2792,8 @@ export const CanvasView = ({
           if (
             previousPoint &&
             Math.hypot(
-              pointer.x - previousPoint.x,
-              pointer.y - previousPoint.y,
+              constrainedPointer.x - previousPoint.x,
+              constrainedPointer.y - previousPoint.y,
             ) < minimumDistance
           ) {
             return current;
@@ -2791,7 +2801,7 @@ export const CanvasView = ({
 
           return {
             ...current,
-            points: [...current.points, pointer],
+            points: [...current.points, constrainedPointer],
           };
         });
       } else if (drawingSelection) {
