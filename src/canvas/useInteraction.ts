@@ -858,8 +858,23 @@ export const useInteraction = ({
 
       setSceneWithoutHistory((currentScene) => {
         const byId = new Map(dragState.elements.map((item) => [item.id, item]));
-        const dx = x - dragState.startPointerX;
-        const dy = y - dragState.startPointerY;
+        let dx = x - dragState.startPointerX;
+        let dy = y - dragState.startPointerY;
+
+        // Ruler constraint with shift key
+        if (shiftKey) {
+          const absDx = Math.abs(dx);
+          const absDy = Math.abs(dy);
+
+          // Determine direction based on which delta is larger
+          if (absDx > absDy) {
+            // Horizontal ruler: lock Y movement
+            dy = 0;
+          } else {
+            // Vertical ruler: lock X movement
+            dx = 0;
+          }
+        }
 
         return {
           ...currentScene,
