@@ -100,6 +100,48 @@ export function GrabHandLinear() {
     </svg>
   );
 }
+
+export const LaserIcon = (props: SVGAttributes<SVGElement>) => {
+  return (
+    <svg
+      aria-hidden="true"
+      fill="none"
+      focusable="false"
+      height="1em"
+      role="presentation"
+      viewBox="0 0 24 24"
+      width="1em"
+      {...props}
+    >
+      <g clip-path="url(#clip0_1512_51)">
+        <path
+          d="M8.92257 9.40328L6.48571 6.95594"
+          stroke="currentColor"
+          stroke-width="1.5"
+          stroke-linecap="round"
+        />
+        <path
+          d="M16.0486 19.6926L19.5725 16.1536"
+          stroke="currentColor"
+          stroke-width="1.5"
+          stroke-linecap="round"
+        />
+        <path
+          d="M2.82782 2.98297L3.74703 3.91756M7.24258 1.78504L7.23622 2.71441M1.65116 7.33011L2.57672 7.33533"
+          stroke="currentColor"
+          stroke-width="1.5"
+          stroke-linecap="round"
+        />
+        <path
+          d="M9.38138 13.9951C8.45504 13.0688 8.45504 11.5669 9.38138 10.6406L10.5298 9.49219C11.4561 8.56585 12.958 8.56585 13.8843 9.49219L21.7485 17.3563C22.992 18.5998 22.992 20.6158 21.7485 21.8593V21.8593C20.505 23.1028 18.489 23.1028 17.2455 21.8593L9.38138 13.9951Z"
+          stroke="currentColor"
+          stroke-width="1.5"
+        />
+      </g>
+    </svg>
+  );
+};
+
 export const SquareLinear = (props: SVGAttributes<SVGElement>) => {
   return (
     <svg

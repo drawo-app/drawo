@@ -239,7 +239,7 @@ html {
     background: transparent;
     color: #f3f4f6;
     font:
-        500 13px Inter,
+        500 14px Inter,
         sans-serif;
     cursor: pointer;
     outline: none;
@@ -425,6 +425,43 @@ html {
 
 .drawo-contextmenu-chevron {
     margin-left: auto;
+}
+
+.drawo-tooltip-content {
+    background: var(--foreground, #111);
+    color: var(--background, #fff);
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-size: 12px;
+    width: fit-content;
+    max-width: 20rem;
+    z-index: 50;
+    transform-origin: var(--radix-tooltip-content-transform-origin);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15);
+}
+
+/* estados básicos radix */
+.drawo-tooltip-content[data-state="closed"] {
+    opacity: 0;
+    transform: scale(0.95);
+}
+
+.drawo-tooltip-content[data-state="delayed-open"],
+.drawo-tooltip-content[data-state="instant-open"] {
+    opacity: 1;
+    transform: scale(1);
+    transition:
+        opacity 120ms ease,
+        transform 120ms ease;
+}
+
+.drawo-tooltip-arrow {
+    width: 10px;
+    height: 10px;
+    background: var(--foreground, #111);
+    fill: var(--foreground, #111);
+    transform: rotate(45deg);
+    border-radius: 2px;
 }
 
 @supports (corner-shape: squircle) {

@@ -22,7 +22,12 @@ import { useInteraction } from "./canvas/useInteraction";
 import { CanvasView } from "./canvas/CanvasView";
 import "./App.css";
 import { MapArrowUp, Pen, Text } from "@solar-icons/react";
-import { GrabHandBold, GrabHandLinear, SquareLinear } from "./components/icons";
+import {
+  GrabHandBold,
+  GrabHandLinear,
+  LaserIcon,
+  SquareLinear,
+} from "./components/icons";
 import { Circle } from "lucide-react";
 
 const SETTINGS_STORAGE_KEY = "settings";
@@ -37,14 +42,14 @@ interface AppState {
 
 type AppAction =
   | {
-    type: "setScene";
-    updater: SetStateAction<Scene>;
-    trackHistory?: boolean;
-  }
+      type: "setScene";
+      updater: SetStateAction<Scene>;
+      trackHistory?: boolean;
+    }
   | {
-    type: "commitInteraction";
-    before: Scene;
-  }
+      type: "commitInteraction";
+      before: Scene;
+    }
   | { type: "undo" }
   | { type: "redo" };
 
@@ -63,7 +68,7 @@ const normalizeElement = (element: SceneElement): SceneElement => {
           : "Shantell Sans, sans-serif",
       fontSize:
         typeof element.fontSize === "number" &&
-          Number.isFinite(element.fontSize)
+        Number.isFinite(element.fontSize)
           ? element.fontSize
           : 20,
       fontWeight:
@@ -72,10 +77,10 @@ const normalizeElement = (element: SceneElement): SceneElement => {
       color: typeof element.color === "string" ? element.color : "#2f3b52",
       textAlign:
         element.textAlign === "left" ||
-          element.textAlign === "center" ||
-          element.textAlign === "right" ||
-          element.textAlign === "start" ||
-          element.textAlign === "end"
+        element.textAlign === "center" ||
+        element.textAlign === "right" ||
+        element.textAlign === "start" ||
+        element.textAlign === "end"
           ? element.textAlign
           : "center",
     };
@@ -94,16 +99,16 @@ const normalizeElement = (element: SceneElement): SceneElement => {
           : 1,
       points: Array.isArray(element.points)
         ? element.points
-          .filter(
-            (point): point is { x: number; y: number } =>
-              typeof point?.x === "number" && typeof point?.y === "number",
-          )
-          .map((point) => ({ x: point.x, y: point.y }))
+            .filter(
+              (point): point is { x: number; y: number } =>
+                typeof point?.x === "number" && typeof point?.y === "number",
+            )
+            .map((point) => ({ x: point.x, y: point.y }))
         : [],
       stroke: typeof element.stroke === "string" ? element.stroke : "#2f3b52",
       strokeWidth:
         typeof element.strokeWidth === "number" &&
-          Number.isFinite(element.strokeWidth)
+        Number.isFinite(element.strokeWidth)
           ? Math.max(1, element.strokeWidth)
           : 2,
     };
@@ -153,14 +158,14 @@ const loadInitialScene = (): Scene => {
           typeof parsed.selectedId === "string" ? parsed.selectedId : null,
         selectedIds: Array.isArray(parsed.selectedIds)
           ? parsed.selectedIds.filter(
-            (id): id is string => typeof id === "string",
-          )
+              (id): id is string => typeof id === "string",
+            )
           : [],
         camera:
           camera &&
-            typeof camera.x === "number" &&
-            typeof camera.y === "number" &&
-            typeof camera.zoom === "number"
+          typeof camera.x === "number" &&
+          typeof camera.y === "number" &&
+          typeof camera.zoom === "number"
             ? camera
             : baseScene.camera,
         settings: {
@@ -278,7 +283,9 @@ export default function App() {
   const [interactionMode, setInteractionMode] = useState<"select" | "pan">(
     "select",
   );
-  const [drawingTool, setDrawingTool] = useState<NewElementType | null>(null);
+  const [drawingTool, setDrawingTool] = useState<
+    NewElementType | "laser" | null
+  >(null);
   const [state, dispatch] = useReducer(
     appReducer,
     undefined,
@@ -485,6 +492,13 @@ export default function App() {
           setDrawingTool("draw");
           return;
         }
+
+        if (key === "k") {
+          event.preventDefault();
+          setInteractionMode("select");
+          setDrawingTool("laser");
+          return;
+        }
       }
 
       if (event.key === "Backspace" || event.key === "Delete") {
@@ -679,6 +693,17 @@ export default function App() {
           }}
         >
           <Pen strokeWidth={1.5} />
+        </button>
+        <div className="tool-separator" />
+        <button
+          type="button"
+          className={`tool-item${drawingTool === "laser" ? " active" : ""}`}
+          onClick={() => {
+            setInteractionMode("select");
+            setDrawingTool("laser");
+          }}
+        >
+          <LaserIcon strokeWidth={1.5} />
         </button>
       </div>
     </div>
