@@ -1,0 +1,43 @@
+{
+  "settings": {
+    "showGrid": "Show grid",
+    "snapToGrid": "Snap to grid",
+    "darkMode": "Dark mode",
+    "language": "Language"
+  },
+  "localeNames": {
+    "en_US": "English (US)",
+    "es_ES": "Español (ES)"
+  },
+  "toolNames": {
+    "selection": "Selection",
+    "pan": "Pan",
+    "text": "Text",
+    "rectangle": "Rectangle",
+    "ellipse": "Ellipse",
+    "draw": "Draw",
+    "laser": "Laser pointer"
+  },
+  "fontFamilies": {
+    "simple": "Simple",
+    "handwritten": "Handwritten",
+    "elegant": "Elegant",
+    "technical": "Technical"
+  },
+  "fontSizes": {
+    "small": "Small",
+    "medium": "Medium",
+    "large": "Large",
+    "extraLarge": "Extra Large",
+    "huge": "Huge"
+  },
+  "selectionBar": {
+    "strokeWidth": "Stroke width",
+    "fontFamily": "Font",
+    "elementsSelected": "{count} elements selected."
+  },
+  "canvas": {
+    "newText": "New text",
+    "tagline": "Where ideas take shape."
+  }
+}

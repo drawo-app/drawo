@@ -17,21 +17,24 @@ import {
   updateRectangleElementsBorderRadius,
   updateSceneSettings,
 } from "./core/scene";
+import { isLocaleCode, LOCALES, type LocaleCode } from "./i18n";
 import type { SceneElement } from "./core/elements";
 import { useInteraction } from "./canvas/useInteraction";
 import { CanvasView } from "./canvas/CanvasView";
 import "./App.css";
 import { MapArrowUp, Pen, Text } from "@solar-icons/react";
-import {
-  GrabHandBold,
-  GrabHandLinear,
-  LaserIcon,
-  SquareLinear,
-} from "./components/icons";
+import { GrabHandLinear, LaserIcon, SquareLinear } from "./components/icons";
 import { Circle } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "./components/tooltip";
 
 const SETTINGS_STORAGE_KEY = "settings";
 const SCENE_STORAGE_KEY = "scene";
+const LOCALE_STORAGE_KEY = "locale";
 const MAX_HISTORY_ENTRIES = 200;
 
 interface AppState {
@@ -286,12 +289,21 @@ export default function App() {
   const [drawingTool, setDrawingTool] = useState<
     NewElementType | "laser" | null
   >(null);
+  const [locale, setLocale] = useState<LocaleCode>(() => {
+    try {
+      const stored = localStorage.getItem(LOCALE_STORAGE_KEY);
+      return isLocaleCode(stored) ? stored : "es_ES";
+    } catch {
+      return "es_ES";
+    }
+  });
   const [state, dispatch] = useReducer(
     appReducer,
     undefined,
     createInitialAppState,
   );
   const scene = state.present;
+  const messages = LOCALES[locale];
   const isDarkMode = scene.settings.theme === "dark";
   const clipboardRef = useRef<SceneElement[] | null>(null);
   const pasteOffsetRef = useRef(0);
@@ -312,6 +324,10 @@ export default function App() {
     localStorage.setItem(SCENE_STORAGE_KEY, JSON.stringify(scene));
     localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(scene.settings));
   }, [scene]);
+
+  useEffect(() => {
+    localStorage.setItem(LOCALE_STORAGE_KEY, locale);
+  }, [locale]);
 
   useEffect(() => {
     const isEditableTarget = (target: EventTarget | null): boolean => {
@@ -554,158 +570,235 @@ export default function App() {
     [setScene],
   );
 
+  useEffect(() => {
+    if (isDarkMode) {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+  }, [isDarkMode]);
+
   return (
-    <div className={`app-root${isDarkMode ? " app-root--dark" : ""}`}>
-      <div className="settings-bar">
-        <label className="switch-row">
-          <input
-            type="checkbox"
-            checked={scene.settings.showGrid}
-            onChange={(event) =>
-              setScene((currentScene) =>
-                updateSceneSettings(currentScene, {
-                  showGrid: event.target.checked,
-                }),
-              )
-            }
-          />
-          <span>Show grid</span>
-        </label>
+    <div className={`app-root`}>
+      <TooltipProvider>
+        <div className="settings-bar">
+          <label className="switch-row">
+            <input
+              type="checkbox"
+              checked={scene.settings.showGrid}
+              onChange={(event) =>
+                setScene((currentScene) =>
+                  updateSceneSettings(currentScene, {
+                    showGrid: event.target.checked,
+                  }),
+                )
+              }
+            />
+            <span>{messages.settings.showGrid}</span>
+          </label>
 
-        <label className="switch-row">
-          <input
-            type="checkbox"
-            checked={scene.settings.snapToGrid}
-            onChange={(event) =>
-              setScene((currentScene) =>
-                updateSceneSettings(currentScene, {
-                  snapToGrid: event.target.checked,
-                }),
-              )
-            }
-          />
-          <span>Snap to grid</span>
-        </label>
+          <label className="switch-row">
+            <input
+              type="checkbox"
+              checked={scene.settings.snapToGrid}
+              onChange={(event) =>
+                setScene((currentScene) =>
+                  updateSceneSettings(currentScene, {
+                    snapToGrid: event.target.checked,
+                  }),
+                )
+              }
+            />
+            <span>{messages.settings.snapToGrid}</span>
+          </label>
 
-        <label className="switch-row">
-          <input
-            type="checkbox"
-            checked={isDarkMode}
-            onChange={(event) =>
-              setScene((currentScene) =>
-                updateSceneSettings(currentScene, {
-                  theme: event.target.checked ? "dark" : "light",
-                }),
-              )
-            }
-          />
-          <span>Dark mode</span>
-        </label>
-      </div>
+          <label className="switch-row">
+            <input
+              type="checkbox"
+              checked={isDarkMode}
+              onChange={(event) =>
+                setScene((currentScene) =>
+                  updateSceneSettings(currentScene, {
+                    theme: event.target.checked ? "dark" : "light",
+                  }),
+                )
+              }
+            />
+            <span>{messages.settings.darkMode}</span>
+          </label>
 
-      <CanvasView
-        scene={scene}
-        interactionMode={interactionMode}
-        drawingTool={drawingTool}
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerUp}
-        onResizeStart={handleResizeStart}
-        onRotateStart={handleRotateStart}
-        onTextCommit={handleTextCommit}
-        onWheelPan={handleWheelPan}
-        onWheelZoom={handleWheelZoom}
-        onCreateElement={handleCreateElement}
-        onCreateDrawElement={handleCreateDrawElement}
-        onDrawingToolComplete={() => setDrawingTool(null)}
-        onSelectElements={handleSelectElements}
-        onGroupResizeStart={handleGroupResizeStart}
-        onGroupRotateStart={handleGroupRotateStart}
-        onTextFontFamilyChange={handleTextFontFamilyChange}
-        onTextFontSizeChange={handleTextFontSizeChange}
-        onDrawStrokeWidthChange={handleDrawStrokeWidthChange}
-        onRectangleBorderRadiusChange={handleRectangleBorderRadiusChange}
-      />
+          <label className="switch-row">
+            <span>{messages.settings.language}</span>
+            <select
+              value={locale}
+              onChange={(event) => {
+                const next = event.target.value;
+                if (isLocaleCode(next)) {
+                  setLocale(next);
+                }
+              }}
+            >
+              <option value="en_US">{messages.localeNames.en_US}</option>
+              <option value="es_ES">{messages.localeNames.es_ES}</option>
+            </select>
+          </label>
+        </div>
 
-      <div className="tool-bar">
-        <button
-          type="button"
-          className={`tool-item${interactionMode === "select" && !drawingTool ? " active" : ""}`}
-          onClick={() => {
-            setInteractionMode("select");
-            setDrawingTool(null);
-          }}
-        >
-          <MapArrowUp
-            style={{
-              transform: "translateY(-2px) translateX(-3px) rotate(-46deg)",
-            }}
-            strokeWidth={0.1}
-          />
-        </button>
-        <button
-          type="button"
-          className={`tool-item${interactionMode === "pan" ? " active" : ""}`}
-          onClick={() => {
-            setInteractionMode("pan");
-            setDrawingTool(null);
-          }}
-        >
-          <GrabHandLinear />
-        </button>
-        <div className="tool-separator" />
-        <button
-          type="button"
-          className={`tool-item${drawingTool === "text" ? " active" : ""}`}
-          onClick={() => {
-            setInteractionMode("select");
-            setDrawingTool("text");
-          }}
-        >
-          <Text strokeWidth={0.1} />
-        </button>
-        <button
-          type="button"
-          className={`tool-item${drawingTool === "rectangle" ? " active" : ""}`}
-          onClick={() => {
-            setInteractionMode("select");
-            setDrawingTool("rectangle");
-          }}
-        >
-          <SquareLinear />
-        </button>
-        <button
-          type="button"
-          className={`tool-item${drawingTool === "circle" ? " active" : ""}`}
-          onClick={() => {
-            setInteractionMode("select");
-            setDrawingTool("circle");
-          }}
-        >
-          <Circle strokeWidth={1.5} />
-        </button>
-        <button
-          type="button"
-          className={`tool-item${drawingTool === "draw" ? " active" : ""}`}
-          onClick={() => {
-            setInteractionMode("select");
-            setDrawingTool("draw");
-          }}
-        >
-          <Pen strokeWidth={1.5} />
-        </button>
-        <div className="tool-separator" />
-        <button
-          type="button"
-          className={`tool-item${drawingTool === "laser" ? " active" : ""}`}
-          onClick={() => {
-            setInteractionMode("select");
-            setDrawingTool("laser");
-          }}
-        >
-          <LaserIcon strokeWidth={1.5} />
-        </button>
-      </div>
+        <CanvasView
+          scene={scene}
+          interactionMode={interactionMode}
+          drawingTool={drawingTool}
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          onResizeStart={handleResizeStart}
+          onRotateStart={handleRotateStart}
+          onTextCommit={handleTextCommit}
+          onWheelPan={handleWheelPan}
+          onWheelZoom={handleWheelZoom}
+          onCreateElement={handleCreateElement}
+          onCreateDrawElement={handleCreateDrawElement}
+          onDrawingToolComplete={() => setDrawingTool(null)}
+          onSelectElements={handleSelectElements}
+          onGroupResizeStart={handleGroupResizeStart}
+          onGroupRotateStart={handleGroupRotateStart}
+          onTextFontFamilyChange={handleTextFontFamilyChange}
+          onTextFontSizeChange={handleTextFontSizeChange}
+          onDrawStrokeWidthChange={handleDrawStrokeWidthChange}
+          onRectangleBorderRadiusChange={handleRectangleBorderRadiusChange}
+          localeMessages={messages}
+        />
+
+        <div className="tool-bar">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                className={`tool-item${interactionMode === "select" && !drawingTool ? " active" : ""}`}
+                onClick={() => {
+                  setInteractionMode("select");
+                  setDrawingTool(null);
+                }}
+              >
+                <MapArrowUp
+                  style={{
+                    transform:
+                      "translateY(-2px) translateX(-3px) rotate(-46deg)",
+                  }}
+                  strokeWidth={0.1}
+                />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>{messages.toolNames.selection}</p>
+            </TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                className={`tool-item${interactionMode === "pan" ? " active" : ""}`}
+                onClick={() => {
+                  setInteractionMode("pan");
+                  setDrawingTool(null);
+                }}
+              >
+                <GrabHandLinear />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>{messages.toolNames.pan}</p>
+            </TooltipContent>
+          </Tooltip>
+          <div className="tool-separator" />
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                className={`tool-item${drawingTool === "text" ? " active" : ""}`}
+                onClick={() => {
+                  setInteractionMode("select");
+                  setDrawingTool("text");
+                }}
+              >
+                <Text strokeWidth={0.1} />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>{messages.toolNames.text}</p>
+            </TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                className={`tool-item${drawingTool === "rectangle" ? " active" : ""}`}
+                onClick={() => {
+                  setInteractionMode("select");
+                  setDrawingTool("rectangle");
+                }}
+              >
+                <SquareLinear />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>{messages.toolNames.rectangle}</p>
+            </TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                className={`tool-item${drawingTool === "circle" ? " active" : ""}`}
+                onClick={() => {
+                  setInteractionMode("select");
+                  setDrawingTool("circle");
+                }}
+              >
+                <Circle strokeWidth={1.5} />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>{messages.toolNames.ellipse}</p>
+            </TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                className={`tool-item${drawingTool === "draw" ? " active" : ""}`}
+                onClick={() => {
+                  setInteractionMode("select");
+                  setDrawingTool("draw");
+                }}
+              >
+                <Pen strokeWidth={1.5} />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>{messages.toolNames.draw}</p>
+            </TooltipContent>
+          </Tooltip>
+          <div className="tool-separator" />
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                className={`tool-item${drawingTool === "laser" ? " active" : ""}`}
+                onClick={() => {
+                  setInteractionMode("select");
+                  setDrawingTool("laser");
+                }}
+              >
+                <LaserIcon strokeWidth={1.5} />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>{messages.toolNames.laser}</p>
+            </TooltipContent>
+          </Tooltip>
+        </div>
+      </TooltipProvider>
     </div>
   );
 }

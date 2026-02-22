@@ -1,0 +1,43 @@
+{
+  "settings": {
+    "showGrid": "Mostrar cuadrícula",
+    "snapToGrid": "Ajustar a cuadrícula",
+    "darkMode": "Modo oscuro",
+    "language": "Idioma"
+  },
+  "localeNames": {
+    "en_US": "English (US)",
+    "es_ES": "Español (ES)"
+  },
+  "toolNames": {
+    "selection": "Selección",
+    "pan": "Mano",
+    "text": "Texto",
+    "rectangle": "Rectángulo",
+    "ellipse": "Elipse",
+    "draw": "Dibujar",
+    "laser": "Puntero láser"
+  },
+  "fontFamilies": {
+    "simple": "Simple",
+    "handwritten": "A mano",
+    "elegant": "Elegante",
+    "technical": "Técnico"
+  },
+  "fontSizes": {
+    "small": "Pequeño",
+    "medium": "Mediano",
+    "large": "Grande",
+    "extraLarge": "Extra grande",
+    "huge": "Enorme"
+  },
+  "selectionBar": {
+    "strokeWidth": "Grosor",
+    "fontFamily": "Fuente",
+    "elementsSelected": "{count} elementos seleccionados."
+  },
+  "canvas": {
+    "newText": "Nuevo texto",
+    "tagline": "Donde las ideas toman forma."
+  }
+}

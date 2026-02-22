@@ -30,6 +30,7 @@ import {
   SimpleTypography,
   TechnicalTypography,
 } from "../components/icons";
+import { formatLocaleText, type LocaleMessages } from "../i18n";
 
 type ResizeHandle = "nw" | "ne" | "se" | "sw";
 type BoxDrawingType = Exclude<NewElementType, "draw">;
@@ -71,6 +72,7 @@ interface CanvasViewProps {
   scene: Scene;
   interactionMode: "select" | "pan";
   drawingTool: NewElementType | "laser" | null;
+  localeMessages: LocaleMessages;
   onPointerDown: (
     x: number,
     y: number,
@@ -722,6 +724,7 @@ export const CanvasView = ({
   scene,
   interactionMode,
   drawingTool,
+  localeMessages,
   onPointerDown,
   onPointerMove,
   onPointerUp,
@@ -1207,7 +1210,7 @@ export const CanvasView = ({
           style={{ gap: "0px", width: "fit-content" }}
         >
           <span style={{ width: "0px", overflow: "hidden" }}>
-            <SelectValue placeholder="Grosor" />
+            <SelectValue placeholder={localeMessages.selectionBar.strokeWidth} />
           </span>
           <span className="draw-stroke-option-line-wrap">
             {
@@ -1257,7 +1260,11 @@ export const CanvasView = ({
       }
 
       return (
-        <p className="bar-text">{selectedIds.length} elements selected.</p>
+        <p className="bar-text">
+          {formatLocaleText(localeMessages.selectionBar.elementsSelected, {
+            count: selectedIds.length,
+          })}
+        </p>
       );
     }
 
@@ -1282,7 +1289,7 @@ export const CanvasView = ({
         >
           <SelectTrigger style={{ gap: "0px" }}>
             <span style={{ width: "0px", overflow: "hidden" }}>
-              <SelectValue placeholder="Fuente" />
+              <SelectValue placeholder={localeMessages.selectionBar.fontFamily} />
             </span>
             {selectedFontFamily === "Shantell Sans" ? (
               <HandwrittenTypography />
@@ -1295,10 +1302,18 @@ export const CanvasView = ({
             )}
           </SelectTrigger>
           <SelectContent position="popper">
-            <SelectItem check={false} value="Rubik">Simple</SelectItem>
-            <SelectItem check={false} value="Shantell Sans">A mano</SelectItem>
-            <SelectItem check={false} value="Alegreya">Elegante</SelectItem>
-            <SelectItem check={false} value="Cascadia Code">Técnico</SelectItem>
+            <SelectItem check={false} value="Rubik">
+              {localeMessages.fontFamilies.simple}
+            </SelectItem>
+            <SelectItem check={false} value="Shantell Sans">
+              {localeMessages.fontFamilies.handwritten}
+            </SelectItem>
+            <SelectItem check={false} value="Alegreya">
+              {localeMessages.fontFamilies.elegant}
+            </SelectItem>
+            <SelectItem check={false} value="Cascadia Code">
+              {localeMessages.fontFamilies.technical}
+            </SelectItem>
           </SelectContent>
         </Select>
         <div className="selectionbar-separator" />
@@ -1319,7 +1334,7 @@ export const CanvasView = ({
           </SelectTrigger>
           <SelectContent position="popper">
             <SelectItem check={false} className="fontSize-item" value="16">
-              Pequeño{" "}
+              {localeMessages.fontSizes.small}{" "}
               <span
                 style={{ opacity: 0.5, marginLeft: "auto", display: "flex" }}
               >
@@ -1327,7 +1342,7 @@ export const CanvasView = ({
               </span>
             </SelectItem>
             <SelectItem check={false} className="fontSize-item" value="24">
-              Mediano{" "}
+              {localeMessages.fontSizes.medium}{" "}
               <span
                 style={{ opacity: 0.5, marginLeft: "auto", display: "flex" }}
               >
@@ -1335,7 +1350,7 @@ export const CanvasView = ({
               </span>
             </SelectItem>
             <SelectItem check={false} className="fontSize-item" value="40">
-              Grande{" "}
+              {localeMessages.fontSizes.large}{" "}
               <span
                 style={{ opacity: 0.5, marginLeft: "auto", display: "flex" }}
               >
@@ -1343,7 +1358,7 @@ export const CanvasView = ({
               </span>
             </SelectItem>
             <SelectItem check={false} className="fontSize-item" value="64">
-              Extra grande{" "}
+              {localeMessages.fontSizes.extraLarge}{" "}
               <span
                 style={{ opacity: 0.5, marginLeft: "auto", display: "flex" }}
               >
@@ -1351,7 +1366,7 @@ export const CanvasView = ({
               </span>
             </SelectItem>
             <SelectItem check={false} className="fontSize-item" value="96">
-              Enorme{" "}
+              {localeMessages.fontSizes.huge}{" "}
               <span
                 style={{ opacity: 0.5, marginLeft: "auto", display: "flex" }}
               >
@@ -2132,7 +2147,7 @@ export const CanvasView = ({
           rotation: 0,
           x: drawingBounds.x,
           y: drawingBounds.y + fontSize,
-          text: "New text",
+          text: localeMessages.canvas.newText,
           fontFamily: "Shantell Sans, sans-serif",
           fontSize,
           fontWeight: "200",
@@ -3204,7 +3219,7 @@ export const CanvasView = ({
           </svg>
           <p style={{ fontFamily: "Shantell Sans", fontSize: "24px" }}>
             {/* placeholder asthetick here */}
-            The modern whiteboard editing tool.
+            {localeMessages.canvas.tagline}
           </p>
         </div>
       )}
