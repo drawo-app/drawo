@@ -106,6 +106,7 @@ interface CanvasViewProps {
   onTextFontFamilyChange: (ids: string[], fontFamily: string) => void;
   onTextFontSizeChange: (ids: string[], fontSize: number) => void;
   onDrawStrokeWidthChange: (ids: string[], strokeWidth: number) => void;
+  onDrawStrokeColorChange: (ids: string[], strokeColor: string) => void;
   onRectangleBorderRadiusChange: (ids: string[], borderRadius: number) => void;
   onGroupResizeStart: (
     handle: ResizeHandle,
@@ -195,6 +196,17 @@ const DRAW_STROKE_OPTIONS = [1, 2, 4, 7, 12] as const;
 const LASER_LIFETIME_MS = 600;
 const LASER_BASE_WIDTH_PX = 11;
 const LASER_MIN_WIDTH_PX = 0.3;
+const STROKE_COLORS = [
+  "#2f3b52",
+  "#DA3614",
+  "#BD5C01",
+  "#BA8501",
+  "#2F973B",
+  "#006EC3",
+  "#3B01AE",
+  "#FEFEFF",
+  "multi",
+];
 const DRAW_STROKE_SVGS = [
   <svg
     width="556"
@@ -740,6 +752,7 @@ export const CanvasView = ({
   onTextFontFamilyChange,
   onTextFontSizeChange,
   onDrawStrokeWidthChange,
+  onDrawStrokeColorChange,
   onRectangleBorderRadiusChange,
   onGroupResizeStart,
   onGroupRotateStart,
@@ -1197,76 +1210,171 @@ export const CanvasView = ({
         ? selectedDrawElements[0].strokeWidth
         : DRAW_STROKE_OPTIONS[1],
     );
+    const selectedDrawStrokeColor = selectedDrawElements[0]?.stroke || "#000";
 
     const renderDrawStrokeSelector = () => (
-      <Select
-        value={String(selectedDrawStrokeWidth)}
-        onValueChange={(value) => {
-          onDrawStrokeWidthChange(
-            selectedDrawElements.map((element) => element.id),
-            Number(value),
-          );
-        }}
-      >
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <SelectTrigger
-              className="draw-stroke-trigger"
-              style={{
-                gap: "0px",
-                width: "fit-content",
-              }}
-            >
-              <span style={{ width: "0px", overflow: "hidden" }}>
-                <SelectValue
-                  placeholder={localeMessages.selectionBar.strokeWidth}
-                />
-              </span>
-              <span className="draw-stroke-option-line-wrap">
-                {
-                  DRAW_STROKE_SVGS[
-                    DRAW_STROKE_OPTIONS?.indexOf(
-                      selectedDrawStrokeWidth as 2 | 12 | 1 | 4 | 7,
-                    ) || 0
-                  ]
-                }
-              </span>
-            </SelectTrigger>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>{localeMessages.selectionBar.strokeWidth}</p>
-          </TooltipContent>
-        </Tooltip>
-        <SelectContent position="popper">
-          {DRAW_STROKE_OPTIONS.map((strokeWidth, index) => (
-            <SelectItem
-              key={strokeWidth}
-              check={false}
-              value={String(strokeWidth)}
-              className="draw-stroke-select-item"
-            >
-              <span className="draw-stroke-option-line-wrap">
-                {DRAW_STROKE_SVGS[index]}
-                {/*
-                <svg
-                  width="150px"
-                  height="auto"
-                  viewBox="0 0 655 141"
-                  fill="none"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path
-                    d="M58.168 81.087L122.787 71.5932C198.399 60.4843 275.267 61.0343 350.712 73.2242C403.967 81.8286 457.996 84.644 511.856 81.6212L596.832 76.8522"
-                    stroke="currentColor"
-                    stroke-width={strokeWidth * 10 + "px"}
-                    stroke-linecap="round"
+      <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
+        <Select
+          value={String(selectedDrawStrokeColor)}
+          onValueChange={(value) => {
+            onDrawStrokeColorChange(
+              selectedDrawElements.map((element) => element.id),
+              value,
+            );
+          }}
+        >
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <SelectTrigger
+                style={{
+                  gap: "0px",
+                  width: "fit-content",
+                }}
+              >
+                <span style={{ width: "0px", overflow: "hidden" }}>
+                  <SelectValue
+                    placeholder={localeMessages.selectionBar.strokeColor}
                   />
-                </svg>*/}
-              </span>
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+                </span>
+                <div
+                  style={{
+                    width: "20px",
+                    borderRadius: "100%",
+                    border: "1px solid #ffffff20",
+                    height: "20px",
+                    background: uniColor(
+                      selectedDrawStrokeColor || STROKE_COLORS[1],
+                    ),
+                  }}
+                />
+              </SelectTrigger>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>{localeMessages.selectionBar.strokeColor}</p>
+            </TooltipContent>
+          </Tooltip>
+          <SelectContent
+            position="popper"
+            className="drawo-colorselect-content"
+          >
+            {STROKE_COLORS.map((color) => (
+              <SelectItem
+                key={color}
+                value={color}
+                className="drawo-colorselect-item"
+                check={false}
+              >
+                <div
+                  style={{
+                    border:
+                      selectedDrawStrokeColor === color
+                        ? "2px solid var(--accent)"
+                        : "2px solid transparent",
+                    borderRadius: "100%",
+                    padding: "2px",
+                  }}
+                >
+                  <div
+                    style={{
+                      width: color === "multi" ? "22px" : "20px",
+                      borderRadius: "100%",
+                      border:
+                        color !== "multi" ? "1px solid #ffffff20" : "none",
+                      height: color === "multi" ? "22px" : "20px",
+                      background:
+                        color === "multi"
+                          ? `
+                        /* white fade from center outward */
+                        radial-gradient(circle at center,
+                          rgba(255,255,255,1) 0%,
+                          rgba(255,255,255,0.85) 10%,
+                          rgba(255,255,255,0.55) 22%,
+                          rgba(255,255,255,0.15) 40%,
+                          transparent 62%
+                        ),
+                        /* subtle specular highlight top-left */
+                        radial-gradient(circle at 36% 32%, rgba(255,255,255,0.35) 0%, transparent 35%),
+                        /* dark shadow bottom-right for 3D depth */
+                        radial-gradient(circle at 68% 70%, rgba(0,0,0,0.38) 0%, transparent 52%),
+                        /* soft pastel hue wheel */
+                        conic-gradient(
+                          from 0deg,
+                          hsl(0,   70%, 65%),
+                          hsl(30,  72%, 63%),
+                          hsl(55,  70%, 62%),
+                          hsl(80,  60%, 60%),
+                          hsl(120, 55%, 60%),
+                          hsl(160, 60%, 58%),
+                          hsl(185, 65%, 60%),
+                          hsl(210, 68%, 63%),
+                          hsl(240, 65%, 66%),
+                          hsl(270, 65%, 65%),
+                          hsl(300, 65%, 64%),
+                          hsl(330, 68%, 64%),
+                          hsl(360, 70%, 65%)`
+                          : uniColor(color),
+                    }}
+                  />
+                </div>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <div className="selectionbar-separator" />
+        <Select
+          value={String(selectedDrawStrokeWidth)}
+          onValueChange={(value) => {
+            onDrawStrokeWidthChange(
+              selectedDrawElements.map((element) => element.id),
+              Number(value),
+            );
+          }}
+        >
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <SelectTrigger
+                className="draw-stroke-trigger"
+                style={{
+                  gap: "0px",
+                  width: "fit-content",
+                }}
+              >
+                <span style={{ width: "0px", overflow: "hidden" }}>
+                  <SelectValue
+                    placeholder={localeMessages.selectionBar.strokeWidth}
+                  />
+                </span>
+                <span className="draw-stroke-option-line-wrap">
+                  {
+                    DRAW_STROKE_SVGS[
+                      DRAW_STROKE_OPTIONS?.indexOf(
+                        selectedDrawStrokeWidth as 2 | 12 | 1 | 4 | 7,
+                      ) || 0
+                    ]
+                  }
+                </span>
+              </SelectTrigger>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>{localeMessages.selectionBar.strokeWidth}</p>
+            </TooltipContent>
+          </Tooltip>
+          <SelectContent position="popper">
+            {DRAW_STROKE_OPTIONS.map((strokeWidth, index) => (
+              <SelectItem
+                key={strokeWidth}
+                check={false}
+                value={String(strokeWidth)}
+                className="draw-stroke-select-item"
+              >
+                <span className="draw-stroke-option-line-wrap">
+                  {DRAW_STROKE_SVGS[index]}
+                </span>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
     );
 
     if (selectedIds.length > 1) {
@@ -2768,10 +2876,11 @@ export const CanvasView = ({
             return current;
           }
 
+          const isLineMode = e.shiftKey;
           let constrainedPointer = pointer;
 
           // For line mode (shift key), constrain to horizontal or vertical
-          if (current.isLine && current.points.length > 0) {
+          if (isLineMode && current.points.length > 0) {
             const startPoint = current.points[0];
             const deltaX = Math.abs(pointer.x - startPoint.x);
             const deltaY = Math.abs(pointer.y - startPoint.y);
@@ -2784,6 +2893,26 @@ export const CanvasView = ({
               // Vertical ruler: lock X to start point
               constrainedPointer = { x: startPoint.x, y: pointer.y };
             }
+
+            const currentEndPoint =
+              current.points.length > 1 ? current.points[1] : null;
+            const minimumDistance = 0.5 / camera.zoom;
+
+            if (
+              currentEndPoint &&
+              Math.hypot(
+                constrainedPointer.x - currentEndPoint.x,
+                constrainedPointer.y - currentEndPoint.y,
+              ) < minimumDistance
+            ) {
+              return current;
+            }
+
+            return {
+              ...current,
+              isLine: true,
+              points: [startPoint, constrainedPointer],
+            };
           }
 
           const previousPoint = current.points[current.points.length - 1];
@@ -2801,6 +2930,7 @@ export const CanvasView = ({
 
           return {
             ...current,
+            isLine: false,
             points: [...current.points, constrainedPointer],
           };
         });

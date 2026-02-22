@@ -554,6 +554,7 @@ export default function App() {
     handleTextFontFamilyChange,
     handleTextFontSizeChange,
     handleDrawStrokeWidthChange,
+    handleDrawStrokeColorChange,
   } = useInteraction({
     scene,
     setScene,
@@ -665,6 +666,7 @@ export default function App() {
           onTextFontFamilyChange={handleTextFontFamilyChange}
           onTextFontSizeChange={handleTextFontSizeChange}
           onDrawStrokeWidthChange={handleDrawStrokeWidthChange}
+          onDrawStrokeColorChange={handleDrawStrokeColorChange}
           onRectangleBorderRadiusChange={handleRectangleBorderRadiusChange}
           localeMessages={messages}
         />

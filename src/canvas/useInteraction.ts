@@ -19,6 +19,7 @@ import {
   updateRectangleElementBounds,
   updateTextElementLayout,
   updateTextElementContent,
+  updateDrawElementsStrokeColor,
 } from "../core/scene";
 import type { SceneElement } from "../core/elements";
 import type { LocaleMessages } from "../i18n";
@@ -1210,7 +1211,14 @@ export const useInteraction = ({
             }
           : undefined;
 
-        return addElementToScene(currentScene, type, nextX, nextY, messages, nextBounds);
+        return addElementToScene(
+          currentScene,
+          type,
+          nextX,
+          nextY,
+          messages,
+          nextBounds,
+        );
       });
     },
     [setScene],
@@ -1269,6 +1277,15 @@ export const useInteraction = ({
     [setScene],
   );
 
+  const handleDrawStrokeColorChange = useCallback(
+    (ids: string[], strokeColor: string) => {
+      setScene((currentScene) =>
+        updateDrawElementsStrokeColor(currentScene, ids, strokeColor),
+      );
+    },
+    [setScene],
+  );
+
   return {
     handlePointerDown,
     handlePointerMove,
@@ -1286,5 +1303,6 @@ export const useInteraction = ({
     handleTextFontSizeChange,
     handleCreateDrawElement,
     handleDrawStrokeWidthChange,
+    handleDrawStrokeColorChange,
   };
 };

@@ -281,6 +281,32 @@ export const updateDrawElementsStrokeWidth = (
   };
 };
 
+export const updateDrawElementsStrokeColor = (
+  scene: Scene,
+  ids: string[],
+  strokeColor: string,
+): Scene => {
+  if (ids.length === 0) {
+    return scene;
+  }
+
+  const targetIds = new Set(ids);
+
+  return {
+    ...scene,
+    elements: scene.elements.map((element) => {
+      if (!targetIds.has(element.id) || element.type !== "draw") {
+        return element;
+      }
+
+      return {
+        ...element,
+        stroke: strokeColor,
+      };
+    }),
+  };
+};
+
 export const updateTextElementLayout = (
   scene: Scene,
   id: string,

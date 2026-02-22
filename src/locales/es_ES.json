@@ -32,9 +32,15 @@
     "huge": "Enorme"
   },
   "selectionBar": {
-    "strokeWidth": "Grosor",
-    "fontFamily": "Fuente",
-    "elementsSelected": "{count} elementos seleccionados."
+    "strokeWidth": "Grosor de la línea",
+    "fontFamily": "Tipografía",
+    "fontSize": "Tamaño de la fuente",
+    "strokeColor": "Color de la línea",
+    "fillColor": "Color de relleno",
+    "fillStyle": "Estilo de relleno",
+    "opacity": "Opacidad",
+    "textAlign": "Alineación del texto",
+    "textColor": "Color del texto"
   },
   "canvas": {
     "newText": "Nuevo texto",

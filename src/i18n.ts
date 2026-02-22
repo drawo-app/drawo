@@ -39,7 +39,13 @@ export interface LocaleMessages {
   selectionBar: {
     strokeWidth: string;
     fontFamily: string;
-    elementsSelected: string;
+    fontSize: string;
+    strokeColor: string;
+    fillColor: string;
+    fillStyle: string;
+    opacity: string;
+    textAlign: string;
+    textColor: string;
   };
   canvas: {
     newText: string;

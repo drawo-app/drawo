@@ -101,7 +101,7 @@ function SelectItem({
   check = true,
   ...props
 }: React.ComponentProps<typeof SelectPrimitive.Item> & {
-  check: boolean;
+  check?: boolean;
 }) {
   return (
     <SelectPrimitive.Item

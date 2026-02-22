@@ -59,6 +59,11 @@ html.dark .settings-bar {
     border-color: #424242;
 }
 
+.settings-bar *,
+.settings-bar {
+    user-select: none;
+}
+
 .switch-row {
     display: flex;
     align-items: center;
@@ -198,7 +203,7 @@ html.dark .tool-item {
     height: var(--selectiontoolbar-height);
     margin: 0 5px;
     opacity: 0.2;
-    background-color: rgb(var(--text-rgb));
+    background-color: currentColor;
 }
 .fontSize-item {
     display: flex;
@@ -282,6 +287,20 @@ html.dark .selection-toolbar {
     height: var(--radix-select-trigger-height);
 }
 
+.drawo-colorselect-item {
+    padding: 4px 1px !important;
+    background: transparent !important;
+    width: fit-content;
+    transition-duration: .1s;
+    float: left;
+}
+.drawo-colorselect-content * {
+    flex-direction: row !important;
+}
+.drawo-colorselect-content {
+    width: fit-content !important;
+    min-width: fit-content !important;
+}
 .select-item {
     border-radius: 8px;
     position: relative;
@@ -538,6 +557,7 @@ html.dark .selection-toolbar {
 
 /* arrow */
 .drawo-tooltip-arrow {
+    display: none !important;
     width: 10px;
     height: 10px;
     background: rgb(var(--text-rgb));
