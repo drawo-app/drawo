@@ -31,6 +31,7 @@ import {
   TechnicalTypography,
 } from "../components/icons";
 import { formatLocaleText, type LocaleMessages } from "../i18n";
+import { Tooltip, TooltipContent, TooltipTrigger } from "../components/tooltip";
 
 type ResizeHandle = "nw" | "ne" | "se" | "sw";
 type BoxDrawingType = Exclude<NewElementType, "draw">;
@@ -48,6 +49,7 @@ interface DrawSelection {
   points: Array<{ x: number; y: number }>;
   stroke: string;
   strokeWidth: number;
+  isLine?: boolean;
 }
 
 interface LaserTrailPoint {
@@ -1206,25 +1208,35 @@ export const CanvasView = ({
           );
         }}
       >
-        <SelectTrigger
-          className="draw-stroke-trigger"
-          style={{ gap: "0px", width: "fit-content" }}
-        >
-          <span style={{ width: "0px", overflow: "hidden" }}>
-            <SelectValue
-              placeholder={localeMessages.selectionBar.strokeWidth}
-            />
-          </span>
-          <span className="draw-stroke-option-line-wrap">
-            {
-              DRAW_STROKE_SVGS[
-                DRAW_STROKE_OPTIONS?.indexOf(
-                  selectedDrawStrokeWidth as 2 | 12 | 1 | 4 | 7,
-                ) || 0
-              ]
-            }
-          </span>
-        </SelectTrigger>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <SelectTrigger
+              className="draw-stroke-trigger"
+              style={{
+                gap: "0px",
+                width: "fit-content",
+              }}
+            >
+              <span style={{ width: "0px", overflow: "hidden" }}>
+                <SelectValue
+                  placeholder={localeMessages.selectionBar.strokeWidth}
+                />
+              </span>
+              <span className="draw-stroke-option-line-wrap">
+                {
+                  DRAW_STROKE_SVGS[
+                    DRAW_STROKE_OPTIONS?.indexOf(
+                      selectedDrawStrokeWidth as 2 | 12 | 1 | 4 | 7,
+                    ) || 0
+                  ]
+                }
+              </span>
+            </SelectTrigger>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>{localeMessages.selectionBar.strokeWidth}</p>
+          </TooltipContent>
+        </Tooltip>
         <SelectContent position="popper">
           {DRAW_STROKE_OPTIONS.map((strokeWidth, index) => (
             <SelectItem
@@ -1262,13 +1274,7 @@ export const CanvasView = ({
         return renderDrawStrokeSelector();
       }
 
-      return (
-        <p className="bar-text">
-          {formatLocaleText(localeMessages.selectionBar.elementsSelected, {
-            count: selectedIds.length,
-          })}
-        </p>
-      );
+      return <></>;
     }
 
     if (selectedTextElements.length === 0) {
@@ -1290,22 +1296,29 @@ export const CanvasView = ({
             );
           }}
         >
-          <SelectTrigger style={{ gap: "0px" }}>
-            <span style={{ width: "0px", overflow: "hidden" }}>
-              <SelectValue
-                placeholder={localeMessages.selectionBar.fontFamily}
-              />
-            </span>
-            {selectedFontFamily === "Shantell Sans" ? (
-              <HandwrittenTypography />
-            ) : selectedFontFamily === "Cascadia Code" ? (
-              <TechnicalTypography />
-            ) : selectedFontFamily === "Alegreya" ? (
-              <ElegantTypography />
-            ) : (
-              <SimpleTypography />
-            )}
-          </SelectTrigger>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <SelectTrigger style={{ gap: "0px" }}>
+                <span style={{ width: "0px", overflow: "hidden" }}>
+                  <SelectValue
+                    placeholder={localeMessages.selectionBar.fontFamily}
+                  />
+                </span>
+                {selectedFontFamily === "Shantell Sans" ? (
+                  <HandwrittenTypography />
+                ) : selectedFontFamily === "Cascadia Code" ? (
+                  <TechnicalTypography />
+                ) : selectedFontFamily === "Alegreya" ? (
+                  <ElegantTypography />
+                ) : (
+                  <SimpleTypography />
+                )}
+              </SelectTrigger>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>{localeMessages.selectionBar.fontFamily}</p>
+            </TooltipContent>
+          </Tooltip>
           <SelectContent position="popper">
             <SelectItem check={false} value="Rubik">
               {localeMessages.fontFamilies.simple}
@@ -1331,12 +1344,19 @@ export const CanvasView = ({
             );
           }}
         >
-          <SelectTrigger style={{ gap: "0px" }}>
-            <span style={{ width: "0px", overflow: "hidden" }}>
-              <SelectValue placeholder="" />
-            </span>
-            {selectedFontSize ?? ""}
-          </SelectTrigger>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <SelectTrigger style={{ gap: "0px" }}>
+                <span style={{ width: "0px", overflow: "hidden" }}>
+                  <SelectValue placeholder="" />
+                </span>
+                {selectedFontSize ?? ""}
+              </SelectTrigger>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>{localeMessages.selectionBar.fontSize}</p>
+            </TooltipContent>
+          </Tooltip>
           <SelectContent position="popper">
             <SelectItem check={false} className="fontSize-item" value="16">
               {localeMessages.fontSizes.small}{" "}
@@ -2448,6 +2468,7 @@ export const CanvasView = ({
           points: [pointer],
           stroke: drawStyle.stroke,
           strokeWidth: drawStyle.strokeWidth,
+          isLine: e.shiftKey,
         });
       } else {
         setDrawingSelection({
@@ -2745,6 +2766,14 @@ export const CanvasView = ({
         setDrawSelection((current) => {
           if (!current) {
             return current;
+          }
+
+          // For line mode (shift key), keep only start and end points
+          if (current.isLine) {
+            return {
+              ...current,
+              points: [current.points[0], pointer],
+            };
           }
 
           const previousPoint = current.points[current.points.length - 1];
