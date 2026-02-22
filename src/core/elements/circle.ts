@@ -9,6 +9,13 @@ export interface CircleElement {
   fill: string;
   stroke: string;
   strokeWidth: number;
+  text: string;
+  fontFamily: string;
+  fontSize: number;
+  fontWeight: string;
+  fontStyle: "normal" | "italic";
+  color: string;
+  textAlign: CanvasTextAlign;
 }
 
 const rotatePointAroundCenter = (

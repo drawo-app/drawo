@@ -98,19 +98,24 @@ function SelectLabel({
 function SelectItem({
   className,
   children,
+  check = true,
   ...props
-}: React.ComponentProps<typeof SelectPrimitive.Item>) {
+}: React.ComponentProps<typeof SelectPrimitive.Item> & {
+  check: boolean;
+}) {
   return (
     <SelectPrimitive.Item
       data-slot="select-item"
       className={`select-item ${className ?? ""}`.trim()}
       {...props}
     >
-      <span className="select-item-indicator">
-        <SelectPrimitive.ItemIndicator>
-          <Check className="select-item-check" />
-        </SelectPrimitive.ItemIndicator>
-      </span>
+      {check && (
+        <span className="select-item-indicator">
+          <SelectPrimitive.ItemIndicator>
+            <Check className="select-item-check" />
+          </SelectPrimitive.ItemIndicator>
+        </span>
+      )}
       <SelectPrimitive.ItemText>{children}</SelectPrimitive.ItemText>
     </SelectPrimitive.Item>
   );

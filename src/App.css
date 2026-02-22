@@ -73,7 +73,38 @@ html {
     margin: 0;
     padding: 8px 8px;
 }
+
+.selection-toolbar .select-trigger.draw-stroke-trigger {
+    width: 78px;
+    justify-content: center;
+    padding: 0 12px;
+}
+.draw-stroke-select-item * {
+    width: 100%;
+}
+.draw-stroke-select-item {
+    display: flex;
+    padding: 7px 8px !important;
+}
+
+.draw-stroke-option-line-wrap svg {
+    width: 180px;
+    height: auto;
+}
+.draw-stroke-option-line-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.draw-stroke-option-line {
+    width: 100%;
+    border-radius: 999px;
+    background: currentColor;
+}
+
 .tool-bar {
+    border-radius: 15px;
     position: absolute;
     left: 50%;
     bottom: 16px;
@@ -89,7 +120,6 @@ html {
     padding: 8px 9px;
     background: rgba(255, 255, 255, 0.94);
     box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
-    border-radius: 30px;
 }
 
 .app-root--dark .tool-bar {
@@ -117,8 +147,8 @@ html {
 }
 .insert-item,
 .tool-item {
+    border-radius: 10px;
     border: none;
-    border-radius: 22px;
     background: transparent;
     corner-shape: squircle;
     color: black;
@@ -150,7 +180,7 @@ html {
 }
 .app-root--dark .insert-item.active,
 .app-root--dark .tool-item.active {
-    background: rgba(var(--accent-rgb), 0.5) !important;
+    background: #7c5cff !important;
 }
 
 .app-root--dark .insert-item,
@@ -158,13 +188,30 @@ html {
     background: transparent;
     color: #e5e7eb;
 }
+* {
+    --selectiontoolbar-height: 43px;
+}
+.selectionbar-separator {
+    width: 1px;
+    height: var(--selectiontoolbar-height);
+    margin: 0 5px;
+    opacity: 0.2;
+    background-color: currentColor;
+}
+.fontSize-item {
+    display: flex;
+    gap: 2px;
+    align-items: center;
+    justify-content: space-between;
+}
 
 .selection-toolbar {
     position: absolute;
     z-index: 20;
     transform: translateX(-50%) translateY(-8px);
-    padding: 5px 5px;
-    border-radius: 24px;
+    overflow: hidden;
+    height: var(--selectiontoolbar-height);
+    border-radius: 12px;
     color: white;
     corner-shape: squircle;
     background: #1e1e1e;
@@ -183,13 +230,11 @@ html {
 }
 
 .selection-toolbar .select-trigger {
-    height: 32px;
+    height: var(--selectiontoolbar-height);
     display: inline-flex;
     align-items: center;
     justify-content: space-between;
     padding: 0 10px;
-    border-radius: 24px;
-    corner-shape: squircle;
     border: none;
     background: transparent;
     color: #f3f4f6;
@@ -213,6 +258,7 @@ html {
 }
 
 .select-content {
+    border-radius: 12px;
     z-index: 40;
     overflow-x: hidden;
     overflow-y: auto;
@@ -220,7 +266,6 @@ html {
     min-width: 120px;
     position: relative !important;
     transition: 0.1s;
-    border-radius: 20px;
     top: 0px !important;
     transform: translateY(0px) !important;
     max-height: var(--radix-select-content-available-height);
@@ -236,12 +281,12 @@ html {
 }
 
 .select-item {
+    border-radius: 8px;
     position: relative;
     display: flex;
     corner-shape: squircle;
     align-items: center;
     padding: 8px 19px;
-    border-radius: 12px;
     font:
         500 13px Inter,
         sans-serif;
@@ -294,5 +339,109 @@ html {
     to {
         opacity: 1;
         transform: translateX(-50%) translateY(-8px) scale(1);
+    }
+}
+
+.drawo-contextmenu-trigger {
+    user-select: none;
+}
+
+.drawo-contextmenu-content {
+    background: var(--popover, #fff);
+    color: var(--popover-foreground, #111);
+    min-width: 9rem;
+    border-radius: 0.5rem;
+    padding: 4px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+    z-index: 50;
+    max-height: var(--radix-context-menu-content-available-height);
+    transform-origin: var(--radix-context-menu-content-transform-origin);
+    overflow-x: hidden;
+    overflow-y: auto;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.drawo-contextmenu-item,
+.drawo-contextmenu-subtrigger,
+.drawo-contextmenu-checkboxitem,
+.drawo-contextmenu-radioitem {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    border-radius: 6px;
+    padding: 4px 6px;
+    font-size: 14px;
+    cursor: default;
+    outline: none;
+    user-select: none;
+}
+
+.drawo-contextmenu-item:focus,
+.drawo-contextmenu-subtrigger:focus,
+.drawo-contextmenu-checkboxitem:focus,
+.drawo-contextmenu-radioitem:focus {
+    background: var(--accent, #eee);
+    color: var(--accent-foreground, #000);
+}
+
+.drawo-contextmenu-subcontent {
+    background: var(--popover, #fff);
+    color: var(--popover-foreground, #111);
+    min-width: 8rem;
+    border-radius: 0.5rem;
+    padding: 4px;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+    z-index: 50;
+    transform-origin: var(--radix-context-menu-content-transform-origin);
+    overflow: hidden;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.drawo-contextmenu-label {
+    padding: 4px 6px;
+    font-size: 12px;
+    font-weight: 500;
+    color: #666;
+}
+
+.drawo-contextmenu-separator {
+    height: 1px;
+    margin: 4px 0;
+    background: #e5e5e5;
+}
+
+.drawo-contextmenu-shortcut {
+    margin-left: auto;
+    font-size: 12px;
+    color: #777;
+    letter-spacing: 0.05em;
+}
+
+.drawo-contextmenu-indicator {
+    position: absolute;
+    right: 8px;
+    pointer-events: none;
+}
+
+.drawo-contextmenu-chevron {
+    margin-left: auto;
+}
+
+@supports (corner-shape: squircle) {
+    .selection-toolbar {
+        border-radius: 24px;
+    }
+    .select-content {
+        border-radius: 20px;
+    }
+    .select-item {
+        border-radius: 12px;
+    }
+    .insert-item,
+    .tool-item {
+        border-radius: 22px;
+    }
+    .tool-bar {
+        border-radius: 30px;
     }
 }

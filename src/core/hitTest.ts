@@ -1,5 +1,6 @@
 import {
   hitTestCircle,
+  hitTestDraw,
   hitTestRectangle,
   hitTestText,
   type SceneElement,
@@ -16,6 +17,10 @@ export const hitTestElement = (
 
   if (element.type === "circle") {
     return hitTestCircle(element, pointX, pointY);
+  }
+
+  if (element.type === "draw") {
+    return hitTestDraw(element, pointX, pointY);
   }
 
   return hitTestText(element, pointX, pointY);

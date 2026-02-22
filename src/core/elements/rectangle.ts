@@ -6,9 +6,17 @@ export interface RectangleElement {
   y: number;
   width: number;
   height: number;
+  borderRadius: number;
   fill: string;
   stroke: string;
   strokeWidth: number;
+  text: string;
+  fontFamily: string;
+  fontSize: number;
+  fontWeight: string;
+  fontStyle: "normal" | "italic";
+  color: string;
+  textAlign: CanvasTextAlign;
 }
 
 const rotatePointAroundCenter = (

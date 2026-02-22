@@ -3,14 +3,19 @@ import type { Scene } from "../core/scene";
 import { estimateTextWidth, getTextStartX } from "../core/elements";
 import { findHitElement } from "../core/hitTest";
 import {
+  addDrawElementToScene,
   addElementToScene,
   type ElementCreationBounds,
+  type DrawElementStyle,
   type NewElementType,
   selectElement,
   selectElements,
+  updateDrawElementsStrokeWidth,
+  updateTextElementsFontSize,
   updateTextElementsFontFamily,
   updateElementPosition,
   updateElementRotation,
+  updateGroupElementsRotation,
   updateRectangleElementBounds,
   updateTextElementLayout,
   updateTextElementContent,
@@ -66,6 +71,13 @@ interface ResizeState {
         height: number;
       }
     | {
+        type: "draw";
+        x: number;
+        y: number;
+        width: number;
+        height: number;
+      }
+    | {
         type: "text";
         x: number;
         y: number;
@@ -83,6 +95,7 @@ interface GroupResizeElementState {
   y: number;
   width: number;
   height: number;
+  points?: Array<{ x: number; y: number }>;
   textAlign?: CanvasTextAlign;
   fontSize?: number;
 }
@@ -101,6 +114,23 @@ interface RotationState {
   centerY: number;
   startPointerAngle: number;
   startRotation: number;
+}
+
+interface GroupRotationState {
+  ids: string[];
+  centerX: number;
+  centerY: number;
+  startPointerAngle: number;
+  startPositions: Map<
+    string,
+    {
+      centerX: number;
+      centerY: number;
+      offsetX: number;
+      offsetY: number;
+      rotation: number;
+    }
+  >;
 }
 
 interface Bounds {
@@ -179,6 +209,79 @@ const getResizedBoundsFromCorner = (
   };
 };
 
+const getAspectRatioLockedBounds = (
+  bounds: Bounds,
+  handle: ResizeHandle,
+  aspectRatio: number,
+  fromCenter: boolean,
+): Bounds => {
+  if (!Number.isFinite(aspectRatio) || aspectRatio <= 0) {
+    return bounds;
+  }
+
+  const widthFromHeight = Math.max(1, bounds.height * aspectRatio);
+  const heightFromWidth = Math.max(1, bounds.width / aspectRatio);
+  const useWidthDriven =
+    Math.abs(heightFromWidth - bounds.height) <=
+    Math.abs(widthFromHeight - bounds.width);
+
+  const lockedWidth = useWidthDriven ? bounds.width : widthFromHeight;
+  const lockedHeight = useWidthDriven ? heightFromWidth : bounds.height;
+
+  if (fromCenter) {
+    const centerX = bounds.x + bounds.width / 2;
+    const centerY = bounds.y + bounds.height / 2;
+
+    return {
+      x: centerX - lockedWidth / 2,
+      y: centerY - lockedHeight / 2,
+      width: lockedWidth,
+      height: lockedHeight,
+    };
+  }
+
+  if (handle === "nw") {
+    const anchorX = bounds.x + bounds.width;
+    const anchorY = bounds.y + bounds.height;
+
+    return {
+      x: anchorX - lockedWidth,
+      y: anchorY - lockedHeight,
+      width: lockedWidth,
+      height: lockedHeight,
+    };
+  }
+
+  if (handle === "ne") {
+    const anchorY = bounds.y + bounds.height;
+
+    return {
+      x: bounds.x,
+      y: anchorY - lockedHeight,
+      width: lockedWidth,
+      height: lockedHeight,
+    };
+  }
+
+  if (handle === "sw") {
+    const anchorX = bounds.x + bounds.width;
+
+    return {
+      x: anchorX - lockedWidth,
+      y: bounds.y,
+      width: lockedWidth,
+      height: lockedHeight,
+    };
+  }
+
+  return {
+    x: bounds.x,
+    y: bounds.y,
+    width: lockedWidth,
+    height: lockedHeight,
+  };
+};
+
 const getTextXFromBounds = (
   bounds: Bounds,
   textAlign: CanvasTextAlign,
@@ -212,6 +315,15 @@ const getElementBounds = (element: SceneElement): Bounds => {
     };
   }
 
+  if (element.type === "draw") {
+    return {
+      x: element.x,
+      y: element.y,
+      width: element.width,
+      height: element.height,
+    };
+  }
+
   return {
     x: getTextStartX(element),
     y: element.y - element.fontSize,
@@ -230,6 +342,7 @@ export const useInteraction = ({
   const resizeStateRef = useRef<ResizeState | null>(null);
   const groupResizeStateRef = useRef<GroupResizeState | null>(null);
   const rotationStateRef = useRef<RotationState | null>(null);
+  const groupRotationStateRef = useRef<GroupRotationState | null>(null);
   const interactionBeforeRef = useRef<Scene | null>(null);
 
   const beginInteractionHistory = useCallback(() => {
@@ -325,7 +438,7 @@ export const useInteraction = ({
   );
 
   const handlePointerMove = useCallback(
-    (x: number, y: number, shiftKey: boolean) => {
+    (x: number, y: number, shiftKey: boolean, altKey: boolean) => {
       const rotationState = rotationStateRef.current;
       if (rotationState) {
         const nextPointerAngle = Math.atan2(
@@ -335,12 +448,38 @@ export const useInteraction = ({
         const angleDeltaDegrees =
           ((nextPointerAngle - rotationState.startPointerAngle) * 180) /
           Math.PI;
+        const nextRotationRaw = rotationState.startRotation + angleDeltaDegrees;
+        const nextRotation = shiftKey
+          ? Math.round(nextRotationRaw / 10) * 10
+          : nextRotationRaw;
 
         setSceneWithoutHistory((currentScene) =>
-          updateElementRotation(
+          updateElementRotation(currentScene, rotationState.id, nextRotation),
+        );
+        return;
+      }
+
+      const groupRotationState = groupRotationStateRef.current;
+      if (groupRotationState) {
+        const nextPointerAngle = Math.atan2(
+          y - groupRotationState.centerY,
+          x - groupRotationState.centerX,
+        );
+        const angleDeltaDegrees =
+          ((nextPointerAngle - groupRotationState.startPointerAngle) * 180) /
+          Math.PI;
+        const snappedAngle = shiftKey
+          ? Math.round(angleDeltaDegrees / 10) * 10
+          : angleDeltaDegrees;
+
+        setSceneWithoutHistory((currentScene) =>
+          updateGroupElementsRotation(
             currentScene,
-            rotationState.id,
-            rotationState.startRotation + angleDeltaDegrees,
+            groupRotationState.ids,
+            snappedAngle,
+            groupRotationState.centerX,
+            groupRotationState.centerY,
+            groupRotationState.startPositions,
           ),
         );
         return;
@@ -353,7 +492,8 @@ export const useInteraction = ({
 
         if (
           resizeState.startElement.type === "rectangle" ||
-          resizeState.startElement.type === "circle"
+          resizeState.startElement.type === "circle" ||
+          resizeState.startElement.type === "draw"
         ) {
           const startBounds = {
             x: resizeState.startElement.x,
@@ -362,56 +502,62 @@ export const useInteraction = ({
             height: resizeState.startElement.height,
           };
 
-          let nextBounds = getResizedBoundsFromCorner(
-            startBounds,
-            resizeState.handle,
-            startBounds.x +
-              dx +
-              (resizeState.handle === "ne" || resizeState.handle === "se"
-                ? startBounds.width
-                : 0),
-            startBounds.y +
-              dy +
-              (resizeState.handle === "sw" || resizeState.handle === "se"
-                ? startBounds.height
-                : 0),
-          );
+          let nextBounds: Bounds;
 
-          if (shiftKey) {
-            const nextSize = Math.max(
-              MIN_ELEMENT_SIZE,
-              Math.max(nextBounds.width, nextBounds.height),
+          if (altKey) {
+            const centerX = startBounds.x + startBounds.width / 2;
+            const centerY = startBounds.y + startBounds.height / 2;
+            const halfWidth = Math.max(
+              MIN_ELEMENT_SIZE / 2,
+              Math.abs(x - centerX),
+            );
+            const halfHeight = Math.max(
+              MIN_ELEMENT_SIZE / 2,
+              Math.abs(y - centerY),
             );
 
-            if (resizeState.handle === "nw") {
-              nextBounds = {
-                x: startBounds.x + startBounds.width - nextSize,
-                y: startBounds.y + startBounds.height - nextSize,
-                width: nextSize,
-                height: nextSize,
-              };
-            } else if (resizeState.handle === "ne") {
-              nextBounds = {
-                x: startBounds.x,
-                y: startBounds.y + startBounds.height - nextSize,
-                width: nextSize,
-                height: nextSize,
-              };
-            } else if (resizeState.handle === "sw") {
-              nextBounds = {
-                x: startBounds.x + startBounds.width - nextSize,
-                y: startBounds.y,
-                width: nextSize,
-                height: nextSize,
-              };
-            } else {
-              nextBounds = {
-                x: startBounds.x,
-                y: startBounds.y,
-                width: nextSize,
-                height: nextSize,
-              };
-            }
+            nextBounds = {
+              x: centerX - halfWidth,
+              y: centerY - halfHeight,
+              width: halfWidth * 2,
+              height: halfHeight * 2,
+            };
+          } else {
+            nextBounds = getResizedBoundsFromCorner(
+              startBounds,
+              resizeState.handle,
+              startBounds.x +
+                dx +
+                (resizeState.handle === "ne" || resizeState.handle === "se"
+                  ? startBounds.width
+                  : 0),
+              startBounds.y +
+                dy +
+                (resizeState.handle === "sw" || resizeState.handle === "se"
+                  ? startBounds.height
+                  : 0),
+            );
+          }
+
+          if (shiftKey) {
+            const startAspectRatio =
+              startBounds.height === 0
+                ? 1
+                : startBounds.width / startBounds.height;
+            const aspectLockedBounds = getAspectRatioLockedBounds(
+              nextBounds,
+              resizeState.handle,
+              startAspectRatio,
+              altKey,
+            );
+            const minSize =
+              resizeState.startElement.type === "draw" ? 1 : MIN_ELEMENT_SIZE;
+
+            nextBounds = {
+              ...aspectLockedBounds,
+              width: Math.max(minSize, aspectLockedBounds.width),
+              height: Math.max(minSize, aspectLockedBounds.height),
+            };
           }
 
           setSceneWithoutHistory((currentScene) =>
@@ -425,13 +571,13 @@ export const useInteraction = ({
                 ? snapValue(nextBounds.y, currentScene.settings.gridSize)
                 : nextBounds.y,
               Math.max(
-                MIN_ELEMENT_SIZE,
+                resizeState.startElement.type === "draw" ? 1 : MIN_ELEMENT_SIZE,
                 currentScene.settings.snapToGrid
                   ? snapValue(nextBounds.width, currentScene.settings.gridSize)
                   : nextBounds.width,
               ),
               Math.max(
-                MIN_ELEMENT_SIZE,
+                resizeState.startElement.type === "draw" ? 1 : MIN_ELEMENT_SIZE,
                 currentScene.settings.snapToGrid
                   ? snapValue(nextBounds.height, currentScene.settings.gridSize)
                   : nextBounds.height,
@@ -450,20 +596,34 @@ export const useInteraction = ({
           height: textStartElement.height,
         };
 
-        const nextBounds = getResizedBoundsFromCorner(
-          startBounds,
-          resizeState.handle,
-          startBounds.x +
-            dx +
-            (resizeState.handle === "ne" || resizeState.handle === "se"
-              ? startBounds.width
-              : 0),
-          startBounds.y +
-            dy +
-            (resizeState.handle === "sw" || resizeState.handle === "se"
-              ? startBounds.height
-              : 0),
-        );
+        const nextBounds = altKey
+          ? (() => {
+              const centerX = startBounds.x + startBounds.width / 2;
+              const centerY = startBounds.y + startBounds.height / 2;
+              const halfWidth = Math.max(8, Math.abs(x - centerX));
+              const halfHeight = Math.max(8, Math.abs(y - centerY));
+
+              return {
+                x: centerX - halfWidth,
+                y: centerY - halfHeight,
+                width: halfWidth * 2,
+                height: halfHeight * 2,
+              };
+            })()
+          : getResizedBoundsFromCorner(
+              startBounds,
+              resizeState.handle,
+              startBounds.x +
+                dx +
+                (resizeState.handle === "ne" || resizeState.handle === "se"
+                  ? startBounds.width
+                  : 0),
+              startBounds.y +
+                dy +
+                (resizeState.handle === "sw" || resizeState.handle === "se"
+                  ? startBounds.height
+                  : 0),
+            );
 
         const widthRatio = nextBounds.width / startBounds.width;
         const heightRatio = nextBounds.height / startBounds.height;
@@ -527,12 +687,25 @@ export const useInteraction = ({
             ? startBounds.height
             : 0);
 
-        const nextGroupBounds = getResizedBoundsFromCorner(
+        let nextGroupBounds = getResizedBoundsFromCorner(
           startBounds,
           groupResizeState.handle,
           pointerX,
           pointerY,
         );
+
+        if (shiftKey) {
+          const startAspectRatio =
+            startBounds.height === 0
+              ? 1
+              : startBounds.width / startBounds.height;
+          nextGroupBounds = getAspectRatioLockedBounds(
+            nextGroupBounds,
+            groupResizeState.handle,
+            startAspectRatio,
+            false,
+          );
+        }
 
         const widthRatio =
           startBounds.width === 0
@@ -562,42 +735,83 @@ export const useInteraction = ({
               const nextY =
                 nextGroupBounds.y +
                 (startElement.y - startBounds.y) * heightRatio;
+              const minSize =
+                startElement.type === "draw"
+                  ? 1
+                  : startElement.type === "rectangle" ||
+                      startElement.type === "circle"
+                    ? MIN_ELEMENT_SIZE
+                    : 16;
               const nextWidth = Math.max(
-                startElement.type === "rectangle" ||
-                  startElement.type === "circle"
-                  ? MIN_ELEMENT_SIZE
-                  : 16,
+                minSize,
                 startElement.width * widthRatio,
               );
               const nextHeight = Math.max(
-                startElement.type === "rectangle" ||
-                  startElement.type === "circle"
-                  ? MIN_ELEMENT_SIZE
-                  : 10,
+                startElement.type === "draw"
+                  ? 1
+                  : startElement.type === "rectangle" ||
+                      startElement.type === "circle"
+                    ? MIN_ELEMENT_SIZE
+                    : 10,
                 startElement.height * heightRatio,
               );
+
+              const appliedX = currentScene.settings.snapToGrid
+                ? snapValue(nextX, currentScene.settings.gridSize)
+                : nextX;
+              const appliedY = currentScene.settings.snapToGrid
+                ? snapValue(nextY, currentScene.settings.gridSize)
+                : nextY;
+              const appliedWidth = currentScene.settings.snapToGrid
+                ? Math.max(
+                    minSize,
+                    snapValue(nextWidth, currentScene.settings.gridSize),
+                  )
+                : nextWidth;
+              const appliedHeight = currentScene.settings.snapToGrid
+                ? Math.max(
+                    startElement.type === "draw"
+                      ? 1
+                      : startElement.type === "rectangle" ||
+                          startElement.type === "circle"
+                        ? MIN_ELEMENT_SIZE
+                        : 10,
+                    snapValue(nextHeight, currentScene.settings.gridSize),
+                  )
+                : nextHeight;
 
               if (element.type === "rectangle" || element.type === "circle") {
                 return {
                   ...element,
-                  x: currentScene.settings.snapToGrid
-                    ? snapValue(nextX, currentScene.settings.gridSize)
-                    : nextX,
-                  y: currentScene.settings.snapToGrid
-                    ? snapValue(nextY, currentScene.settings.gridSize)
-                    : nextY,
-                  width: currentScene.settings.snapToGrid
-                    ? Math.max(
-                        MIN_ELEMENT_SIZE,
-                        snapValue(nextWidth, currentScene.settings.gridSize),
-                      )
-                    : nextWidth,
-                  height: currentScene.settings.snapToGrid
-                    ? Math.max(
-                        MIN_ELEMENT_SIZE,
-                        snapValue(nextHeight, currentScene.settings.gridSize),
-                      )
-                    : nextHeight,
+                  x: appliedX,
+                  y: appliedY,
+                  width: appliedWidth,
+                  height: appliedHeight,
+                };
+              }
+
+              if (element.type === "draw") {
+                const pointScaleX =
+                  startElement.width === 0
+                    ? 1
+                    : appliedWidth / startElement.width;
+                const pointScaleY =
+                  startElement.height === 0
+                    ? 1
+                    : appliedHeight / startElement.height;
+
+                return {
+                  ...element,
+                  x: appliedX,
+                  y: appliedY,
+                  width: appliedWidth,
+                  height: appliedHeight,
+                  points: (startElement.points ?? element.points).map(
+                    (point) => ({
+                      x: point.x * pointScaleX,
+                      y: point.y * pointScaleY,
+                    }),
+                  ),
                 };
               }
 
@@ -682,6 +896,7 @@ export const useInteraction = ({
     resizeStateRef.current = null;
     groupResizeStateRef.current = null;
     rotationStateRef.current = null;
+    groupRotationStateRef.current = null;
     interactionBeforeRef.current = null;
   }, [commitInteractionHistory]);
 
@@ -714,6 +929,58 @@ export const useInteraction = ({
     [beginInteractionHistory, scene.elements],
   );
 
+  const handleGroupRotateStart = useCallback(
+    (
+      centerX: number,
+      centerY: number,
+      pointerX: number,
+      pointerY: number,
+      ids: string[],
+    ) => {
+      dragStateRef.current = null;
+      resizeStateRef.current = null;
+      groupResizeStateRef.current = null;
+      rotationStateRef.current = null;
+      beginInteractionHistory();
+
+      const startPositions = new Map<
+        string,
+        {
+          centerX: number;
+          centerY: number;
+          offsetX: number;
+          offsetY: number;
+          rotation: number;
+        }
+      >();
+      for (const id of ids) {
+        const element = scene.elements.find((item) => item.id === id);
+        if (element) {
+          const bounds = getElementBounds(element);
+          const elementCenterX = bounds.x + bounds.width / 2;
+          const elementCenterY = bounds.y + bounds.height / 2;
+
+          startPositions.set(id, {
+            centerX: elementCenterX,
+            centerY: elementCenterY,
+            offsetX: element.x - elementCenterX,
+            offsetY: element.y - elementCenterY,
+            rotation: element.rotation,
+          });
+        }
+      }
+
+      groupRotationStateRef.current = {
+        ids,
+        centerX,
+        centerY,
+        startPointerAngle: Math.atan2(pointerY - centerY, pointerX - centerX),
+        startPositions,
+      };
+    },
+    [beginInteractionHistory, scene.elements],
+  );
+
   const handleResizeStart = useCallback(
     (
       id: string,
@@ -732,6 +999,23 @@ export const useInteraction = ({
       beginInteractionHistory();
 
       if (element.type === "rectangle" || element.type === "circle") {
+        resizeStateRef.current = {
+          id,
+          handle,
+          startPointerX: pointerX,
+          startPointerY: pointerY,
+          startElement: {
+            type: element.type,
+            x: element.x,
+            y: element.y,
+            width: element.width,
+            height: element.height,
+          },
+        };
+        return;
+      }
+
+      if (element.type === "draw") {
         resizeStateRef.current = {
           id,
           handle,
@@ -781,7 +1065,11 @@ export const useInteraction = ({
         .map((element): GroupResizeElementState => {
           const bounds = getElementBounds(element);
 
-          if (element.type === "rectangle" || element.type === "circle") {
+          if (
+            element.type === "rectangle" ||
+            element.type === "circle" ||
+            element.type === "draw"
+          ) {
             return {
               id: element.id,
               type: element.type,
@@ -789,6 +1077,7 @@ export const useInteraction = ({
               y: bounds.y,
               width: bounds.width,
               height: bounds.height,
+              points: element.type === "draw" ? [...element.points] : undefined,
             };
           }
 
@@ -941,12 +1230,50 @@ export const useInteraction = ({
     [setScene],
   );
 
+  const handleTextFontSizeChange = useCallback(
+    (ids: string[], fontSize: number) => {
+      setScene((currentScene) =>
+        updateTextElementsFontSize(currentScene, ids, fontSize),
+      );
+    },
+    [setScene],
+  );
+
+  const handleCreateDrawElement = useCallback(
+    (
+      points: Array<{ x: number; y: number }>,
+      style?: Partial<DrawElementStyle>,
+    ) => {
+      setScene((currentScene) => {
+        const nextPoints = currentScene.settings.snapToGrid
+          ? points.map((point) => ({
+              x: snapValue(point.x, currentScene.settings.gridSize),
+              y: snapValue(point.y, currentScene.settings.gridSize),
+            }))
+          : points;
+
+        return addDrawElementToScene(currentScene, nextPoints, style);
+      });
+    },
+    [setScene],
+  );
+
+  const handleDrawStrokeWidthChange = useCallback(
+    (ids: string[], strokeWidth: number) => {
+      setScene((currentScene) =>
+        updateDrawElementsStrokeWidth(currentScene, ids, strokeWidth),
+      );
+    },
+    [setScene],
+  );
+
   return {
     handlePointerDown,
     handlePointerMove,
     handlePointerUp,
     handleResizeStart,
     handleRotateStart,
+    handleGroupRotateStart,
     handleTextCommit,
     handleWheelPan,
     handleWheelZoom,
@@ -954,5 +1281,8 @@ export const useInteraction = ({
     handleSelectElements,
     handleGroupResizeStart,
     handleTextFontFamilyChange,
+    handleTextFontSizeChange,
+    handleCreateDrawElement,
+    handleDrawStrokeWidthChange,
   };
 };

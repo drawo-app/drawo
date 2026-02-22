@@ -14,17 +14,19 @@ import {
   selectElements,
   type Scene,
   type SceneSettings,
+  updateRectangleElementsBorderRadius,
   updateSceneSettings,
 } from "./core/scene";
 import type { SceneElement } from "./core/elements";
 import { useInteraction } from "./canvas/useInteraction";
 import { CanvasView } from "./canvas/CanvasView";
 import "./App.css";
-import { MapArrowUp, Text } from "@solar-icons/react";
+import { MapArrowUp, Pen, Text } from "@solar-icons/react";
 import { GrabHandBold, GrabHandLinear, SquareLinear } from "./components/icons";
 import { Circle } from "lucide-react";
 
 const SETTINGS_STORAGE_KEY = "settings";
+const SCENE_STORAGE_KEY = "scene";
 const MAX_HISTORY_ENTRIES = 200;
 
 interface AppState {
@@ -35,19 +37,79 @@ interface AppState {
 
 type AppAction =
   | {
-      type: "setScene";
-      updater: SetStateAction<Scene>;
-      trackHistory?: boolean;
-    }
+    type: "setScene";
+    updater: SetStateAction<Scene>;
+    trackHistory?: boolean;
+  }
   | {
-      type: "commitInteraction";
-      before: Scene;
-    }
+    type: "commitInteraction";
+    before: Scene;
+  }
   | { type: "undo" }
   | { type: "redo" };
 
 const createElementId = (type: SceneElement["type"]): string => {
   return `${type}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+};
+
+const normalizeElement = (element: SceneElement): SceneElement => {
+  if (element.type === "rectangle" || element.type === "circle") {
+    return {
+      ...element,
+      text: typeof element.text === "string" ? element.text : "",
+      fontFamily:
+        typeof element.fontFamily === "string"
+          ? element.fontFamily
+          : "Shantell Sans, sans-serif",
+      fontSize:
+        typeof element.fontSize === "number" &&
+          Number.isFinite(element.fontSize)
+          ? element.fontSize
+          : 20,
+      fontWeight:
+        typeof element.fontWeight === "string" ? element.fontWeight : "200",
+      fontStyle: element.fontStyle === "italic" ? "italic" : "normal",
+      color: typeof element.color === "string" ? element.color : "#2f3b52",
+      textAlign:
+        element.textAlign === "left" ||
+          element.textAlign === "center" ||
+          element.textAlign === "right" ||
+          element.textAlign === "start" ||
+          element.textAlign === "end"
+          ? element.textAlign
+          : "center",
+    };
+  }
+
+  if (element.type === "draw") {
+    return {
+      ...element,
+      width:
+        typeof element.width === "number" && Number.isFinite(element.width)
+          ? Math.max(1, element.width)
+          : 1,
+      height:
+        typeof element.height === "number" && Number.isFinite(element.height)
+          ? Math.max(1, element.height)
+          : 1,
+      points: Array.isArray(element.points)
+        ? element.points
+          .filter(
+            (point): point is { x: number; y: number } =>
+              typeof point?.x === "number" && typeof point?.y === "number",
+          )
+          .map((point) => ({ x: point.x, y: point.y }))
+        : [],
+      stroke: typeof element.stroke === "string" ? element.stroke : "#2f3b52",
+      strokeWidth:
+        typeof element.strokeWidth === "number" &&
+          Number.isFinite(element.strokeWidth)
+          ? Math.max(1, element.strokeWidth)
+          : 2,
+    };
+  }
+
+  return element;
 };
 
 const isValidTheme = (value: unknown): value is SceneSettings["theme"] => {
@@ -58,6 +120,62 @@ const loadInitialScene = (): Scene => {
   const baseScene = initScene();
 
   try {
+    const rawScene = localStorage.getItem(SCENE_STORAGE_KEY);
+    if (rawScene) {
+      const parsed = JSON.parse(rawScene) as Partial<Scene>;
+      const camera = parsed.camera;
+      const parsedSettings = parsed.settings;
+      const nextSettings: Partial<SceneSettings> = {};
+
+      if (parsedSettings && typeof parsedSettings.showGrid === "boolean") {
+        nextSettings.showGrid = parsedSettings.showGrid;
+      }
+      if (parsedSettings && typeof parsedSettings.snapToGrid === "boolean") {
+        nextSettings.snapToGrid = parsedSettings.snapToGrid;
+      }
+      if (
+        parsedSettings &&
+        typeof parsedSettings.gridSize === "number" &&
+        Number.isFinite(parsedSettings.gridSize)
+      ) {
+        nextSettings.gridSize = parsedSettings.gridSize;
+      }
+      if (parsedSettings && isValidTheme(parsedSettings.theme)) {
+        nextSettings.theme = parsedSettings.theme;
+      }
+
+      const nextScene: Scene = {
+        ...baseScene,
+        elements: Array.isArray(parsed.elements)
+          ? (parsed.elements as SceneElement[]).map(normalizeElement)
+          : baseScene.elements,
+        selectedId:
+          typeof parsed.selectedId === "string" ? parsed.selectedId : null,
+        selectedIds: Array.isArray(parsed.selectedIds)
+          ? parsed.selectedIds.filter(
+            (id): id is string => typeof id === "string",
+          )
+          : [],
+        camera:
+          camera &&
+            typeof camera.x === "number" &&
+            typeof camera.y === "number" &&
+            typeof camera.zoom === "number"
+            ? camera
+            : baseScene.camera,
+        settings: {
+          ...baseScene.settings,
+          ...nextSettings,
+        },
+      };
+
+      if (nextScene.selectedIds.length === 0 && nextScene.selectedId) {
+        nextScene.selectedIds = [nextScene.selectedId];
+      }
+
+      return nextScene;
+    }
+
     const rawSettings = localStorage.getItem(SETTINGS_STORAGE_KEY);
     if (!rawSettings) {
       return baseScene;
@@ -184,8 +302,9 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    localStorage.setItem(SCENE_STORAGE_KEY, JSON.stringify(scene));
     localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(scene.settings));
-  }, [scene.settings]);
+  }, [scene]);
 
   useEffect(() => {
     const isEditableTarget = (target: EventTarget | null): boolean => {
@@ -359,6 +478,13 @@ export default function App() {
           setDrawingTool("circle");
           return;
         }
+
+        if (event.code === "Digit4") {
+          event.preventDefault();
+          setInteractionMode("select");
+          setDrawingTool("draw");
+          return;
+        }
       }
 
       if (event.key === "Backspace" || event.key === "Delete") {
@@ -388,18 +514,31 @@ export default function App() {
     handleResizeStart,
     handleGroupResizeStart,
     handleRotateStart,
+    handleGroupRotateStart,
     handleTextCommit,
     handleWheelPan,
     handleWheelZoom,
     handleCreateElement,
+    handleCreateDrawElement,
     handleSelectElements,
     handleTextFontFamilyChange,
+    handleTextFontSizeChange,
+    handleDrawStrokeWidthChange,
   } = useInteraction({
     scene,
     setScene,
     setSceneWithoutHistory,
     commitInteractionHistory,
   });
+
+  const handleRectangleBorderRadiusChange = useCallback(
+    (ids: string[], borderRadius: number) => {
+      setScene((currentScene) =>
+        updateRectangleElementsBorderRadius(currentScene, ids, borderRadius),
+      );
+    },
+    [setScene],
+  );
 
   return (
     <div className={`app-root${isDarkMode ? " app-root--dark" : ""}`}>
@@ -463,10 +602,15 @@ export default function App() {
         onWheelPan={handleWheelPan}
         onWheelZoom={handleWheelZoom}
         onCreateElement={handleCreateElement}
+        onCreateDrawElement={handleCreateDrawElement}
         onDrawingToolComplete={() => setDrawingTool(null)}
         onSelectElements={handleSelectElements}
         onGroupResizeStart={handleGroupResizeStart}
+        onGroupRotateStart={handleGroupRotateStart}
         onTextFontFamilyChange={handleTextFontFamilyChange}
+        onTextFontSizeChange={handleTextFontSizeChange}
+        onDrawStrokeWidthChange={handleDrawStrokeWidthChange}
+        onRectangleBorderRadiusChange={handleRectangleBorderRadiusChange}
       />
 
       <div className="tool-bar">
@@ -479,9 +623,6 @@ export default function App() {
           }}
         >
           <MapArrowUp
-            weight={
-              interactionMode === "select" && !drawingTool ? "Bold" : "Linear"
-            }
             style={{
               transform: "translateY(-2px) translateX(-3px) rotate(-46deg)",
             }}
@@ -496,7 +637,7 @@ export default function App() {
             setDrawingTool(null);
           }}
         >
-          {interactionMode === "pan" ? <GrabHandBold /> : <GrabHandLinear />}
+          <GrabHandLinear />
         </button>
         <div className="tool-separator" />
         <button
@@ -528,6 +669,16 @@ export default function App() {
           }}
         >
           <Circle strokeWidth={1.5} />
+        </button>
+        <button
+          type="button"
+          className={`tool-item${drawingTool === "draw" ? " active" : ""}`}
+          onClick={() => {
+            setInteractionMode("select");
+            setDrawingTool("draw");
+          }}
+        >
+          <Pen strokeWidth={1.5} />
         </button>
       </div>
     </div>
