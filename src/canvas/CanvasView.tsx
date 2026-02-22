@@ -92,6 +92,7 @@ interface CanvasViewProps {
     type: BoxDrawingType,
     x: number,
     y: number,
+    messages: LocaleMessages,
     bounds?: ElementCreationBounds,
   ) => void;
   onCreateDrawElement: (
@@ -1210,7 +1211,9 @@ export const CanvasView = ({
           style={{ gap: "0px", width: "fit-content" }}
         >
           <span style={{ width: "0px", overflow: "hidden" }}>
-            <SelectValue placeholder={localeMessages.selectionBar.strokeWidth} />
+            <SelectValue
+              placeholder={localeMessages.selectionBar.strokeWidth}
+            />
           </span>
           <span className="draw-stroke-option-line-wrap">
             {
@@ -1289,7 +1292,9 @@ export const CanvasView = ({
         >
           <SelectTrigger style={{ gap: "0px" }}>
             <span style={{ width: "0px", overflow: "hidden" }}>
-              <SelectValue placeholder={localeMessages.selectionBar.fontFamily} />
+              <SelectValue
+                placeholder={localeMessages.selectionBar.fontFamily}
+              />
             </span>
             {selectedFontFamily === "Shantell Sans" ? (
               <HandwrittenTypography />
@@ -2909,6 +2914,7 @@ export const CanvasView = ({
           drawingSelection.type,
           drawingBounds.x,
           drawingBounds.y,
+          localeMessages,
           drawingBounds,
         );
         setDrawingSelection(null);

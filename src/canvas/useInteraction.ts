@@ -21,6 +21,7 @@ import {
   updateTextElementContent,
 } from "../core/scene";
 import type { SceneElement } from "../core/elements";
+import type { LocaleMessages } from "../i18n";
 
 interface UseInteractionProps {
   scene: Scene;
@@ -1175,6 +1176,7 @@ export const useInteraction = ({
       type: NewElementType,
       x: number,
       y: number,
+      messages: LocaleMessages,
       bounds?: ElementCreationBounds,
     ) => {
       setScene((currentScene) => {
@@ -1208,7 +1210,7 @@ export const useInteraction = ({
             }
           : undefined;
 
-        return addElementToScene(currentScene, type, nextX, nextY, nextBounds);
+        return addElementToScene(currentScene, type, nextX, nextY, messages, nextBounds);
       });
     },
     [setScene],

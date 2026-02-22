@@ -1,3 +1,4 @@
+import type { LocaleMessages } from "../i18n";
 import type { DrawPoint, SceneElement } from "./elements";
 
 export interface Camera {
@@ -458,6 +459,7 @@ export const addElementToScene = (
   type: NewElementType,
   x: number,
   y: number,
+  messages: LocaleMessages,
   bounds?: ElementCreationBounds,
 ): Scene => {
   const normalizedBounds = bounds
@@ -533,7 +535,7 @@ export const addElementToScene = (
       rotation: 0,
       x: normalizedBounds ? normalizedBounds.x : x,
       y: normalizedBounds ? normalizedBounds.y + fontSize : y + 20,
-      text: "New text",
+      text: messages.canvas.newText,
       fontFamily: "Shantell Sans, sans-serif",
       fontSize,
       fontWeight: "200",
