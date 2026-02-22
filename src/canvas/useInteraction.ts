@@ -366,20 +366,17 @@ export const useInteraction = ({
         const selectedIds = getSelectedIds(currentScene);
 
         if (hitId) {
-          if (shiftKey && !altKey) {
-            dragStateRef.current = null;
-
-            if (selectedIds.includes(hitId)) {
-              return currentScene;
-            }
-
-            return selectElements(currentScene, [...selectedIds, hitId]);
-          }
-
           const baseDragIds =
             selectedIds.length > 1 && selectedIds.includes(hitId)
               ? selectedIds
               : [hitId];
+
+          // Multi-select only if shift is pressed AND the element is not already selected
+          // Otherwise shift is used for ruler constraint on drag
+          if (shiftKey && !altKey && !baseDragIds.includes(hitId)) {
+            dragStateRef.current = null;
+            return selectElements(currentScene, [...selectedIds, hitId]);
+          }
 
           const dragElements = currentScene.elements.filter((element) =>
             baseDragIds.includes(element.id),
