@@ -228,6 +228,40 @@ export const updateTextElementsFontStyle = (
   };
 };
 
+export const updateTextElementsTextAlign = (
+  scene: Scene,
+  ids: string[],
+  textAlign: CanvasTextAlign,
+): Scene => {
+  if (ids.length === 0) {
+    return scene;
+  }
+
+  const targetIds = new Set(ids);
+
+  return {
+    ...scene,
+    elements: scene.elements.map((element) => {
+      if (!targetIds.has(element.id)) {
+        return element;
+      }
+
+      if (
+        element.type !== "text" &&
+        element.type !== "rectangle" &&
+        element.type !== "circle"
+      ) {
+        return element;
+      }
+
+      return {
+        ...element,
+        textAlign,
+      };
+    }),
+  };
+};
+
 export const updateElementPosition = (
   scene: Scene,
   id: string,

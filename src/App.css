@@ -202,8 +202,26 @@ html.dark .tool-item {
     width: 1px;
     height: var(--selectiontoolbar-height);
     margin: 0 5px;
+    margin-right: 4px;
     opacity: 0.2;
     background-color: currentColor;
+}
+.toggle-selectionbar-button:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+.toggle-selectionbar-button.active {
+    background-color: var(--accent) !important;
+}
+.toggle-selectionbar-button {
+    border: none !important;
+    color: white;
+    background-color: transparent;
+    height: var(--selectiontoolbar-height);
+    width: calc(var(--selectiontoolbar-height));
+    padding: 0px;
+    align-items: center;
+    justify-content: center;
+    display: flex;
 }
 .fontSize-item {
     display: flex;
@@ -348,6 +366,13 @@ html.dark .selection-toolbar {
     height: var(--radix-select-trigger-height);
 }
 
+.drawo-textAlign-item {
+    padding: 8px 8px !important;
+    padding-bottom: 5px !important;
+    width: fit-content;
+    transition-duration: 0.1s;
+    float: left;
+}
 .drawo-colorselect-item {
     padding: 4px 1px !important;
     background: transparent !important;

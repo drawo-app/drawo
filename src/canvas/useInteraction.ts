@@ -19,6 +19,7 @@ import {
   updateTextElementsFontFamily,
   updateTextElementsFontWeight,
   updateTextElementsFontStyle,
+  updateTextElementsTextAlign,
   updateElementPosition,
   updateElementRotation,
   updateGroupElementsRotation,
@@ -1285,6 +1286,15 @@ export const useInteraction = ({
     [setScene],
   );
 
+  const handleTextAlignChange = useCallback(
+    (ids: string[], textAlign: CanvasTextAlign) => {
+      setScene((currentScene) =>
+        updateTextElementsTextAlign(currentScene, ids, textAlign),
+      );
+    },
+    [setScene],
+  );
+
   const handleCreateDrawElement = useCallback(
     (
       points: Array<{ x: number; y: number }>,
@@ -1339,6 +1349,7 @@ export const useInteraction = ({
     handleTextFontSizeChange,
     handleTextFontWeightChange,
     handleTextFontStyleChange,
+    handleTextAlignChange,
     handleCreateDrawElement,
     handleDrawStrokeWidthChange,
     handleDrawStrokeColorChange,

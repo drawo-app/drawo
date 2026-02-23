@@ -47,6 +47,11 @@ export interface LocaleMessages {
     fillStyle: string;
     opacity: string;
     textAlign: string;
+    textAlignDirection: {
+      left: string;
+      center: string;
+      right: string;
+    };
     textColor: string;
   };
   canvas: {

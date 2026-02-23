@@ -555,6 +555,7 @@ export default function App() {
     handleTextFontSizeChange,
     handleTextFontWeightChange,
     handleTextFontStyleChange,
+    handleTextAlignChange,
     handleDrawStrokeWidthChange,
     handleDrawStrokeColorChange,
   } = useInteraction({
@@ -669,6 +670,7 @@ export default function App() {
           onTextFontSizeChange={handleTextFontSizeChange}
           onTextFontWeightChange={handleTextFontWeightChange}
           onTextFontStyleChange={handleTextFontStyleChange}
+          onTextAlignChange={handleTextAlignChange}
           onDrawStrokeWidthChange={handleDrawStrokeWidthChange}
           onDrawStrokeColorChange={handleDrawStrokeColorChange}
           onRectangleBorderRadiusChange={handleRectangleBorderRadiusChange}

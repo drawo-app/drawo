@@ -42,6 +42,11 @@
     "fillStyle": "Fill style",
     "opacity": "Opacity",
     "textAlign": "Text alignment",
+    "textAlignDirection": {
+      "left": "Left",
+      "center": "Center",
+      "right": "Right"
+    },
     "textColor": "Text color"
   },
   "canvas": {

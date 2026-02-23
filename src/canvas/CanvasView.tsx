@@ -132,6 +132,7 @@ interface CanvasViewProps {
     ids: string[],
     fontStyle: "normal" | "italic",
   ) => void;
+  onTextAlignChange: (ids: string[], textAlign: CanvasTextAlign) => void;
   onDrawStrokeWidthChange: (ids: string[], strokeWidth: number) => void;
   onDrawStrokeColorChange: (ids: string[], strokeColor: string) => void;
   onRectangleBorderRadiusChange: (ids: string[], borderRadius: number) => void;
@@ -277,9 +278,24 @@ const getAlignedStartX = (
   return anchorX;
 };
 
+const getTextAlignSelectValue = (
+  textAlign?: CanvasTextAlign,
+): "left" | "center" | "end" => {
+  if (textAlign === "center") {
+    return "center";
+  }
+
+  if (textAlign === "right" || textAlign === "end") {
+    return "end";
+  }
+
+  return "left";
+};
+
 const HANDLE_SIZE = 9;
 const HANDLE_BORDER_RADIUS_PX = 2;
 const TEXT_SELECTION_PADDING_PX = 6;
+const SHAPE_TEXT_HORIZONTAL_PADDING_PX = 8;
 const MIN_GRID_SCREEN_SPACING = 12;
 const HANDLE_RESIZE_RADIUS_PX = 10;
 const HANDLE_ROTATE_RADIUS_PX = 20;
@@ -774,6 +790,21 @@ const pruneLaserTrails = (trails: LaserTrail[], now: number): LaserTrail[] => {
     .filter((trail) => trail.points.length > 0);
 };
 
+const getShapeTextAnchorX = (
+  element: Pick<RectangleElement | CircleElement, "x" | "width">,
+  textAlign: CanvasTextAlign,
+): number => {
+  if (textAlign === "center") {
+    return element.x + element.width / 2;
+  }
+
+  if (textAlign === "right" || textAlign === "end") {
+    return element.x + element.width - SHAPE_TEXT_HORIZONTAL_PADDING_PX;
+  }
+
+  return element.x + SHAPE_TEXT_HORIZONTAL_PADDING_PX;
+};
+
 type CornerAction = {
   handle: ResizeHandle;
   mode: "resize" | "rotate";
@@ -825,6 +856,7 @@ export const CanvasView = ({
   onTextFontSizeChange,
   onTextFontWeightChange,
   onTextFontStyleChange,
+  onTextAlignChange,
   onDrawStrokeWidthChange,
   onDrawStrokeColorChange,
   onRectangleBorderRadiusChange,
@@ -1019,11 +1051,11 @@ export const CanvasView = ({
   const drawRichTextCentered = (
     ctx: CanvasRenderingContext2D,
     value: string,
-    centerX: number,
+    anchorX: number,
     centerY: number,
     style: Pick<
       TextElement,
-      "fontFamily" | "fontSize" | "fontWeight" | "fontStyle"
+      "fontFamily" | "fontSize" | "fontWeight" | "fontStyle" | "textAlign"
     >,
   ) => {
     const layout = measureRichTextLayout(ctx, value, style);
@@ -1031,7 +1063,7 @@ export const CanvasView = ({
 
     layout.lines.forEach((line, lineIndex) => {
       const lineWidth = layout.lineWidths[lineIndex] ?? 0;
-      let cursorX = centerX - lineWidth / 2;
+      let cursorX = getAlignedStartX(anchorX, lineWidth, style.textAlign);
       const baselineY = topY + style.fontSize + lineIndex * layout.lineHeight;
 
       for (const run of line.runs) {
@@ -1463,6 +1495,7 @@ export const CanvasView = ({
     const selectedTextAlign = allSameTextAlign
       ? selectedTextElements[0].textAlign
       : undefined;
+    const selectedTextAlignValue = getTextAlignSelectValue(selectedTextAlign);
     const selectedFontFamily = allSameFontFamily
       ? selectedTextElements[0].fontFamily
       : undefined;
@@ -1965,9 +1998,56 @@ export const CanvasView = ({
           </Tooltip>
           <div className="selectionbar-separator" />
           <Select
-            value={selectedTextAlign + ""}
+            value={selectedTextAlignValue}
             onValueChange={(value) => {
-              // AI, IMPLEMENT THIS PLEASE.
+              const nextTextAlign: CanvasTextAlign =
+                value === "center"
+                  ? "center"
+                  : value === "end"
+                    ? "end"
+                    : "left";
+              const targetIds = selectedTextElements.map(
+                (element) => element.id,
+              );
+
+              onTextAlignChange(targetIds, nextTextAlign);
+
+              if (!editingText || !targetIds.includes(editingText.id)) {
+                return;
+              }
+
+              const editingElement = scene.elements.find(
+                (element) => element.id === editingText.id,
+              );
+
+              setEditingText((current) => {
+                if (!current) {
+                  return current;
+                }
+
+                const nextAnchorX =
+                  editingElement &&
+                  (editingElement.type === "rectangle" ||
+                    editingElement.type === "circle")
+                    ? getShapeTextAnchorX(editingElement, nextTextAlign)
+                    : current.anchorX;
+                const nextStartX = getAlignedStartX(
+                  nextAnchorX,
+                  current.width / camera.zoom,
+                  nextTextAlign,
+                );
+                const nextScreen = worldToScreen(nextStartX, current.anchorY);
+
+                return {
+                  ...current,
+                  anchorX: nextAnchorX,
+                  left: nextScreen.x,
+                  style: {
+                    ...current.style,
+                    textAlign: nextTextAlign,
+                  },
+                };
+              });
             }}
           >
             <Tooltip>
@@ -1976,7 +2056,13 @@ export const CanvasView = ({
                   <span style={{ width: "0px", overflow: "hidden" }}>
                     <SelectValue placeholder="" />
                   </span>
-                  {}
+                  {selectedTextAlignValue === "left" ? (
+                    <TextAlignLeft />
+                  ) : selectedTextAlignValue === "center" ? (
+                    <TextAlignCenter />
+                  ) : (
+                    <TextAlignRight />
+                  )}
                 </SelectTrigger>
               </TooltipTrigger>
               <TooltipContent>
@@ -2079,7 +2165,9 @@ export const CanvasView = ({
 
     const cornerAction = getHoverCornerAction(pointX, pointY);
     if (cornerAction) {
-      setHoveredResizeHandle(cornerAction.mode === "resize" ? cornerAction.handle : null);
+      setHoveredResizeHandle(
+        cornerAction.mode === "resize" ? cornerAction.handle : null,
+      );
       return cornerAction.mode === "resize"
         ? getResizeCursor(cornerAction.handle)
         : getRotateCursor(cornerAction.handle);
@@ -2231,7 +2319,7 @@ export const CanvasView = ({
         id: element.id,
         type: "text",
         rotation: 0,
-        x: element.x + element.width / 2,
+        x: getShapeTextAnchorX(element, element.textAlign),
         y: element.y + element.height / 2,
         text: element.text,
         fontFamily: element.fontFamily,
@@ -2239,7 +2327,7 @@ export const CanvasView = ({
         fontWeight: element.fontWeight,
         fontStyle: element.fontStyle,
         color: element.color,
-        textAlign: "center",
+        textAlign: element.textAlign,
       };
 
       const measured = measureRichTextLayout(ctx, shapeTextElement.text, {
@@ -2248,11 +2336,15 @@ export const CanvasView = ({
         fontWeight: shapeTextElement.fontWeight,
         fontStyle: shapeTextElement.fontStyle,
       });
-      const maxTextWidth = Math.max(16, element.width - 16);
+      const maxTextWidth = Math.max(
+        16,
+        element.width - SHAPE_TEXT_HORIZONTAL_PADDING_PX * 2,
+      );
       const clampedWidth = Math.min(measured.width, maxTextWidth);
-      const anchorX = element.x + element.width / 2;
+      const anchorX = getShapeTextAnchorX(element, element.textAlign);
       const anchorY = element.y + element.height / 2 - measured.height / 2;
-      const screenPosition = worldToScreen(anchorX - clampedWidth / 2, anchorY);
+      const startX = getAlignedStartX(anchorX, clampedWidth, element.textAlign);
+      const screenPosition = worldToScreen(startX, anchorY);
 
       setEditingDocument(deserializeRichTextDocument(element.text));
 
@@ -2272,7 +2364,7 @@ export const CanvasView = ({
           fontWeight: element.fontWeight,
           fontStyle: element.fontStyle,
           color: element.color,
-          textAlign: "center",
+          textAlign: element.textAlign,
         },
       });
     },
@@ -2554,7 +2646,7 @@ export const CanvasView = ({
             id: `${element.id}-shape-text`,
             type: "text",
             rotation: 0,
-            x: element.x + element.width / 2,
+            x: getShapeTextAnchorX(element, element.textAlign),
             y: element.y + element.height / 2,
             text: element.text,
             fontFamily: element.fontFamily,
@@ -2562,7 +2654,7 @@ export const CanvasView = ({
             fontWeight: element.fontWeight,
             fontStyle: element.fontStyle,
             color: element.color,
-            textAlign: "center",
+            textAlign: element.textAlign,
           };
 
           ctx.save();
@@ -2597,13 +2689,14 @@ export const CanvasView = ({
           drawRichTextCentered(
             ctx,
             shapeTextElement.text,
-            element.x + element.width / 2,
+            shapeTextElement.x,
             element.y + element.height / 2,
             {
               fontFamily: shapeTextElement.fontFamily,
               fontSize: shapeTextElement.fontSize,
               fontWeight: shapeTextElement.fontWeight,
               fontStyle: shapeTextElement.fontStyle,
+              textAlign: shapeTextElement.textAlign,
             },
           );
           ctx.restore();
