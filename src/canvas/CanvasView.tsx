@@ -1,4 +1,4 @@
-import { useRef, useEffect, useMemo, useState } from "react";
+import { useRef, useEffect, useMemo, useState, useCallback } from "react";
 import type {
   DrawElementStyle,
   ElementCreationBounds,
@@ -6,9 +6,14 @@ import type {
   Scene,
 } from "../core/scene";
 import {
+  estimateTextHeight,
   estimateTextWidth,
   getTextFont,
+  getTextLineHeight,
+  getTextRunFont,
   hitTestRectangle,
+  measureTextLineWidth,
+  parseRichText,
 } from "../core/elements";
 import { findHitElement } from "../core/hitTest";
 import type {
@@ -30,8 +35,18 @@ import {
   SimpleTypography,
   TechnicalTypography,
 } from "../components/icons";
-import { formatLocaleText, type LocaleMessages } from "../i18n";
+import { type LocaleMessages } from "../i18n";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../components/tooltip";
+import Chrome from "@uiw/react-color-chrome";
+import { createEditor, Editor, Transforms, type Descendant } from "slate";
+import {
+  Editable,
+  ReactEditor,
+  Slate,
+  withReact,
+  type RenderLeafProps,
+} from "slate-react";
+import { withHistory } from "slate-history";
 
 type ResizeHandle = "nw" | "ne" | "se" | "sw";
 type BoxDrawingType = Exclude<NewElementType, "draw">;
@@ -105,6 +120,11 @@ interface CanvasViewProps {
   onSelectElements: (ids: string[]) => void;
   onTextFontFamilyChange: (ids: string[], fontFamily: string) => void;
   onTextFontSizeChange: (ids: string[], fontSize: number) => void;
+  onTextFontWeightChange: (ids: string[], fontWeight: string) => void;
+  onTextFontStyleChange: (
+    ids: string[],
+    fontStyle: "normal" | "italic",
+  ) => void;
   onDrawStrokeWidthChange: (ids: string[], strokeWidth: number) => void;
   onDrawStrokeColorChange: (ids: string[], strokeColor: string) => void;
   onRectangleBorderRadiusChange: (ids: string[], borderRadius: number) => void;
@@ -147,6 +167,7 @@ interface EditingTextState {
   left: number;
   top: number;
   width: number;
+  height: number;
   maxWidth?: number;
   style: Pick<
     TextElement,
@@ -167,6 +188,71 @@ interface MarqueeSelection {
   currentX: number;
   currentY: number;
 }
+
+type RichTextLeaf = {
+  text: string;
+  bold?: boolean;
+  italic?: boolean;
+};
+
+type RichTextParagraph = {
+  type: "paragraph";
+  children: RichTextLeaf[];
+};
+
+type RichTextDocument = RichTextParagraph[];
+
+const EMPTY_RICH_TEXT_DOCUMENT: RichTextDocument = [
+  { type: "paragraph", children: [{ text: "" }] },
+];
+
+const isRichTextLeaf = (value: unknown): value is RichTextLeaf => {
+  return (
+    value !== null &&
+    typeof value === "object" &&
+    typeof (value as { text?: unknown }).text === "string"
+  );
+};
+
+const isRichTextParagraph = (value: unknown): value is RichTextParagraph => {
+  if (
+    value === null ||
+    typeof value !== "object" ||
+    (value as { type?: unknown }).type !== "paragraph"
+  ) {
+    return false;
+  }
+
+  const children = (value as { children?: unknown }).children;
+  return Array.isArray(children) && children.every(isRichTextLeaf);
+};
+
+const deserializeRichTextDocument = (value: string): RichTextDocument => {
+  if (!value.trim()) {
+    return EMPTY_RICH_TEXT_DOCUMENT;
+  }
+
+  try {
+    const parsed = JSON.parse(value) as unknown;
+
+    if (Array.isArray(parsed) && parsed.every(isRichTextParagraph)) {
+      return parsed.length > 0 ? parsed : EMPTY_RICH_TEXT_DOCUMENT;
+    }
+  } catch {
+    const lines = value.split("\n");
+
+    return (lines.length > 0 ? lines : [""]).map((line) => ({
+      type: "paragraph",
+      children: [{ text: line }],
+    }));
+  }
+
+  return EMPTY_RICH_TEXT_DOCUMENT;
+};
+
+const serializeRichTextDocument = (document: RichTextDocument): string => {
+  return JSON.stringify(document);
+};
 
 const getAlignedStartX = (
   anchorX: number,
@@ -714,27 +800,6 @@ const findCornerAction = (
   return null;
 };
 
-const findResizeHandle = (
-  bounds: ElementBounds,
-  pointX: number,
-  pointY: number,
-  zoom: number,
-): ResizeHandle | null => {
-  const resizeRadius = HANDLE_RESIZE_RADIUS_PX / zoom;
-  const handles: ResizeHandle[] = ["nw", "ne", "se", "sw"];
-
-  for (const handle of handles) {
-    const center = getHandleCenter(bounds, handle);
-    const distance = Math.hypot(pointX - center.x, pointY - center.y);
-
-    if (distance <= resizeRadius) {
-      return handle;
-    }
-  }
-
-  return null;
-};
-
 export const CanvasView = ({
   scene,
   interactionMode,
@@ -751,6 +816,8 @@ export const CanvasView = ({
   onSelectElements,
   onTextFontFamilyChange,
   onTextFontSizeChange,
+  onTextFontWeightChange,
+  onTextFontStyleChange,
   onDrawStrokeWidthChange,
   onDrawStrokeColorChange,
   onRectangleBorderRadiusChange,
@@ -761,8 +828,11 @@ export const CanvasView = ({
   onTextCommit,
 }: CanvasViewProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const editorWrapRef = useRef<HTMLDivElement>(null);
   const [editingText, setEditingText] = useState<EditingTextState | null>(null);
+  const [editingDocument, setEditingDocument] =
+    useState<RichTextDocument | null>(null);
+  const editor = useMemo(() => withHistory(withReact(createEditor())), []);
   const [canvasSize, setCanvasSize] = useState(() => ({
     width: window.innerWidth,
     height: window.innerHeight,
@@ -787,6 +857,12 @@ export const CanvasView = ({
   const [isLaserDrawing, setIsLaserDrawing] = useState(false);
   const [laserNow, setLaserNow] = useState(() => performance.now());
   const activeLaserTrailIdRef = useRef<string | null>(null);
+  const customDrawColorPickerWrapRef = useRef<HTMLDivElement>(null);
+  const customDrawColorPickerContentRef = useRef<HTMLDivElement>(null);
+  const [isCustomDrawColorPickerOpen, setIsCustomDrawColorPickerOpen] =
+    useState(false);
+  const [customDrawColorPickerColor, setCustomDrawColorPickerColor] =
+    useState<string>("#2f3b52");
   const [activeRadiusElementId, setActiveRadiusElementId] = useState<
     string | null
   >(null);
@@ -794,12 +870,15 @@ export const CanvasView = ({
     useState<ResizeHandle | null>(null);
   const lastPointerRef = useRef<{ x: number; y: number } | null>(null);
   const panStateRef = useRef<{ screenX: number; screenY: number } | null>(null);
-  const selectedIds =
-    scene.selectedIds.length > 0
-      ? scene.selectedIds
-      : scene.selectedId
-        ? [scene.selectedId]
-        : [];
+  const selectedIds = useMemo(
+    () =>
+      scene.selectedIds.length > 0
+        ? scene.selectedIds
+        : scene.selectedId
+          ? [scene.selectedId]
+          : [],
+    [scene.selectedId, scene.selectedIds],
+  );
   const canTransformSelection = selectedIds.length === 1;
   const selectedElementId = canTransformSelection ? selectedIds[0] : null;
   const camera = scene.camera;
@@ -847,37 +926,154 @@ export const CanvasView = ({
       : invertLightnessPreservingHue(safeColor);
   };
 
-  const screenToWorld = (screenX: number, screenY: number) => {
-    return {
-      x: screenX / camera.zoom + camera.x,
-      y: screenY / camera.zoom + camera.y,
-    };
+  const screenToWorld = useCallback(
+    (screenX: number, screenY: number) => {
+      return {
+        x: screenX / camera.zoom + camera.x,
+        y: screenY / camera.zoom + camera.y,
+      };
+    },
+    [camera.x, camera.y, camera.zoom],
+  );
+
+  const worldToScreen = useCallback(
+    (worldX: number, worldY: number) => {
+      return {
+        x: (worldX - camera.x) * camera.zoom,
+        y: (worldY - camera.y) * camera.zoom,
+      };
+    },
+    [camera.x, camera.y, camera.zoom],
+  );
+
+  const measureRichTextLayout = useCallback(
+    (
+      ctx: CanvasRenderingContext2D,
+      value: string,
+      style: Pick<
+        TextElement,
+        "fontFamily" | "fontSize" | "fontWeight" | "fontStyle"
+      >,
+    ) => {
+      const lines = parseRichText(value);
+      const lineWidths = lines.map((line) =>
+        measureTextLineWidth(ctx, style, line),
+      );
+      const maxWidth = Math.max(16, ...lineWidths);
+      const lineHeight = getTextLineHeight(style.fontSize);
+      const height = style.fontSize + (lines.length - 1) * lineHeight;
+
+      return {
+        lines,
+        lineWidths,
+        width: maxWidth,
+        height,
+        lineHeight,
+      };
+    },
+    [],
+  );
+
+  const drawRichText = (
+    ctx: CanvasRenderingContext2D,
+    value: string,
+    x: number,
+    y: number,
+    style: Pick<
+      TextElement,
+      "fontFamily" | "fontSize" | "fontWeight" | "fontStyle" | "textAlign"
+    >,
+  ) => {
+    const layout = measureRichTextLayout(ctx, value, style);
+
+    layout.lines.forEach((line, lineIndex) => {
+      const lineWidth = layout.lineWidths[lineIndex] ?? 0;
+      const lineStartX = getAlignedStartX(x, lineWidth, style.textAlign);
+      const baselineY = y + lineIndex * layout.lineHeight;
+      let cursorX = lineStartX;
+
+      for (const run of line.runs) {
+        if (!run.text) {
+          continue;
+        }
+
+        ctx.font = getTextRunFont(style, run);
+        ctx.fillText(run.text, cursorX, baselineY);
+        cursorX += ctx.measureText(run.text).width;
+      }
+    });
+
+    return layout;
   };
 
-  const worldToScreen = (worldX: number, worldY: number) => {
-    return {
-      x: (worldX - camera.x) * camera.zoom,
-      y: (worldY - camera.y) * camera.zoom,
-    };
+  const drawRichTextCentered = (
+    ctx: CanvasRenderingContext2D,
+    value: string,
+    centerX: number,
+    centerY: number,
+    style: Pick<
+      TextElement,
+      "fontFamily" | "fontSize" | "fontWeight" | "fontStyle"
+    >,
+  ) => {
+    const layout = measureRichTextLayout(ctx, value, style);
+    const topY = centerY - layout.height / 2;
+
+    layout.lines.forEach((line, lineIndex) => {
+      const lineWidth = layout.lineWidths[lineIndex] ?? 0;
+      let cursorX = centerX - lineWidth / 2;
+      const baselineY = topY + style.fontSize + lineIndex * layout.lineHeight;
+
+      for (const run of line.runs) {
+        if (!run.text) {
+          continue;
+        }
+
+        ctx.font = getTextRunFont(style, run);
+        ctx.fillText(run.text, cursorX, baselineY);
+        cursorX += ctx.measureText(run.text).width;
+      }
+    });
+
+    return layout;
   };
 
-  const selectedEditableElement = useMemo<EditableElement | null>(() => {
-    if (!editingText) {
-      return null;
+  useEffect(() => {
+    if (!isCustomDrawColorPickerOpen) {
+      return;
     }
 
-    const element = scene.elements.find((item) => item.id === editingText.id);
-    if (
-      !element ||
-      (element.type !== "text" &&
-        element.type !== "rectangle" &&
-        element.type !== "circle")
-    ) {
-      return null;
-    }
+    const handlePointerDownOutside = (event: PointerEvent) => {
+      const target = event.target as Node | null;
+      if (!target) {
+        return;
+      }
 
-    return element;
-  }, [scene.elements, editingText]);
+      if (customDrawColorPickerWrapRef.current?.contains(target)) {
+        return;
+      }
+
+      if (customDrawColorPickerContentRef.current?.contains(target)) {
+        return;
+      }
+
+      setIsCustomDrawColorPickerOpen(false);
+    };
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setIsCustomDrawColorPickerOpen(false);
+      }
+    };
+
+    window.addEventListener("pointerdown", handlePointerDownOutside);
+    window.addEventListener("keydown", handleEscape);
+
+    return () => {
+      window.removeEventListener("pointerdown", handlePointerDownOutside);
+      window.removeEventListener("keydown", handleEscape);
+    };
+  }, [isCustomDrawColorPickerOpen]);
 
   const getElementBounds = (
     elementId: string,
@@ -902,17 +1098,22 @@ export const CanvasView = ({
       };
     }
 
-    const measuredWidth = ctx
-      ? ctx.measureText(element.text || " ").width
-      : estimateTextWidth(element);
-    const width = Math.max(16, measuredWidth);
+    const width = ctx
+      ? measureRichTextLayout(ctx, element.text, {
+          fontFamily: element.fontFamily,
+          fontSize: element.fontSize,
+          fontWeight: element.fontWeight,
+          fontStyle: element.fontStyle,
+        }).width
+      : Math.max(16, estimateTextWidth(element));
     const startX = getAlignedStartX(element.x, width, element.textAlign);
+    const textHeight = estimateTextHeight(element);
 
     const baseBounds = {
       x: startX,
       y: element.y - element.fontSize,
       width,
-      height: element.fontSize,
+      height: textHeight,
     };
 
     if (!includeTextPadding) {
@@ -995,7 +1196,7 @@ export const CanvasView = ({
     };
   };
 
-  const selectionToolbarOverlay = useMemo(() => {
+  const selectionToolbarOverlay = (() => {
     if (selectedIds.length === 0 || editingText) {
       return null;
     }
@@ -1026,17 +1227,7 @@ export const CanvasView = ({
       top,
       key: selectedIds.join("|"),
     };
-  }, [
-    camera.x,
-    camera.y,
-    camera.zoom,
-    canvasSize.height,
-    editingText,
-    activeResizeHandle,
-    activeRotatingHandle,
-    isDraggingElement,
-    selectedIds,
-  ]);
+  })();
 
   const getHoverCornerAction = (
     pointX: number,
@@ -1169,7 +1360,7 @@ export const CanvasView = ({
     return null;
   };
 
-  function SelectionBarContents() {
+  const renderSelectionBarContents = () => {
     const selectedTextElements = scene.elements.filter(
       (element): element is EditableElement =>
         selectedIds.includes(element.id) &&
@@ -1194,6 +1385,28 @@ export const CanvasView = ({
     const selectedFontSize = allSameFontSize
       ? selectedTextElements[0].fontSize
       : undefined;
+    const allSameFontWeight =
+      selectedTextElements.length > 0 &&
+      selectedTextElements.every(
+        (element) => element.fontWeight === selectedTextElements[0].fontWeight,
+      );
+    const selectedFontWeight = allSameFontWeight
+      ? selectedTextElements[0].fontWeight
+      : undefined;
+    const allSameFontStyle =
+      selectedTextElements.length > 0 &&
+      selectedTextElements.every(
+        (element) => element.fontStyle === selectedTextElements[0].fontStyle,
+      );
+    const selectedFontStyle = allSameFontStyle
+      ? selectedTextElements[0].fontStyle
+      : undefined;
+    const isBoldActive =
+      selectedFontWeight === "bold" ||
+      selectedFontWeight === "700" ||
+      selectedFontWeight === "800" ||
+      selectedFontWeight === "900";
+    const isItalicActive = selectedFontStyle === "italic";
     const selectedDrawElements = scene.elements.filter(
       (element): element is DrawElement =>
         selectedIds.includes(element.id) && element.type === "draw",
@@ -1210,81 +1423,134 @@ export const CanvasView = ({
         ? selectedDrawElements[0].strokeWidth
         : DRAW_STROKE_OPTIONS[1],
     );
-    const selectedDrawStrokeColor = selectedDrawElements[0]?.stroke || "#000";
+    const selectedDrawStrokeColor =
+      selectedDrawElements[0]?.stroke || "#2f3b52";
+    const drawStrokeColorSelectValue = STROKE_COLORS.some(
+      (color) =>
+        color !== "multi" &&
+        color.toLowerCase() === selectedDrawStrokeColor.toLowerCase(),
+    )
+      ? selectedDrawStrokeColor
+      : "multi";
+    const openCustomDrawColorPicker = (initialColor: string) => {
+      const parsed = parseColor(initialColor);
+      setCustomDrawColorPickerColor(
+        parsed
+          ? `rgba(${parsed.r}, ${parsed.g}, ${parsed.b}, ${parsed.a})`
+          : "#2f3b52",
+      );
+      setIsCustomDrawColorPickerOpen(true);
+    };
 
     const renderDrawStrokeSelector = () => (
       <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
-        <Select
-          value={String(selectedDrawStrokeColor)}
-          onValueChange={(value) => {
-            onDrawStrokeColorChange(
-              selectedDrawElements.map((element) => element.id),
-              value,
-            );
-          }}
+        <div
+          ref={customDrawColorPickerWrapRef}
+          style={{ position: "relative", display: "inline-flex" }}
         >
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <SelectTrigger
-                style={{
-                  gap: "0px",
-                  width: "fit-content",
-                }}
-              >
-                <span style={{ width: "0px", overflow: "hidden" }}>
-                  <SelectValue
-                    placeholder={localeMessages.selectionBar.strokeColor}
-                  />
-                </span>
-                <div
-                  style={{
-                    width: "20px",
-                    borderRadius: "100%",
-                    border: "1px solid #ffffff20",
-                    height: "20px",
-                    background: uniColor(
-                      selectedDrawStrokeColor || STROKE_COLORS[1],
-                    ),
-                  }}
-                />
-              </SelectTrigger>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>{localeMessages.selectionBar.strokeColor}</p>
-            </TooltipContent>
-          </Tooltip>
-          <SelectContent
-            position="popper"
-            className="drawo-colorselect-content"
+          <Select
+            open={isCustomDrawColorPickerOpen || undefined}
+            value={String(drawStrokeColorSelectValue)}
+            onValueChange={(value) => {
+              if (value === "multi") {
+                openCustomDrawColorPicker(selectedDrawStrokeColor);
+                return;
+              }
+
+              setIsCustomDrawColorPickerOpen(false);
+              onDrawStrokeColorChange(
+                selectedDrawElements.map((element) => element.id),
+                value,
+              );
+            }}
           >
-            {STROKE_COLORS.map((color) => (
-              <SelectItem
-                key={color}
-                value={color}
-                className="drawo-colorselect-item"
-                check={false}
-              >
-                <div
-                  style={{
-                    border:
-                      selectedDrawStrokeColor === color
-                        ? "2px solid var(--accent)"
-                        : "2px solid transparent",
-                    borderRadius: "100%",
-                    padding: "2px",
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <SelectTrigger
+                  onPointerDown={(event) => {
+                    if (drawStrokeColorSelectValue !== "multi") {
+                      return;
+                    }
+
+                    event.preventDefault();
+                    event.stopPropagation();
+                    openCustomDrawColorPicker(selectedDrawStrokeColor);
                   }}
+                  style={{
+                    gap: "0px",
+                    width: "fit-content",
+                  }}
+                >
+                  <span style={{ width: "0px", overflow: "hidden" }}>
+                    <SelectValue
+                      placeholder={localeMessages.selectionBar.strokeColor}
+                    />
+                  </span>
+                  <div
+                    style={{
+                      width: "20px",
+                      borderRadius: "100%",
+                      border: "1px solid #ffffff20",
+                      height: "20px",
+                      background: uniColor(
+                        selectedDrawStrokeColor || STROKE_COLORS[1],
+                      ),
+                    }}
+                  />
+                </SelectTrigger>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>{localeMessages.selectionBar.strokeColor}</p>
+              </TooltipContent>
+            </Tooltip>
+            <SelectContent
+              position="popper"
+              className="drawo-colorselect-content"
+            >
+              {STROKE_COLORS.map((color) => (
+                <SelectItem
+                  key={color}
+                  value={color}
+                  className="drawo-colorselect-item"
+                  check={false}
+                  onPointerDown={
+                    color === "multi"
+                      ? (event) => {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          openCustomDrawColorPicker(selectedDrawStrokeColor);
+                        }
+                      : undefined
+                  }
+                  onSelect={
+                    color === "multi"
+                      ? (event) => {
+                          event.preventDefault();
+                          openCustomDrawColorPicker(selectedDrawStrokeColor);
+                        }
+                      : undefined
+                  }
                 >
                   <div
                     style={{
-                      width: color === "multi" ? "22px" : "20px",
-                      borderRadius: "100%",
                       border:
-                        color !== "multi" ? "1px solid #ffffff20" : "none",
-                      height: color === "multi" ? "22px" : "20px",
-                      background:
-                        color === "multi"
-                          ? `
-                        /* white fade from center outward */
+                        drawStrokeColorSelectValue === color
+                          ? "2px solid var(--accent)"
+                          : "2px solid transparent",
+                      borderRadius: "100%",
+                      padding: "2px",
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: color === "multi" ? "22px" : "20px",
+                        borderRadius: "100%",
+                        border:
+                          color !== "multi" ? "1px solid #ffffff20" : "none",
+                        height: color === "multi" ? "22px" : "20px",
+                        background:
+                          color === "multi"
+                            ? `
                         radial-gradient(circle at center,
                           rgba(255,255,255,1) 0%,
                           rgba(255,255,255,0.85) 10%,
@@ -1292,11 +1558,8 @@ export const CanvasView = ({
                           rgba(255,255,255,0.15) 40%,
                           transparent 62%
                         ),
-                        /* subtle specular highlight top-left */
                         radial-gradient(circle at 36% 32%, rgba(255,255,255,0.35) 0%, transparent 35%),
-                        /* dark shadow bottom-right for 3D depth */
                         radial-gradient(circle at 68% 70%, rgba(0,0,0,0.38) 0%, transparent 52%),
-                        /* soft pastel hue wheel */
                         conic-gradient(
                           from 0deg,
                           hsl(0,   70%, 65%),
@@ -1312,15 +1575,45 @@ export const CanvasView = ({
                           hsl(300, 65%, 64%),
                           hsl(330, 68%, 64%),
                           hsl(360, 70%, 65%)`
-                          : uniColor(color),
-                    }}
-                  />
-                </div>
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <div className="selectionbar-separator" />
+                            : uniColor(color),
+                      }}
+                    />
+                  </div>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <Tooltip open={isCustomDrawColorPickerOpen}>
+          <TooltipTrigger asChild>
+            <div className="selectionbar-separator" />
+          </TooltipTrigger>
+          <TooltipContent
+            className="drawo-content-color"
+            side="bottom"
+            style={{ background: "transparent" }}
+          >
+            <div
+              ref={customDrawColorPickerContentRef}
+              onPointerDown={(event) => event.stopPropagation()}
+            >
+              <Chrome
+                color={customDrawColorPickerColor}
+                onChange={(color) => {
+                  const next = color.hexa || color.hex;
+                  if (next) {
+                    setCustomDrawColorPickerColor(next);
+                    onDrawStrokeColorChange(
+                      selectedDrawElements.map((element) => element.id),
+                      next,
+                    );
+                  }
+                }}
+              />
+            </div>
+          </TooltipContent>
+        </Tooltip>
         <Select
           value={String(selectedDrawStrokeWidth)}
           onValueChange={(value) => {
@@ -1508,9 +1801,74 @@ export const CanvasView = ({
             </SelectItem>
           </SelectContent>
         </Select>
+        <div className="selectionbar-separator" />
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              onPointerDown={(event) => {
+                event.stopPropagation();
+              }}
+              onClick={() => {
+                onTextFontWeightChange(
+                  selectedTextElements.map((element) => element.id),
+                  isBoldActive ? "200" : "700",
+                );
+              }}
+              style={{
+                border: "1px solid var(--accent)",
+                borderRadius: 6,
+                width: 24,
+                height: 24,
+                fontWeight: 700,
+                opacity: isBoldActive ? 1 : 0.7,
+                background: isBoldActive ? "var(--accent)" : "transparent",
+                color: isBoldActive ? "var(--background)" : "var(--foreground)",
+              }}
+            >
+              B
+            </button>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>{localeMessages.selectionBar.bold}</p>
+          </TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              onPointerDown={(event) => {
+                event.stopPropagation();
+              }}
+              onClick={() => {
+                onTextFontStyleChange(
+                  selectedTextElements.map((element) => element.id),
+                  isItalicActive ? "normal" : "italic",
+                );
+              }}
+              style={{
+                border: "1px solid var(--accent)",
+                borderRadius: 6,
+                width: 24,
+                height: 24,
+                fontStyle: "italic",
+                opacity: isItalicActive ? 1 : 0.7,
+                background: isItalicActive ? "var(--accent)" : "transparent",
+                color: isItalicActive
+                  ? "var(--background)"
+                  : "var(--foreground)",
+              }}
+            >
+              I
+            </button>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>{localeMessages.selectionBar.italic}</p>
+          </TooltipContent>
+        </Tooltip>
       </div>
     );
-  }
+  };
   const resolveIdleCursor = (
     pointX: number,
     pointY: number,
@@ -1647,108 +2005,124 @@ export const CanvasView = ({
       .map((element) => element.id);
   };
 
-  const beginTextEditing = (element: EditableElement) => {
-    const canvas = canvasRef.current;
-    if (!canvas) {
-      return;
-    }
+  const beginTextEditing = useCallback(
+    (element: EditableElement) => {
+      const canvas = canvasRef.current;
+      if (!canvas) {
+        return;
+      }
 
-    const ctx = canvas.getContext("2d");
-    if (!ctx) {
-      return;
-    }
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        return;
+      }
 
-    if (element.type === "text") {
-      ctx.font = getTextFont(element);
-      const measuredWidth = Math.max(
-        16,
-        Math.ceil(ctx.measureText(element.text || " ").width),
-      );
-
-      const startX = getAlignedStartX(
-        element.x,
-        measuredWidth,
-        element.textAlign,
-      );
-
-      const screenPosition = worldToScreen(
-        startX,
-        element.y - element.fontSize,
-      );
-
-      setEditingText({
-        id: element.id,
-        value: element.text,
-        anchorX: element.x,
-        anchorY: element.y - element.fontSize,
-        left: screenPosition.x,
-        top: screenPosition.y,
-        width: measuredWidth * camera.zoom,
-        style: {
+      if (element.type === "text") {
+        setEditingDocument(deserializeRichTextDocument(element.text));
+        const measured = measureRichTextLayout(ctx, element.text, {
           fontFamily: element.fontFamily,
           fontSize: element.fontSize,
           fontWeight: element.fontWeight,
           fontStyle: element.fontStyle,
-          color: element.color,
-          textAlign: element.textAlign,
-        },
-      });
-      return;
-    }
+        });
 
-    const shapeTextElement: TextElement = {
-      id: element.id,
-      type: "text",
-      rotation: 0,
-      x: element.x + element.width / 2,
-      y: element.y + element.height / 2,
-      text: element.text,
-      fontFamily: element.fontFamily,
-      fontSize: element.fontSize,
-      fontWeight: element.fontWeight,
-      fontStyle: element.fontStyle,
-      color: element.color,
-      textAlign: "center",
-    };
+        const startX = getAlignedStartX(
+          element.x,
+          measured.width,
+          element.textAlign,
+        );
 
-    ctx.font = getTextFont(shapeTextElement);
-    const measuredWidth = Math.max(
-      16,
-      Math.ceil(ctx.measureText(shapeTextElement.text || " ").width),
-    );
-    const maxTextWidth = Math.max(16, element.width - 16);
-    const clampedWidth = Math.min(measuredWidth, maxTextWidth);
-    const anchorX = element.x + element.width / 2;
-    const anchorY = element.y + element.height / 2 - element.fontSize / 2;
-    const screenPosition = worldToScreen(anchorX - clampedWidth / 2, anchorY);
+        const screenPosition = worldToScreen(
+          startX,
+          element.y - element.fontSize,
+        );
 
-    setEditingText({
-      id: element.id,
-      value: element.text,
-      anchorX,
-      anchorY,
-      left: screenPosition.x,
-      top: screenPosition.y,
-      width: clampedWidth * camera.zoom,
-      maxWidth: maxTextWidth * camera.zoom,
-      style: {
+        setEditingText({
+          id: element.id,
+          value: element.text,
+          anchorX: element.x,
+          anchorY: element.y - element.fontSize,
+          left: screenPosition.x,
+          top: screenPosition.y,
+          width: measured.width * camera.zoom,
+          height: measured.height * camera.zoom,
+          style: {
+            fontFamily: element.fontFamily,
+            fontSize: element.fontSize,
+            fontWeight: element.fontWeight,
+            fontStyle: element.fontStyle,
+            color: element.color,
+            textAlign: element.textAlign,
+          },
+        });
+        return;
+      }
+
+      const shapeTextElement: TextElement = {
+        id: element.id,
+        type: "text",
+        rotation: 0,
+        x: element.x + element.width / 2,
+        y: element.y + element.height / 2,
+        text: element.text,
         fontFamily: element.fontFamily,
         fontSize: element.fontSize,
         fontWeight: element.fontWeight,
         fontStyle: element.fontStyle,
         color: element.color,
         textAlign: "center",
-      },
-    });
-  };
+      };
+
+      const measured = measureRichTextLayout(ctx, shapeTextElement.text, {
+        fontFamily: shapeTextElement.fontFamily,
+        fontSize: shapeTextElement.fontSize,
+        fontWeight: shapeTextElement.fontWeight,
+        fontStyle: shapeTextElement.fontStyle,
+      });
+      const maxTextWidth = Math.max(16, element.width - 16);
+      const clampedWidth = Math.min(measured.width, maxTextWidth);
+      const anchorX = element.x + element.width / 2;
+      const anchorY = element.y + element.height / 2 - measured.height / 2;
+      const screenPosition = worldToScreen(anchorX - clampedWidth / 2, anchorY);
+
+      setEditingDocument(deserializeRichTextDocument(element.text));
+
+      setEditingText({
+        id: element.id,
+        value: element.text,
+        anchorX,
+        anchorY,
+        left: screenPosition.x,
+        top: screenPosition.y,
+        width: clampedWidth * camera.zoom,
+        height: measured.height * camera.zoom,
+        maxWidth: maxTextWidth * camera.zoom,
+        style: {
+          fontFamily: element.fontFamily,
+          fontSize: element.fontSize,
+          fontWeight: element.fontWeight,
+          fontStyle: element.fontStyle,
+          color: element.color,
+          textAlign: "center",
+        },
+      });
+    },
+    [camera.zoom, measureRichTextLayout, worldToScreen],
+  );
 
   const commitEditingText = (nextValue?: string) => {
     if (!editingText) {
       return;
     }
 
-    const inputValue = inputRef.current?.value;
-    onTextCommit(editingText.id, nextValue ?? inputValue ?? editingText.value);
+    const serializedValue =
+      nextValue ??
+      (editingDocument
+        ? serializeRichTextDocument(editingDocument)
+        : editingText.value);
+
+    onTextCommit(editingText.id, serializedValue);
+    setEditingDocument(null);
     setEditingText(null);
   };
 
@@ -2049,13 +2423,19 @@ export const CanvasView = ({
 
           ctx.font = getTextFont(shapeTextElement);
           ctx.fillStyle = toThemeColor(shapeTextElement.color);
-          ctx.textAlign = "center";
-          ctx.textBaseline = "middle";
-          ctx.fillText(
+          ctx.textAlign = "left";
+          ctx.textBaseline = "alphabetic";
+          drawRichTextCentered(
+            ctx,
             shapeTextElement.text,
             element.x + element.width / 2,
             element.y + element.height / 2,
-            Math.max(16, element.width - 16),
+            {
+              fontFamily: shapeTextElement.fontFamily,
+              fontSize: shapeTextElement.fontSize,
+              fontWeight: shapeTextElement.fontWeight,
+              fontStyle: shapeTextElement.fontStyle,
+            },
           );
           ctx.restore();
         }
@@ -2128,14 +2508,18 @@ export const CanvasView = ({
         continue;
       }
 
-      ctx.font = getTextFont(element);
-      const measuredWidth = ctx.measureText(element.text).width;
-      const textWidth = Math.max(16, measuredWidth);
+      const textMetrics = measureRichTextLayout(ctx, element.text, {
+        fontFamily: element.fontFamily,
+        fontSize: element.fontSize,
+        fontWeight: element.fontWeight,
+        fontStyle: element.fontStyle,
+      });
+      const textWidth = textMetrics.width;
       const textBoundsWithoutPadding = {
         x: getAlignedStartX(element.x, textWidth, element.textAlign),
         y: element.y - element.fontSize,
         width: textWidth,
-        height: element.fontSize,
+        height: textMetrics.height,
       };
       const textCenter = getBoundsCenter(textBoundsWithoutPadding);
 
@@ -2145,9 +2529,15 @@ export const CanvasView = ({
       ctx.translate(-textCenter.x, -textCenter.y);
 
       ctx.fillStyle = toThemeColor(element.color);
-      ctx.textAlign = element.textAlign;
+      ctx.textAlign = "left";
       ctx.textBaseline = "alphabetic";
-      ctx.fillText(element.text, element.x, element.y);
+      drawRichText(ctx, element.text, element.x, element.y, {
+        fontFamily: element.fontFamily,
+        fontSize: element.fontSize,
+        fontWeight: element.fontWeight,
+        fontStyle: element.fontStyle,
+        textAlign: element.textAlign,
+      });
 
       if (isSelected) {
         const textBounds = getElementBounds(element.id, ctx, true);
@@ -2357,21 +2747,68 @@ export const CanvasView = ({
   ]);
 
   useEffect(() => {
-    if (!editingText) {
+    if (!editingText || !editingDocument) {
       return;
     }
 
-    const input = inputRef.current;
-    if (!input) {
-      return;
-    }
-
-    input.focus();
-    input.select();
-  }, [editingText?.id]);
+    requestAnimationFrame(() => {
+      ReactEditor.focus(editor);
+      const end = Editor.end(editor, []);
+      Transforms.select(editor, end);
+    });
+  }, [editor, editingText?.id]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.ctrlKey || event.metaKey) {
+        const hotkey = event.key.toLowerCase();
+        if (hotkey === "b" || hotkey === "i") {
+          if (editingText) {
+            return;
+          }
+
+          const selectedTextElements = scene.elements.filter(
+            (element): element is EditableElement =>
+              selectedIds.includes(element.id) &&
+              (element.type === "text" ||
+                element.type === "rectangle" ||
+                element.type === "circle"),
+          );
+
+          if (selectedTextElements.length === 0) {
+            return;
+          }
+
+          event.preventDefault();
+
+          if (hotkey === "b") {
+            const areAllBold = selectedTextElements.every(
+              (element) =>
+                element.fontWeight === "700" ||
+                element.fontWeight === "800" ||
+                element.fontWeight === "900" ||
+                element.fontWeight === "bold",
+            );
+
+            onTextFontWeightChange(
+              selectedTextElements.map((element) => element.id),
+              areAllBold ? "200" : "700",
+            );
+            return;
+          }
+
+          const areAllItalic = selectedTextElements.every(
+            (element) => element.fontStyle === "italic",
+          );
+
+          onTextFontStyleChange(
+            selectedTextElements.map((element) => element.id),
+            areAllItalic ? "normal" : "italic",
+          );
+          return;
+        }
+      }
+
       if (event.key !== "Enter" || editingText) {
         return;
       }
@@ -2398,13 +2835,15 @@ export const CanvasView = ({
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [scene.elements, selectedElementId, editingText]);
-
-  useEffect(() => {
-    if (editingText && !selectedEditableElement) {
-      setEditingText(null);
-    }
-  }, [editingText, selectedEditableElement]);
+  }, [
+    scene.elements,
+    selectedElementId,
+    selectedIds,
+    editingText,
+    onTextFontWeightChange,
+    onTextFontStyleChange,
+    beginTextEditing,
+  ]);
 
   useEffect(() => {
     if (!editingText) {
@@ -2412,11 +2851,11 @@ export const CanvasView = ({
     }
 
     const margin = 24;
-    const lineHeight = editingText.style.fontSize * camera.zoom;
     const rightOverflow =
       editingText.left + editingText.width - canvasSize.width;
     const leftOverflow = -editingText.left;
-    const bottomOverflow = editingText.top + lineHeight - canvasSize.height;
+    const bottomOverflow =
+      editingText.top + editingText.height - canvasSize.height;
     const topOverflow = -editingText.top;
 
     let panX = 0;
@@ -3232,9 +3671,7 @@ export const CanvasView = ({
     beginTextEditing(element);
   };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const nextValue = e.target.value;
-
+  const syncEditingOverlayLayout = (serializedValue: string) => {
     setEditingText((current) => {
       if (!current) {
         return current;
@@ -3243,33 +3680,19 @@ export const CanvasView = ({
       const canvas = canvasRef.current;
       const ctx = canvas?.getContext("2d");
       if (!ctx) {
-        return { ...current, value: nextValue };
+        return { ...current, value: serializedValue };
       }
 
-      const tempTextElement: TextElement = {
-        id: current.id,
-        type: "text",
-        rotation: 0,
-        x: 0,
-        y: 0,
-        text: nextValue,
+      const measured = measureRichTextLayout(ctx, serializedValue, {
         fontFamily: current.style.fontFamily,
         fontSize: current.style.fontSize,
         fontWeight: current.style.fontWeight,
         fontStyle: current.style.fontStyle,
-        color: current.style.color,
-        textAlign: current.style.textAlign,
-      };
+      });
 
-      ctx.font = getTextFont(tempTextElement);
-      const nextWidth = Math.max(
-        16,
-        Math.ceil(ctx.measureText(nextValue || " ").width),
-      );
       const boundedWidth = current.maxWidth
-        ? Math.min(nextWidth * camera.zoom, current.maxWidth)
-        : nextWidth * camera.zoom;
-
+        ? Math.min(measured.width * camera.zoom, current.maxWidth)
+        : measured.width * camera.zoom;
       const nextStartX = getAlignedStartX(
         current.anchorX,
         boundedWidth / camera.zoom,
@@ -3279,28 +3702,93 @@ export const CanvasView = ({
 
       return {
         ...current,
-        value: nextValue,
+        value: serializedValue,
         left: nextScreen.x,
         top: nextScreen.y,
         width: boundedWidth,
+        height: measured.height * camera.zoom,
       };
     });
   };
 
-  const handleInputBlur = () => {
-    commitEditingText();
+  const handleEditorChange = (value: Descendant[]) => {
+    const nextDocument = value as RichTextDocument;
+    setEditingDocument(nextDocument);
+
+    const hasContentChange = editor.operations.some(
+      (operation) => operation.type !== "set_selection",
+    );
+
+    if (!hasContentChange) {
+      return;
+    }
+
+    syncEditingOverlayLayout(serializeRichTextDocument(nextDocument));
   };
 
-  const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter") {
-      commitEditingText((e.target as HTMLInputElement).value);
+  const handleInputBlur = () => {
+    requestAnimationFrame(() => {
+      const activeElement = document.activeElement;
+      if (editorWrapRef.current?.contains(activeElement)) {
+        return;
+      }
+
+      commitEditingText();
+    });
+  };
+
+  const toggleEditorMark = (mark: "bold" | "italic") => {
+    const marks = Editor.marks(editor) as Record<string, unknown> | null;
+    const isActive = marks?.[mark] === true;
+
+    if (isActive) {
+      Editor.removeMark(editor, mark);
+    } else {
+      Editor.addMark(editor, mark, true);
+    }
+  };
+
+  const handleInputKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+      e.preventDefault();
+      commitEditingText();
+      return;
+    }
+
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "b") {
+      e.preventDefault();
+      toggleEditorMark("bold");
+      return;
+    }
+
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "i") {
+      e.preventDefault();
+      toggleEditorMark("italic");
       return;
     }
 
     if (e.key === "Escape") {
+      setEditingDocument(null);
       setEditingText(null);
     }
   };
+
+  const renderLeaf = useCallback(
+    ({ attributes, children, leaf }: RenderLeafProps) => {
+      let content = children;
+
+      if ((leaf as RichTextLeaf).bold) {
+        content = <strong>{content}</strong>;
+      }
+
+      if ((leaf as RichTextLeaf).italic) {
+        content = <em>{content}</em>;
+      }
+
+      return <span {...attributes}>{content}</span>;
+    },
+    [],
+  );
 
   const uniColor = (color: string) =>
     isDarkMode ? invertLightnessPreservingHue(color) : color;
@@ -3400,17 +3888,14 @@ export const CanvasView = ({
       )}
 
       {editingText && (
-        <input
-          ref={inputRef}
-          value={editingText.value}
-          onChange={handleInputChange}
-          onBlur={handleInputBlur}
-          onKeyDown={handleInputKeyDown}
+        <div
+          ref={editorWrapRef}
           style={{
             position: "absolute",
             left: editingText.left,
             top: editingText.top,
             width: editingText.width,
+            height: editingText.height,
             maxWidth: editingText.maxWidth,
             margin: 0,
             padding: 0,
@@ -3425,9 +3910,34 @@ export const CanvasView = ({
             fontWeight: editingText.style.fontWeight,
             fontStyle: editingText.style.fontStyle,
             textAlign: editingText.style.textAlign,
-            lineHeight: `${editingText.style.fontSize * camera.zoom}px`,
+            lineHeight: `${getTextLineHeight(editingText.style.fontSize) * camera.zoom}px`,
           }}
-        />
+        >
+          <Slate
+            editor={editor}
+            initialValue={
+              (editingDocument ??
+                deserializeRichTextDocument(editingText.value)) as Descendant[]
+            }
+            onChange={handleEditorChange}
+          >
+            <Editable
+              renderLeaf={renderLeaf}
+              onBlur={handleInputBlur}
+              onKeyDown={handleInputKeyDown}
+              spellCheck={false}
+              style={{
+                width: "100%",
+                height: "100%",
+                minHeight: `${editingText.style.fontSize * camera.zoom}px`,
+                outline: "none",
+                whiteSpace: "pre-wrap",
+                wordBreak: "break-word",
+                background: "transparent",
+              }}
+            />
+          </Slate>
+        </div>
       )}
 
       {selectionToolbarOverlay && (
@@ -3445,7 +3955,7 @@ export const CanvasView = ({
             top: selectionToolbarOverlay.top,
           }}
         >
-          <SelectionBarContents />
+          {renderSelectionBarContents()}
         </div>
       )}
     </div>

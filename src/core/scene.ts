@@ -160,6 +160,74 @@ export const updateTextElementsFontSize = (
   };
 };
 
+export const updateTextElementsFontWeight = (
+  scene: Scene,
+  ids: string[],
+  fontWeight: string,
+): Scene => {
+  if (ids.length === 0) {
+    return scene;
+  }
+
+  const targetIds = new Set(ids);
+
+  return {
+    ...scene,
+    elements: scene.elements.map((element) => {
+      if (!targetIds.has(element.id)) {
+        return element;
+      }
+
+      if (
+        element.type !== "text" &&
+        element.type !== "rectangle" &&
+        element.type !== "circle"
+      ) {
+        return element;
+      }
+
+      return {
+        ...element,
+        fontWeight,
+      };
+    }),
+  };
+};
+
+export const updateTextElementsFontStyle = (
+  scene: Scene,
+  ids: string[],
+  fontStyle: "normal" | "italic",
+): Scene => {
+  if (ids.length === 0) {
+    return scene;
+  }
+
+  const targetIds = new Set(ids);
+
+  return {
+    ...scene,
+    elements: scene.elements.map((element) => {
+      if (!targetIds.has(element.id)) {
+        return element;
+      }
+
+      if (
+        element.type !== "text" &&
+        element.type !== "rectangle" &&
+        element.type !== "circle"
+      ) {
+        return element;
+      }
+
+      return {
+        ...element,
+        fontStyle,
+      };
+    }),
+  };
+};
+
 export const updateElementPosition = (
   scene: Scene,
   id: string,
@@ -287,6 +355,10 @@ export const updateDrawElementsStrokeColor = (
   strokeColor: string,
 ): Scene => {
   if (ids.length === 0) {
+    return scene;
+  }
+
+  if (strokeColor === "multi") {
     return scene;
   }
 

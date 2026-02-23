@@ -1,6 +1,10 @@
 import { useCallback, useRef, type Dispatch, type SetStateAction } from "react";
 import type { Scene } from "../core/scene";
-import { estimateTextWidth, getTextStartX } from "../core/elements";
+import {
+  estimateTextHeight,
+  estimateTextWidth,
+  getTextStartX,
+} from "../core/elements";
 import { findHitElement } from "../core/hitTest";
 import {
   addDrawElementToScene,
@@ -13,6 +17,8 @@ import {
   updateDrawElementsStrokeWidth,
   updateTextElementsFontSize,
   updateTextElementsFontFamily,
+  updateTextElementsFontWeight,
+  updateTextElementsFontStyle,
   updateElementPosition,
   updateElementRotation,
   updateGroupElementsRotation,
@@ -330,7 +336,7 @@ const getElementBounds = (element: SceneElement): Bounds => {
     x: getTextStartX(element),
     y: element.y - element.fontSize,
     width: Math.max(16, estimateTextWidth(element)),
-    height: element.fontSize,
+    height: estimateTextHeight(element),
   };
 };
 
@@ -1056,7 +1062,7 @@ export const useInteraction = ({
           x: startBounds?.x ?? getTextStartX(element),
           y: startBounds?.y ?? element.y - element.fontSize,
           width: startBounds?.width ?? estimateTextWidth(element),
-          height: startBounds?.height ?? element.fontSize,
+          height: startBounds?.height ?? estimateTextHeight(element),
           fontSize: element.fontSize,
           textAlign: element.textAlign,
         },
@@ -1261,6 +1267,24 @@ export const useInteraction = ({
     [setScene],
   );
 
+  const handleTextFontWeightChange = useCallback(
+    (ids: string[], fontWeight: string) => {
+      setScene((currentScene) =>
+        updateTextElementsFontWeight(currentScene, ids, fontWeight),
+      );
+    },
+    [setScene],
+  );
+
+  const handleTextFontStyleChange = useCallback(
+    (ids: string[], fontStyle: "normal" | "italic") => {
+      setScene((currentScene) =>
+        updateTextElementsFontStyle(currentScene, ids, fontStyle),
+      );
+    },
+    [setScene],
+  );
+
   const handleCreateDrawElement = useCallback(
     (
       points: Array<{ x: number; y: number }>,
@@ -1313,6 +1337,8 @@ export const useInteraction = ({
     handleGroupResizeStart,
     handleTextFontFamilyChange,
     handleTextFontSizeChange,
+    handleTextFontWeightChange,
+    handleTextFontStyleChange,
     handleCreateDrawElement,
     handleDrawStrokeWidthChange,
     handleDrawStrokeColorChange,

@@ -40,6 +40,8 @@ export interface LocaleMessages {
     strokeWidth: string;
     fontFamily: string;
     fontSize: string;
+    bold: string;
+    italic: string;
     strokeColor: string;
     fillColor: string;
     fillStyle: string;

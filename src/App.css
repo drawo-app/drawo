@@ -282,6 +282,67 @@ html.dark .selection-toolbar {
     box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35);
 }
 
+[data-slate-node] strong {
+    font-weight: 700;
+}
+.drawo-content-color {
+    box-shadow: none !important;
+    transform: translateY(40px) !important;
+}
+.dark .drawo-content-color .w-color-chrome {
+    --github-background-color: #111 !important;
+}
+
+.drawo-content-color [style="flex: 1 1 0%;"] .w-color-alpha-fill {
+    scale: 0.9 !important;
+    box-shadow: none !important;
+    border: 1px solid rgba(0, 0, 0, 0.8) !important;
+}
+.drawo-content-color
+    [style="padding: 15px; display: flex; align-items: center; gap: 10px;"] {
+    padding-top: 24px;
+    border-top: 1px solid rgba(var(--text-rgb), 0.1);
+}
+.drawo-content-color
+    [style="flex: 1 1 0%;"]
+    .w-color-alpha-horizontal
+    .w-color-interactive {
+    transform: translateY(-1px);
+}
+.drawo-content-color [style="flex: 1 1 0%;"] .w-color-alpha-horizontal > * {
+    border-radius: 4px !important;
+}
+.drawo-content-color [style="flex: 1 1 0%;"] .w-color-alpha-horizontal {
+    overflow: visible !important;
+    border-radius: 24px !important;
+}
+.drawo-content-color
+    [style="padding: 15px; display: flex; align-items: center; gap: 10px;"]
+    .w-color-alpha:not([style="flex: 1 1 0%;"] *)
+    > .w-color-interactive {
+    scale: 1.1;
+}
+
+.drawo-content-color .w-color-saturation-fill {
+    box-shadow: none !important;
+    border: 1px solid white;
+    scale: 1.2;
+}
+.drawo-content-color .w-color-chrome {
+    border-radius: 8px !important;
+    overflow: hidden;
+    border: 1px solid rgba(var(--text-rgb), 0.02) !important;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3) !important;
+}
+.drawo-content-color .w-color-chrome * {
+    --github-arrow-border-color: transparent;
+    --github-background-color: transparent;
+}
+.drawo-content-color
+    .w-color-chrome
+    *[style="display: flex; align-items: flex-start; padding: 0px 15px 15px; user-select: none;"] {
+    display: none !important;
+}
 .select-viewport {
     padding: 6px;
     height: var(--radix-select-trigger-height);
@@ -291,7 +352,7 @@ html.dark .selection-toolbar {
     padding: 4px 1px !important;
     background: transparent !important;
     width: fit-content;
-    transition-duration: .1s;
+    transition-duration: 0.1s;
     float: left;
 }
 .drawo-colorselect-content * {

@@ -20,6 +20,11 @@ export { hitTestRectangle } from "./rectangle";
 export {
   hitTestText,
   getTextFont,
+  getTextRunFont,
+  getTextLineHeight,
   estimateTextWidth,
+  estimateTextHeight,
+  parseRichText,
+  measureTextLineWidth,
   getTextStartX,
 } from "./text";

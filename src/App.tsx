@@ -553,6 +553,8 @@ export default function App() {
     handleSelectElements,
     handleTextFontFamilyChange,
     handleTextFontSizeChange,
+    handleTextFontWeightChange,
+    handleTextFontStyleChange,
     handleDrawStrokeWidthChange,
     handleDrawStrokeColorChange,
   } = useInteraction({
@@ -665,6 +667,8 @@ export default function App() {
           onGroupRotateStart={handleGroupRotateStart}
           onTextFontFamilyChange={handleTextFontFamilyChange}
           onTextFontSizeChange={handleTextFontSizeChange}
+          onTextFontWeightChange={handleTextFontWeightChange}
+          onTextFontStyleChange={handleTextFontStyleChange}
           onDrawStrokeWidthChange={handleDrawStrokeWidthChange}
           onDrawStrokeColorChange={handleDrawStrokeColorChange}
           onRectangleBorderRadiusChange={handleRectangleBorderRadiusChange}

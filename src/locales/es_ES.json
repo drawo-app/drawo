@@ -35,6 +35,8 @@
     "strokeWidth": "Grosor de la línea",
     "fontFamily": "Tipografía",
     "fontSize": "Tamaño de la fuente",
+    "bold": "Negrita",
+    "italic": "Cursiva",
     "strokeColor": "Color de la línea",
     "fillColor": "Color de relleno",
     "fillStyle": "Estilo de relleno",

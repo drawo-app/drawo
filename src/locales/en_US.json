@@ -35,6 +35,8 @@
     "strokeWidth": "Stroke width",
     "fontFamily": "Font family",
     "fontSize": "Font size",
+    "bold": "Bold",
+    "italic": "Italic",
     "strokeColor": "Stroke color",
     "fillColor": "Fill color",
     "fillStyle": "Fill style",
