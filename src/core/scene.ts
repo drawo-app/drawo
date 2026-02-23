@@ -43,7 +43,7 @@ export const initScene = (): Scene => ({
   camera: { x: 0, y: 0, zoom: 1 },
   settings: {
     showGrid: true,
-    snapToGrid: true,
+    snapToGrid: false,
     gridSize: 24,
     theme: "light",
   },

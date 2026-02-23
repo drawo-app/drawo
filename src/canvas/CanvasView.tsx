@@ -47,6 +47,13 @@ import {
   type RenderLeafProps,
 } from "slate-react";
 import { withHistory } from "slate-history";
+import {
+  Bold,
+  Italic,
+  TextAlignCenter,
+  TextAlignLeft,
+  TextAlignRight,
+} from "@gravity-ui/icons";
 
 type ResizeHandle = "nw" | "ne" | "se" | "sw";
 type BoxDrawingType = Exclude<NewElementType, "draw">;
@@ -840,6 +847,8 @@ export const CanvasView = ({
   const [canvasCursor, setCanvasCursor] = useState("default");
   const [activeResizeHandle, setActiveResizeHandle] =
     useState<ResizeHandle | null>(null);
+  const [hoveredResizeHandle, setHoveredResizeHandle] =
+    useState<ResizeHandle | null>(null);
   const [activeRotatingHandle, setActiveRotatingHandle] =
     useState<ResizeHandle | null>(null);
   const [isDraggingElement, setIsDraggingElement] = useState(false);
@@ -870,6 +879,7 @@ export const CanvasView = ({
     useState<ResizeHandle | null>(null);
   const lastPointerRef = useRef<{ x: number; y: number } | null>(null);
   const panStateRef = useRef<{ screenX: number; screenY: number } | null>(null);
+  const animationTimeRef = useRef(0);
   const selectedIds = useMemo(
     () =>
       scene.selectedIds.length > 0
@@ -1140,25 +1150,95 @@ export const CanvasView = ({
     const handleHalf = handleSize / 2;
     const handleRadius = HANDLE_BORDER_RADIUS_PX / zoom;
     const handles: ResizeHandle[] = ["nw", "ne", "se", "sw"];
-    ctx.fillStyle = toThemeColor("#F4F5F4");
-    ctx.strokeStyle = accentColor;
-    ctx.lineWidth = 1 / zoom;
 
     for (const handle of handles) {
       const center = getHandleCenter(bounds, handle);
       const handleX = center.x - handleHalf;
       const handleY = center.y - handleHalf;
 
+      const isHovered = hoveredResizeHandle === handle;
+      const isActive = activeResizeHandle === handle;
+
+      // Smooth easing for scale
+      let scale = 1;
+      let shadowBlur = 2 / zoom;
+      let shadowOpacity = 0.1;
+      let strokeWidth = 1 / zoom;
+
+      if (isActive) {
+        scale = 1.35;
+        shadowBlur = 8 / zoom;
+        shadowOpacity = 0.25;
+        strokeWidth = 2.5 / zoom;
+      } else if (isHovered) {
+        scale = 1.2;
+        shadowBlur = 5 / zoom;
+        shadowOpacity = 0.18;
+        strokeWidth = 1.5 / zoom;
+      }
+
+      const scaledSize = handleSize * scale;
+      const scaledHalf = scaledSize / 2;
+      const scaledX = center.x - scaledHalf;
+      const scaledY = center.y - scaledHalf;
+
+      ctx.save();
+
+      // Enhanced shadow for depth effect
+      ctx.shadowColor = `rgba(0, 0, 0, ${shadowOpacity})`;
+      ctx.shadowBlur = shadowBlur;
+      ctx.shadowOffsetX = 0;
+      ctx.shadowOffsetY = 1.5 / zoom;
+
+      // Fill and stroke with smooth transitions
+      ctx.fillStyle = isActive ? accentColor : toThemeColor("#F4F5F4");
+      ctx.strokeStyle = accentColor;
+      ctx.lineWidth = strokeWidth;
+
       drawRoundedRect(
         ctx,
-        handleX,
-        handleY,
-        handleSize,
-        handleSize,
-        handleRadius,
+        scaledX,
+        scaledY,
+        scaledSize,
+        scaledSize,
+        handleRadius * scale,
       );
       ctx.fill();
       ctx.stroke();
+
+      // Glow effect for active or hovered state
+      if (isHovered || isActive) {
+        ctx.strokeStyle = accentColor;
+        ctx.globalAlpha = isActive ? 0.15 : 0.08;
+        ctx.lineWidth = (4 + (isActive ? 2 : 0)) / zoom;
+
+        drawRoundedRect(
+          ctx,
+          scaledX,
+          scaledY,
+          scaledSize,
+          scaledSize,
+          handleRadius * scale,
+        );
+        ctx.stroke();
+
+        ctx.globalAlpha = 1;
+      }
+
+      // Inner highlight for better visual feedback
+      if (isHovered || isActive) {
+        ctx.fillStyle = isActive
+          ? "rgba(255, 255, 255, 0.25)"
+          : "rgba(255, 255, 255, 0.15)";
+        const insetSize = scaledSize * 0.5;
+        const insetX = center.x - insetSize / 2;
+        const insetY = center.y - insetSize / 2;
+        ctx.beginPath();
+        ctx.arc(center.x, center.y, insetSize / 2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      ctx.restore();
     }
   };
 
@@ -1197,7 +1277,7 @@ export const CanvasView = ({
   };
 
   const selectionToolbarOverlay = (() => {
-    if (selectedIds.length === 0 || editingText) {
+    if (selectedIds.length === 0) {
       return null;
     }
 
@@ -1374,6 +1454,15 @@ export const CanvasView = ({
       selectedTextElements.every(
         (element) => element.fontFamily === selectedTextElements[0].fontFamily,
       );
+    const allSameTextAlign =
+      selectedTextElements.length > 0 &&
+      selectedTextElements.every(
+        (element) => element.textAlign === selectedTextElements[0].textAlign,
+      );
+
+    const selectedTextAlign = allSameTextAlign
+      ? selectedTextElements[0].textAlign
+      : undefined;
     const selectedFontFamily = allSameFontFamily
       ? selectedTextElements[0].fontFamily
       : undefined;
@@ -1407,6 +1496,13 @@ export const CanvasView = ({
       selectedFontWeight === "800" ||
       selectedFontWeight === "900";
     const isItalicActive = selectedFontStyle === "italic";
+    const activeEditorMarks = editingText
+      ? ((Editor.marks(editor) as Record<string, unknown> | null) ?? null)
+      : null;
+    const isBoldControlActive =
+      activeEditorMarks?.bold === true || (!editingText && isBoldActive);
+    const isItalicControlActive =
+      activeEditorMarks?.italic === true || (!editingText && isItalicActive);
     const selectedDrawElements = scene.elements.filter(
       (element): element is DrawElement =>
         selectedIds.includes(element.id) && element.type === "draw",
@@ -1802,70 +1898,140 @@ export const CanvasView = ({
           </SelectContent>
         </Select>
         <div className="selectionbar-separator" />
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <button
-              type="button"
-              onPointerDown={(event) => {
-                event.stopPropagation();
-              }}
-              onClick={() => {
-                onTextFontWeightChange(
-                  selectedTextElements.map((element) => element.id),
-                  isBoldActive ? "200" : "700",
-                );
-              }}
-              style={{
-                border: "1px solid var(--accent)",
-                borderRadius: 6,
-                width: 24,
-                height: 24,
-                fontWeight: 700,
-                opacity: isBoldActive ? 1 : 0.7,
-                background: isBoldActive ? "var(--accent)" : "transparent",
-                color: isBoldActive ? "var(--background)" : "var(--foreground)",
-              }}
+        <div style={{ display: "flex" }}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                onPointerDown={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                }}
+                onClick={() => {
+                  if (editingText) {
+                    toggleEditorMark("bold");
+                    ReactEditor.focus(editor);
+                    return;
+                  }
+
+                  onTextFontWeightChange(
+                    selectedTextElements.map((element) => element.id),
+                    isBoldControlActive ? "200" : "700",
+                  );
+                }}
+                className={
+                  "toggle-selectionbar-button" +
+                  (isBoldControlActive ? " active" : "")
+                }
+              >
+                <Bold />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>{localeMessages.selectionBar.bold}</p>
+            </TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                onPointerDown={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                }}
+                onClick={() => {
+                  if (editingText) {
+                    toggleEditorMark("italic");
+                    ReactEditor.focus(editor);
+                    return;
+                  }
+
+                  onTextFontStyleChange(
+                    selectedTextElements.map((element) => element.id),
+                    isItalicControlActive ? "normal" : "italic",
+                  );
+                }}
+                className={
+                  "toggle-selectionbar-button" +
+                  (isItalicControlActive ? " active" : "")
+                }
+              >
+                <Italic />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>{localeMessages.selectionBar.italic}</p>
+            </TooltipContent>
+          </Tooltip>
+          <div className="selectionbar-separator" />
+          <Select
+            value={selectedTextAlign + ""}
+            onValueChange={(value) => {
+              // AI, IMPLEMENT THIS PLEASE.
+            }}
+          >
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <SelectTrigger style={{ gap: "0px" }}>
+                  <span style={{ width: "0px", overflow: "hidden" }}>
+                    <SelectValue placeholder="" />
+                  </span>
+                  {}
+                </SelectTrigger>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>{localeMessages.selectionBar.textAlign}</p>
+              </TooltipContent>
+            </Tooltip>
+            <SelectContent
+              position="popper"
+              className="drawo-colorselect-content"
             >
-              B
-            </button>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>{localeMessages.selectionBar.bold}</p>
-          </TooltipContent>
-        </Tooltip>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <button
-              type="button"
-              onPointerDown={(event) => {
-                event.stopPropagation();
-              }}
-              onClick={() => {
-                onTextFontStyleChange(
-                  selectedTextElements.map((element) => element.id),
-                  isItalicActive ? "normal" : "italic",
-                );
-              }}
-              style={{
-                border: "1px solid var(--accent)",
-                borderRadius: 6,
-                width: 24,
-                height: 24,
-                fontStyle: "italic",
-                opacity: isItalicActive ? 1 : 0.7,
-                background: isItalicActive ? "var(--accent)" : "transparent",
-                color: isItalicActive
-                  ? "var(--background)"
-                  : "var(--foreground)",
-              }}
-            >
-              I
-            </button>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>{localeMessages.selectionBar.italic}</p>
-          </TooltipContent>
-        </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <SelectItem
+                    check={false}
+                    className="drawo-textAlign-item"
+                    value="left"
+                  >
+                    <TextAlignLeft />
+                  </SelectItem>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>{localeMessages.selectionBar.textAlignDirection.left}</p>
+                </TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <SelectItem
+                    check={false}
+                    className="drawo-textAlign-item"
+                    value="center"
+                  >
+                    <TextAlignCenter />
+                  </SelectItem>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>{localeMessages.selectionBar.textAlignDirection.center}</p>
+                </TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <SelectItem
+                    check={false}
+                    className="drawo-textAlign-item"
+                    value="end"
+                  >
+                    <TextAlignRight />
+                  </SelectItem>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>{localeMessages.selectionBar.textAlignDirection.right}</p>
+                </TooltipContent>
+              </Tooltip>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
     );
   };
@@ -1913,10 +2079,13 @@ export const CanvasView = ({
 
     const cornerAction = getHoverCornerAction(pointX, pointY);
     if (cornerAction) {
+      setHoveredResizeHandle(cornerAction.mode === "resize" ? cornerAction.handle : null);
       return cornerAction.mode === "resize"
         ? getResizeCursor(cornerAction.handle)
         : getRotateCursor(cornerAction.handle);
     }
+
+    setHoveredResizeHandle(null);
 
     const hitId = findHitElement(scene.elements, pointX, pointY);
     if (hitId) {
@@ -3578,6 +3747,7 @@ export const CanvasView = ({
 
     setActiveRotatingHandle(null);
     setActiveResizeHandle(null);
+    setHoveredResizeHandle(null);
     setIsDraggingElement(false);
     setIsDuplicateDragging(false);
 
@@ -3619,6 +3789,8 @@ export const CanvasView = ({
       setCanvasCursor("default");
       return;
     }
+
+    setHoveredResizeHandle(null);
 
     if (activeRotatingHandle) {
       setCanvasCursor(getRotateCursor(activeRotatingHandle));
