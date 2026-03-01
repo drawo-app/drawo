@@ -1,0 +1,324 @@
+.music-bar {
+    position: relative;
+    z-index: 100;
+    width: fit-content;
+    border-radius: 14px;
+    backdrop-filter: blur(8px);
+    transition:
+        box-shadow 180ms ease,
+        border-color 180ms ease,
+        background-color 180ms ease;
+}
+
+.music-bar-open {
+    border-bottom-left-radius: 16px;
+    border-bottom-right-radius: 16px;
+}
+
+.music-bar-toggle {
+    width: 100%;
+    border: 0;
+    overflow: hidden;
+    overflow: hidden;
+    position: relative;
+    padding: 14px 18px;
+    display: flex;
+    box-shadow: var(--panel-shadow);
+    align-items: center;
+    border: 1px solid var(--panel-border);
+    justify-content: space-between;
+    cursor: pointer;
+    color: inherit;
+    corner-shape: squircle;
+    border-radius: 24px;
+    transition: all 160ms ease;
+}
+
+.music-bar-toggle:hover {
+    filter: brightness(0.95);
+}
+.dark .music-bar-toggle:hover {
+    filter: brightness(1.3);
+}
+
+.music-bar-toggle-content {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.music-bar-now-playing {
+    font:
+        600 13px Inter,
+        sans-serif;
+    letter-spacing: 0.02em;
+    max-width: 200px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-transform: capitalize;
+}
+
+.music-dot-active {
+    background: var(--accent);
+}
+
+.music-bar-icon {
+    transform: scale(1.2);
+}
+.music-panel {
+    padding: 20px 24px 22px;
+    corner-shape: squircle;
+    overflow: hidden;
+
+    border-radius: 24px;
+    box-shadow: var(--panel-shadow);
+    position: absolute;
+    right: 0px;
+    min-width: 280px;
+    border: 1px solid var(--panel-border);
+    display: flex;
+    transform: translateY(8px);
+    flex-direction: column;
+    gap: 10px;
+    animation: music-panel-in 200ms ease-in-out;
+}
+
+.music-controls-row {
+    display: flex;
+    gap: 16px;
+    justify-content: center;
+    align-items: center;
+    padding: 8px 0;
+}
+
+.music-ctl {
+    border: none;
+    background: transparent;
+    color: #111827;
+    border-radius: 50%;
+    padding: 15px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 150ms ease;
+}
+
+.music-ctl:hover {
+    background: rgba(0, 0, 0, 0.06);
+    transform: scale(1.05);
+}
+
+.music-ctl:active {
+    transform: scale(0.95);
+}
+
+.music-ctl-play {
+    background: rgba(var(--accent-rgb), 1);
+    color: white;
+    padding: 18px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+.dark .music-ctl-play {
+    background: rgba(var(--accent-rgb), 0.6);
+}
+.music-ctl-play:hover {
+    background: rgba(var(--accent-rgb), 1);
+    filter: brightness(0.9);
+    transform: scale(1.05);
+}
+.dark .music-ctl-play:hover {
+    background: rgba(var(--accent-rgb), 0.7) !important;
+    transform: scale(1.05);
+}
+
+.music-ctl:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.music-station-select-container {
+    margin-top: 4px;
+    margin-bottom: 4px;
+}
+
+.music-bar-icon {
+    display: flex;
+}
+.music-status {
+    margin: 0;
+    font:
+        500 12px Inter,
+        sans-serif;
+    text-transform: capitalize;
+    opacity: 0.85;
+}
+
+.music-status-error {
+    color: #c0262d;
+}
+
+.music-volume-row * {
+    stroke-width: 1;
+}
+
+.music-volume-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px;
+    margin-top: -26px;
+}
+
+.music-volume-slider {
+    appearance: none;
+    width: 100%;
+    height: 4px;
+    border-radius: 999px;
+    background: rgba(0, 0, 0, 0.16);
+    outline: none;
+}
+
+.music-volume-slider::-webkit-slider-thumb {
+    appearance: none;
+    width: 12px;
+    height: 12px;
+    border-radius: 999px;
+    border: 2px solid var(--accent);
+    background: var(--accent);
+    cursor: pointer;
+    box-shadow: 0 1px 5px rgba(0, 0, 0, 0.25);
+}
+
+.music-volume-slider::-moz-range-thumb {
+    width: 12px;
+    height: 12px;
+    border-radius: 999px;
+    border: 2px solid #fff;
+    background: var(--accent);
+    cursor: pointer;
+    box-shadow: 0 1px 5px rgba(0, 0, 0, 0.25);
+}
+
+.music-volume-value {
+    font:
+        600 11px Inter,
+        sans-serif;
+    opacity: 0.85;
+    min-width: 34px;
+    text-align: right;
+}
+
+.music-spin {
+    animation: music-spin 10s linear infinite;
+}
+
+.music-cd-disc {
+    will-change: transform;
+}
+
+@keyframes music-panel-in {
+    from {
+        opacity: 0;
+        transform: translateY(-4px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(8px);
+    }
+}
+
+@keyframes music-spin {
+    from {
+        transform: rotate(0deg) translate(-50%, -50%);
+    }
+
+    to {
+        transform: rotate(360deg) translate(-50%, -50%);
+    }
+}
+
+.music-audio-hidden {
+    display: none;
+}
+
+.dark .music-panel,
+.drawo-app-root--dark .music-panel,
+.dark .music-bar-toggle,
+.drawo-app-root--dark .music-bar-toggle {
+    background: #1e1e1e;
+    color: #f3f4f6;
+}
+
+.dark .music-bar-toggle:hover,
+.drawo-app-root--dark .music-bar-toggle:hover {
+    background: #1e1e1e;
+}
+
+.dark .music-dot,
+.drawo-app-root--dark .music-dot {
+    background: rgba(255, 255, 255, 0.35);
+}
+
+.music-elem {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+.music-elem > span {
+    display: flex;
+}
+.music-selecttrigger {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border: none;
+    background:rgb(var(--background-rgb));
+    color: currentColor;
+    padding: 0.8rem 1.2rem;
+    border-radius: 14px;
+    corner-shape: squircle;
+}
+.dark .music-dot-active,
+.drawo-app-root--dark .music-dot-active {
+    background: var(--accent);
+}
+
+.dark .music-ctl,
+.drawo-app-root--dark .music-ctl {
+    color: #f3f4f6;
+}
+
+.dark .music-ctl:hover,
+.drawo-app-root--dark .music-ctl:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+.dark .music-status-error,
+.drawo-app-root--dark .music-status-error {
+    color: #fca5a5;
+}
+
+.dark .music-volume-slider,
+.drawo-app-root--dark .music-volume-slider {
+    background: rgba(255, 255, 255, 0.25);
+}
+
+@media (max-width: 560px) {
+    .music-bar {
+        top: 10px;
+        right: 10px;
+        width: calc(100vw - 20px);
+    }
+
+    .music-bar-now-playing {
+        max-width: 140px;
+    }
+
+    .music-controls-row {
+        flex-wrap: wrap;
+    }
+}

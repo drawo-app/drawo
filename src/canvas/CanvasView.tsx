@@ -1,10 +1,5 @@
 import { useRef, useEffect, useMemo, useState, useCallback } from "react";
-import type {
-  DrawElementStyle,
-  ElementCreationBounds,
-  NewElementType,
-  Scene,
-} from "../core/scene";
+import type { DrawElementStyle } from "../core/scene";
 import {
   estimateTextHeight,
   estimateTextWidth,
@@ -17,7 +12,6 @@ import {
 } from "../core/elements";
 import { findHitElement } from "../core/hitTest";
 import type {
-  CircleElement,
   DrawElement,
   RectangleElement,
   TextElement,
@@ -35,7 +29,6 @@ import {
   SimpleTypography,
   TechnicalTypography,
 } from "../components/icons";
-import { type LocaleMessages } from "../i18n";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../components/tooltip";
 import Chrome from "@uiw/react-color-chrome";
 import { createEditor, Editor, Transforms, type Descendant } from "slate";
@@ -50,794 +43,72 @@ import { withHistory } from "slate-history";
 import {
   Bold,
   Italic,
+  Strikethrough,
   TextAlignCenter,
   TextAlignLeft,
   TextAlignRight,
 } from "@gravity-ui/icons";
-
-type ResizeHandle = "nw" | "ne" | "se" | "sw";
-type BoxDrawingType = Exclude<NewElementType, "draw">;
-interface DrawingSelection {
-  type: BoxDrawingType;
-  startX: number;
-  startY: number;
-  currentX: number;
-  currentY: number;
-  fromCenter: boolean;
-  lockAspect: boolean;
-}
-
-interface DrawSelection {
-  points: Array<{ x: number; y: number }>;
-  stroke: string;
-  strokeWidth: number;
-  isLine?: boolean;
-}
-
-interface LaserTrailPoint {
-  x: number;
-  y: number;
-  t: number;
-}
-
-interface LaserTrail {
-  id: string;
-  points: LaserTrailPoint[];
-}
-
-interface ElementBounds {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-}
-
-interface CanvasViewProps {
-  scene: Scene;
-  interactionMode: "select" | "pan";
-  drawingTool: NewElementType | "laser" | null;
-  localeMessages: LocaleMessages;
-  onPointerDown: (
-    x: number,
-    y: number,
-    altKey: boolean,
-    shiftKey: boolean,
-  ) => void;
-  onPointerMove: (
-    x: number,
-    y: number,
-    shiftKey: boolean,
-    altKey: boolean,
-  ) => void;
-  onPointerUp: () => void;
-  onWheelPan: (deltaX: number, deltaY: number) => void;
-  onWheelZoom: (screenX: number, screenY: number, deltaY: number) => void;
-  onCreateElement: (
-    type: BoxDrawingType,
-    x: number,
-    y: number,
-    messages: LocaleMessages,
-    bounds?: ElementCreationBounds,
-  ) => void;
-  onCreateDrawElement: (
-    points: Array<{ x: number; y: number }>,
-    style?: Partial<DrawElementStyle>,
-  ) => void;
-  onDrawingToolComplete: () => void;
-  onSelectElements: (ids: string[]) => void;
-  onTextFontFamilyChange: (ids: string[], fontFamily: string) => void;
-  onTextFontSizeChange: (ids: string[], fontSize: number) => void;
-  onTextFontWeightChange: (ids: string[], fontWeight: string) => void;
-  onTextFontStyleChange: (
-    ids: string[],
-    fontStyle: "normal" | "italic",
-  ) => void;
-  onTextAlignChange: (ids: string[], textAlign: CanvasTextAlign) => void;
-  onDrawStrokeWidthChange: (ids: string[], strokeWidth: number) => void;
-  onDrawStrokeColorChange: (ids: string[], strokeColor: string) => void;
-  onRectangleBorderRadiusChange: (ids: string[], borderRadius: number) => void;
-  onGroupResizeStart: (
-    handle: ResizeHandle,
-    pointerX: number,
-    pointerY: number,
-    bounds: ElementBounds,
-    ids: string[],
-  ) => void;
-  onGroupRotateStart: (
-    centerX: number,
-    centerY: number,
-    pointerX: number,
-    pointerY: number,
-    ids: string[],
-  ) => void;
-  onResizeStart: (
-    id: string,
-    handle: ResizeHandle,
-    pointerX: number,
-    pointerY: number,
-    startBounds?: ElementBounds,
-  ) => void;
-  onRotateStart: (
-    id: string,
-    centerX: number,
-    centerY: number,
-    pointerX: number,
-    pointerY: number,
-  ) => void;
-  onTextCommit: (id: string, text: string) => void;
-}
-
-interface EditingTextState {
-  id: string;
-  value: string;
-  anchorX: number;
-  anchorY: number;
-  left: number;
-  top: number;
-  width: number;
-  height: number;
-  maxWidth?: number;
-  style: Pick<
-    TextElement,
-    | "fontFamily"
-    | "fontSize"
-    | "fontWeight"
-    | "fontStyle"
-    | "color"
-    | "textAlign"
-  >;
-}
-
-type EditableElement = TextElement | RectangleElement | CircleElement;
-
-interface MarqueeSelection {
-  startX: number;
-  startY: number;
-  currentX: number;
-  currentY: number;
-}
-
-type RichTextLeaf = {
-  text: string;
-  bold?: boolean;
-  italic?: boolean;
-};
-
-type RichTextParagraph = {
-  type: "paragraph";
-  children: RichTextLeaf[];
-};
-
-type RichTextDocument = RichTextParagraph[];
-
-const EMPTY_RICH_TEXT_DOCUMENT: RichTextDocument = [
-  { type: "paragraph", children: [{ text: "" }] },
-];
-
-const isRichTextLeaf = (value: unknown): value is RichTextLeaf => {
-  return (
-    value !== null &&
-    typeof value === "object" &&
-    typeof (value as { text?: unknown }).text === "string"
-  );
-};
-
-const isRichTextParagraph = (value: unknown): value is RichTextParagraph => {
-  if (
-    value === null ||
-    typeof value !== "object" ||
-    (value as { type?: unknown }).type !== "paragraph"
-  ) {
-    return false;
-  }
-
-  const children = (value as { children?: unknown }).children;
-  return Array.isArray(children) && children.every(isRichTextLeaf);
-};
-
-const deserializeRichTextDocument = (value: string): RichTextDocument => {
-  if (!value.trim()) {
-    return EMPTY_RICH_TEXT_DOCUMENT;
-  }
-
-  try {
-    const parsed = JSON.parse(value) as unknown;
-
-    if (Array.isArray(parsed) && parsed.every(isRichTextParagraph)) {
-      return parsed.length > 0 ? parsed : EMPTY_RICH_TEXT_DOCUMENT;
-    }
-  } catch {
-    const lines = value.split("\n");
-
-    return (lines.length > 0 ? lines : [""]).map((line) => ({
-      type: "paragraph",
-      children: [{ text: line }],
-    }));
-  }
-
-  return EMPTY_RICH_TEXT_DOCUMENT;
-};
-
-const serializeRichTextDocument = (document: RichTextDocument): string => {
-  return JSON.stringify(document);
-};
-
-const getAlignedStartX = (
-  anchorX: number,
-  width: number,
-  textAlign: CanvasTextAlign,
-): number => {
-  if (textAlign === "center") {
-    return anchorX - width / 2;
-  }
-
-  if (textAlign === "right" || textAlign === "end") {
-    return anchorX - width;
-  }
-
-  return anchorX;
-};
-
-const getTextAlignSelectValue = (
-  textAlign?: CanvasTextAlign,
-): "left" | "center" | "end" => {
-  if (textAlign === "center") {
-    return "center";
-  }
-
-  if (textAlign === "right" || textAlign === "end") {
-    return "end";
-  }
-
-  return "left";
-};
-
-const HANDLE_SIZE = 9;
-const HANDLE_BORDER_RADIUS_PX = 2;
-const TEXT_SELECTION_PADDING_PX = 6;
-const SHAPE_TEXT_HORIZONTAL_PADDING_PX = 8;
-const MIN_GRID_SCREEN_SPACING = 12;
-const HANDLE_RESIZE_RADIUS_PX = 10;
-const HANDLE_ROTATE_RADIUS_PX = 20;
-const RADIUS_HANDLE_SIZE_PX = 12;
-const RADIUS_HANDLE_OFFSET_PX = 14;
-const DRAW_STROKE_OPTIONS = [1, 2, 4, 7, 12] as const;
-const LASER_LIFETIME_MS = 600;
-const LASER_BASE_WIDTH_PX = 11;
-const LASER_MIN_WIDTH_PX = 0.3;
-const STROKE_COLORS = [
-  "#2f3b52",
-  "#DA3614",
-  "#BD5C01",
-  "#BA8501",
-  "#2F973B",
-  "#006EC3",
-  "#3B01AE",
-  "#FEFEFF",
-  "multi",
-];
-const DRAW_STROKE_SVGS = [
-  <svg
-    width="556"
-    height="39"
-    viewBox="0 0 556 39"
-    fill="none"
-    xmlns="http://www.w3.org/2000/svg"
-  >
-    <path
-      d="M8.56738 26.2557L73.1859 16.7619C148.798 5.65298 225.666 6.20304 301.112 18.3929C354.366 26.9973 408.395 29.8127 462.255 26.7899L547.231 22.0209"
-      stroke="currentColor"
-      stroke-width="3"
-      stroke-linecap="round"
-    />
-  </svg>,
-  <svg
-    width="556"
-    height="47"
-    viewBox="0 0 556 47"
-    fill="none"
-    xmlns="http://www.w3.org/2000/svg"
-  >
-    <path
-      d="M11.6562 30.2854L75.5612 21.2533C150.321 10.687 226.23 11.2105 300.836 22.8068C353.497 30.992 406.868 33.6697 460.083 30.7966L544.142 26.2583"
-      stroke="currentColor"
-      stroke-width="8"
-      stroke-linecap="round"
-    />
-  </svg>,
-  <svg
-    width="556"
-    height="52"
-    viewBox="0 0 556 52"
-    fill="none"
-    xmlns="http://www.w3.org/2000/svg"
-  >
-    <path
-      d="M15.0752 33.351L78.1507 24.3201C151.946 13.7545 226.905 14.2778 300.545 25.8728C352.524 34.0571 405.222 36.7347 457.763 33.8612L540.724 29.3238"
-      stroke="currentColor"
-      stroke-width="13"
-      stroke-linecap="round"
-    />
-  </svg>,
-  <svg
-    width="556"
-    height="60"
-    viewBox="0 0 556 60"
-    fill="none"
-    xmlns="http://www.w3.org/2000/svg"
-  >
-    <path
-      d="M16.415 37.3698L79.1655 28.3394C152.582 17.7741 227.17 18.2974 300.431 29.8918C352.143 38.0758 404.577 40.7533 456.853 37.8796L539.384 33.3426"
-      stroke="currentColor"
-      stroke-width="19"
-      stroke-linecap="round"
-    />
-  </svg>,
-  <svg
-    width="556"
-    height="64"
-    viewBox="0 0 556 64"
-    fill="none"
-    xmlns="http://www.w3.org/2000/svg"
-  >
-    <path
-      d="M19.7637 40.0679L81.7016 31.0388C154.173 20.4742 227.831 20.9973 300.145 32.5904C351.189 40.7734 402.964 43.4509 454.58 40.5766L536.035 36.0408"
-      stroke="currentColor"
-      stroke-width="24"
-      stroke-linecap="round"
-    />
-  </svg>,
-];
-
-const getClosestDrawStrokeOption = (value: number): number => {
-  const safeValue = Number.isFinite(value) ? Math.max(1, value) : 2;
-
-  return DRAW_STROKE_OPTIONS.reduce((closest, option) => {
-    return Math.abs(option - safeValue) < Math.abs(closest - safeValue)
-      ? option
-      : closest;
-  }, DRAW_STROKE_OPTIONS[0]);
-};
-
-interface RgbaColor {
-  r: number;
-  g: number;
-  b: number;
-  a: number;
-}
-
-const clamp01 = (value: number): number => Math.min(1, Math.max(0, value));
-
-const parseHexColor = (value: string): RgbaColor | null => {
-  const hex = value.trim().slice(1);
-
-  if (hex.length === 3 || hex.length === 4) {
-    const r = parseInt(hex[0] + hex[0], 16);
-    const g = parseInt(hex[1] + hex[1], 16);
-    const b = parseInt(hex[2] + hex[2], 16);
-    const a = hex.length === 4 ? parseInt(hex[3] + hex[3], 16) / 255 : 1;
-
-    return { r, g, b, a };
-  }
-
-  if (hex.length === 6 || hex.length === 8) {
-    const r = parseInt(hex.slice(0, 2), 16);
-    const g = parseInt(hex.slice(2, 4), 16);
-    const b = parseInt(hex.slice(4, 6), 16);
-    const a = hex.length === 8 ? parseInt(hex.slice(6, 8), 16) / 255 : 1;
-
-    return { r, g, b, a };
-  }
-
-  return null;
-};
-
-const parseRgbColor = (value: string): RgbaColor | null => {
-  const match = value
-    .trim()
-    .match(
-      /^rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)(?:\s*[,/]\s*([\d.]+%?))?\s*\)$/i,
-    );
-
-  if (!match) {
-    return null;
-  }
-
-  const r = Number(match[1]);
-  const g = Number(match[2]);
-  const b = Number(match[3]);
-  const alphaRaw = match[4];
-  const alpha = alphaRaw
-    ? alphaRaw.endsWith("%")
-      ? Number(alphaRaw.slice(0, -1)) / 100
-      : Number(alphaRaw)
-    : 1;
-
-  return {
-    r: Math.max(0, Math.min(255, r)),
-    g: Math.max(0, Math.min(255, g)),
-    b: Math.max(0, Math.min(255, b)),
-    a: clamp01(alpha),
-  };
-};
-
-const parseColor = (value: string): RgbaColor | null => {
-  if (value.trim().startsWith("#")) {
-    return parseHexColor(value);
-  }
-
-  if (value.trim().toLowerCase().startsWith("rgb")) {
-    return parseRgbColor(value);
-  }
-
-  return null;
-};
-
-const rgbToHsl = ({ r, g, b }: RgbaColor) => {
-  const rn = r / 255;
-  const gn = g / 255;
-  const bn = b / 255;
-  const max = Math.max(rn, gn, bn);
-  const min = Math.min(rn, gn, bn);
-  const delta = max - min;
-  const lightness = (max + min) / 2;
-
-  if (delta === 0) {
-    return { hue: 0, saturation: 0, lightness };
-  }
-
-  const saturation =
-    lightness > 0.5 ? delta / (2 - max - min) : delta / (max + min);
-
-  let hue = 0;
-  if (max === rn) {
-    hue = (gn - bn) / delta + (gn < bn ? 6 : 0);
-  } else if (max === gn) {
-    hue = (bn - rn) / delta + 2;
-  } else {
-    hue = (rn - gn) / delta + 4;
-  }
-
-  return { hue: hue / 6, saturation, lightness };
-};
-
-const hueToRgb = (p: number, q: number, t: number): number => {
-  let nextT = t;
-
-  if (nextT < 0) {
-    nextT += 1;
-  }
-  if (nextT > 1) {
-    nextT -= 1;
-  }
-  if (nextT < 1 / 6) {
-    return p + (q - p) * 6 * nextT;
-  }
-  if (nextT < 1 / 2) {
-    return q;
-  }
-  if (nextT < 2 / 3) {
-    return p + (q - p) * (2 / 3 - nextT) * 6;
-  }
-
-  return p;
-};
-
-const hslToRgb = (hue: number, saturation: number, lightness: number) => {
-  if (saturation === 0) {
-    const value = Math.round(lightness * 255);
-    return { r: value, g: value, b: value };
-  }
-
-  const q =
-    lightness < 0.5
-      ? lightness * (1 + saturation)
-      : lightness + saturation - lightness * saturation;
-  const p = 2 * lightness - q;
-
-  return {
-    r: Math.round(hueToRgb(p, q, hue + 1 / 3) * 255),
-    g: Math.round(hueToRgb(p, q, hue) * 255),
-    b: Math.round(hueToRgb(p, q, hue - 1 / 3) * 255),
-  };
-};
-
-const invertLightnessPreservingHue = (value: string): string => {
-  const parsed = parseColor(value);
-  if (!parsed) {
-    return value;
-  }
-
-  const { hue, saturation, lightness } = rgbToHsl(parsed);
-  const nextLightness = clamp01(1 - lightness);
-  const nextRgb = hslToRgb(hue, saturation, nextLightness);
-
-  if (parsed.a < 1) {
-    return `rgba(${nextRgb.r}, ${nextRgb.g}, ${nextRgb.b}, ${parsed.a})`;
-  }
-
-  return `rgb(${nextRgb.r}, ${nextRgb.g}, ${nextRgb.b})`;
-};
-
-const normalizeRgbTriplet = (value: string): string | null => {
-  const channels = value.match(/\d+(?:\.\d+)?/g);
-  if (!channels || channels.length < 3) {
-    return null;
-  }
-
-  return channels
-    .slice(0, 3)
-    .map((channel) => {
-      const numeric = Number(channel);
-      return Math.max(0, Math.min(255, Math.round(numeric)));
-    })
-    .join(", ");
-};
-
-const getResizeCursor = (handle: ResizeHandle): string => {
-  if (handle === "nw" || handle === "se") {
-    return "nwse-resize";
-  }
-
-  return "nesw-resize";
-};
-
-const getRotateCursor = (handle: ResizeHandle): string => {
-  switch (handle) {
-    case "nw":
-      return "rotate-down-left";
-    case "ne":
-      return "rotate-down-right";
-    case "sw":
-      return "rotate-up-left";
-    case "se":
-      return "rotate-up-right";
-    default:
-      return "nesw-resize";
-  }
-};
-const getHandleCenter = (bounds: ElementBounds, handle: ResizeHandle) => {
-  if (handle === "nw") {
-    return { x: bounds.x, y: bounds.y };
-  }
-
-  if (handle === "ne") {
-    return { x: bounds.x + bounds.width, y: bounds.y };
-  }
-
-  if (handle === "sw") {
-    return { x: bounds.x, y: bounds.y + bounds.height };
-  }
-
-  return { x: bounds.x + bounds.width, y: bounds.y + bounds.height };
-};
-
-const rotatePointAroundCenter = (
-  pointX: number,
-  pointY: number,
-  centerX: number,
-  centerY: number,
-  angleRadians: number,
-) => {
-  const cos = Math.cos(angleRadians);
-  const sin = Math.sin(angleRadians);
-  const dx = pointX - centerX;
-  const dy = pointY - centerY;
-
-  return {
-    x: dx * cos - dy * sin + centerX,
-    y: dx * sin + dy * cos + centerY,
-  };
-};
-
-const getBoundsCenter = (bounds: ElementBounds) => ({
-  x: bounds.x + bounds.width / 2,
-  y: bounds.y + bounds.height / 2,
-});
-
-const drawRoundedRect = (
-  ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  width: number,
-  height: number,
-  radius: number,
-) => {
-  const limitedRadius = Math.max(0, Math.min(radius, width / 2, height / 2));
-
-  ctx.beginPath();
-  ctx.moveTo(x + limitedRadius, y);
-  ctx.lineTo(x + width - limitedRadius, y);
-  ctx.quadraticCurveTo(x + width, y, x + width, y + limitedRadius);
-  ctx.lineTo(x + width, y + height - limitedRadius);
-  ctx.quadraticCurveTo(
-    x + width,
-    y + height,
-    x + width - limitedRadius,
-    y + height,
-  );
-  ctx.lineTo(x + limitedRadius, y + height);
-  ctx.quadraticCurveTo(x, y + height, x, y + height - limitedRadius);
-  ctx.lineTo(x, y + limitedRadius);
-  ctx.quadraticCurveTo(x, y, x + limitedRadius, y);
-  ctx.closePath();
-};
-
-const drawSmoothStrokePath = (
-  ctx: CanvasRenderingContext2D,
-  points: Array<{ x: number; y: number }>,
-) => {
-  if (points.length === 0) {
-    return;
-  }
-
-  if (points.length === 1) {
-    ctx.moveTo(points[0].x, points[0].y);
-    ctx.lineTo(points[0].x, points[0].y);
-    return;
-  }
-
-  if (points.length === 2) {
-    ctx.moveTo(points[0].x, points[0].y);
-    ctx.lineTo(points[1].x, points[1].y);
-    return;
-  }
-
-  ctx.moveTo(points[0].x, points[0].y);
-
-  for (let index = 1; index < points.length - 1; index++) {
-    const current = points[index];
-    const next = points[index + 1];
-    const midX = (current.x + next.x) / 2;
-    const midY = (current.y + next.y) / 2;
-    ctx.quadraticCurveTo(current.x, current.y, midX, midY);
-  }
-
-  const last = points[points.length - 1];
-  ctx.lineTo(last.x, last.y);
-};
-
-const getVisibleStrokeWidth = (strokeWidth: number): number => {
-  const safeStrokeWidth =
-    typeof strokeWidth === "number" && Number.isFinite(strokeWidth)
-      ? Math.max(1, strokeWidth)
-      : 2;
-
-  return safeStrokeWidth;
-};
-
-const getLaserWidthFactor = (ageMs: number): number => {
-  const normalized = clamp01(1 - ageMs / LASER_LIFETIME_MS);
-  // Very smooth curve to avoid harsh edges while fading out quickly
-  return Math.pow(normalized, 1.3);
-};
-
-// Catmull-Rom curve interpolation for smooth laser trails
-const drawCatmullRomCurve = (
-  ctx: CanvasRenderingContext2D,
-  points: Array<{ x: number; y: number; t: number }>,
-  laserNow: number,
-  camera: { zoom: number },
-) => {
-  if (points.length < 2) return;
-
-  ctx.lineJoin = "round";
-  ctx.lineCap = "round";
-  ctx.strokeStyle = "#ff1424";
-
-  const resolution = 5; // subdivisions between points for smooth curves
-
-  let firstPoint = true;
-
-  for (let i = 0; i < points.length - 1; i++) {
-    const p0 = points[i === 0 ? 0 : i - 1];
-    const p1 = points[i];
-    const p2 = points[i + 1];
-    const p3 = points[i + 2] || points[i + 1];
-
-    for (let t = 0; t <= 1; t += 1 / resolution) {
-      const t2 = t * t;
-      const t3 = t2 * t;
-
-      const v0 = (p2.x - p0.x) * 0.5;
-      const v1 = (p3.x - p1.x) * 0.5;
-      const x =
-        p1.x +
-        v0 * t +
-        (3 * (p2.x - p1.x) - 2 * v0 - v1) * t2 +
-        (2 * (p1.x - p2.x) + v0 + v1) * t3;
-
-      const v0y = (p2.y - p0.y) * 0.5;
-      const v1y = (p3.y - p1.y) * 0.5;
-      const y =
-        p1.y +
-        v0y * t +
-        (3 * (p2.y - p1.y) - 2 * v0y - v1y) * t2 +
-        (2 * (p1.y - p2.y) + v0y + v1y) * t3;
-
-      const pointT = p1.t + (p2.t - p1.t) * t;
-      const widthFactor = getLaserWidthFactor(laserNow - pointT);
-      const widthPx = Math.max(
-        LASER_MIN_WIDTH_PX,
-        LASER_BASE_WIDTH_PX * widthFactor,
-      );
-
-      if (widthPx > LASER_MIN_WIDTH_PX + 0.01) {
-        if (firstPoint) {
-          ctx.beginPath();
-          ctx.moveTo(x, y);
-          firstPoint = false;
-        } else {
-          ctx.lineWidth = widthPx / camera.zoom;
-          ctx.lineTo(x, y);
-          ctx.stroke();
-          ctx.beginPath();
-          ctx.moveTo(x, y);
-        }
-      }
-    }
-  }
-};
-
-const pruneLaserTrails = (trails: LaserTrail[], now: number): LaserTrail[] => {
-  return trails
-    .map((trail) => ({
-      ...trail,
-      points: trail.points.filter(
-        (point) => now - point.t <= LASER_LIFETIME_MS,
-      ),
-    }))
-    .filter((trail) => trail.points.length > 0);
-};
-
-const getShapeTextAnchorX = (
-  element: Pick<RectangleElement | CircleElement, "x" | "width">,
-  textAlign: CanvasTextAlign,
-): number => {
-  if (textAlign === "center") {
-    return element.x + element.width / 2;
-  }
-
-  if (textAlign === "right" || textAlign === "end") {
-    return element.x + element.width - SHAPE_TEXT_HORIZONTAL_PADDING_PX;
-  }
-
-  return element.x + SHAPE_TEXT_HORIZONTAL_PADDING_PX;
-};
-
-type CornerAction = {
-  handle: ResizeHandle;
-  mode: "resize" | "rotate";
-};
-
-const findCornerAction = (
-  bounds: ElementBounds,
-  pointX: number,
-  pointY: number,
-  zoom: number,
-): CornerAction | null => {
-  const resizeRadius = HANDLE_RESIZE_RADIUS_PX / zoom;
-  const rotateRadius = HANDLE_ROTATE_RADIUS_PX / zoom;
-  const handles: ResizeHandle[] = ["nw", "ne", "se", "sw"];
-
-  for (const handle of handles) {
-    const center = getHandleCenter(bounds, handle);
-    const dx = pointX - center.x;
-    const dy = pointY - center.y;
-    const distance = Math.hypot(dx, dy);
-
-    if (distance <= resizeRadius) {
-      return { handle, mode: "resize" };
-    }
-
-    if (distance <= rotateRadius) {
-      return { handle, mode: "rotate" };
-    }
-  }
-
-  return null;
-};
-
+import {
+  DRAW_STROKE_OPTIONS,
+  DRAW_STROKE_PREVIEWS,
+  getClosestDrawStrokeOption,
+  getClosestMarkerStrokeOption,
+  HANDLE_BORDER_RADIUS_PX,
+  HANDLE_SIZE,
+  MARKER_STROKE_OPTIONS,
+  MARKER_STROKE_PREVIEWS,
+  MIN_GRID_SCREEN_SPACING,
+  RADIUS_HANDLE_OFFSET_PX,
+  RADIUS_HANDLE_SIZE_PX,
+  STROKE_COLORS,
+  TEXT_SELECTION_PADDING_PX,
+  SHAPE_TEXT_HORIZONTAL_PADDING_PX,
+} from "./constants";
+import {
+  invertLightnessPreservingHue,
+  normalizeRgbTriplet,
+  parseColorForPicker,
+} from "./color";
+import {
+  drawCatmullRomCurve,
+  getAnimatedDrawPointCount,
+  getDrawLineCap,
+  getDrawRenderStyle,
+  drawMarkerStroke,
+  drawRoundedRect,
+  drawSmoothStrokePath,
+  getVisibleStrokeWidth,
+  pruneLaserTrails,
+} from "./drawing";
+import {
+  type CornerAction,
+  findCornerAction,
+  getAlignedStartX,
+  getBoundsCenter,
+  getHandleCenter,
+  getResizeCursor,
+  getRotateCursor,
+  getShapeTextAnchorX,
+  getTextAlignSelectValue,
+  rotatePointAroundCenter,
+} from "./geometry";
+import {
+  deserializeRichTextDocument,
+  serializeRichTextDocument,
+} from "./richTextDocument";
+import type {
+  CanvasViewProps,
+  DrawSelection,
+  DrawingSelection,
+  EditableElement,
+  EditingTextState,
+  ElementBounds,
+  LaserTrail,
+  MarqueeSelection,
+  ResizeHandle,
+  RichTextDocument,
+  RichTextLeaf,
+} from "./types";
 export const CanvasView = ({
   scene,
   interactionMode,
@@ -885,7 +156,6 @@ export const CanvasView = ({
     useState<ResizeHandle | null>(null);
   const [isDraggingElement, setIsDraggingElement] = useState(false);
   const [isDuplicateDragging, setIsDuplicateDragging] = useState(false);
-  const [isAltPressed, setIsAltPressed] = useState(false);
   const [marqueeSelection, setMarqueeSelection] =
     useState<MarqueeSelection | null>(null);
   const [marqueePreviewIds, setMarqueePreviewIds] = useState<string[]>([]);
@@ -895,8 +165,8 @@ export const CanvasView = ({
     null,
   );
   const [laserTrails, setLaserTrails] = useState<LaserTrail[]>([]);
-  const [isLaserDrawing, setIsLaserDrawing] = useState(false);
   const [laserNow, setLaserNow] = useState(() => performance.now());
+  const [drawNow, setDrawNow] = useState(() => Date.now());
   const activeLaserTrailIdRef = useRef<string | null>(null);
   const customDrawColorPickerWrapRef = useRef<HTMLDivElement>(null);
   const customDrawColorPickerContentRef = useRef<HTMLDivElement>(null);
@@ -911,7 +181,7 @@ export const CanvasView = ({
     useState<ResizeHandle | null>(null);
   const lastPointerRef = useRef<{ x: number; y: number } | null>(null);
   const panStateRef = useRef<{ screenX: number; screenY: number } | null>(null);
-  const animationTimeRef = useRef(0);
+  const isMiddleMousePanningRef = useRef(false);
   const selectedIds = useMemo(
     () =>
       scene.selectedIds.length > 0
@@ -926,14 +196,25 @@ export const CanvasView = ({
   const camera = scene.camera;
   const isDarkMode = scene.settings.theme === "dark";
 
-  const getActiveDrawStyle = (): DrawElementStyle => {
+  const getActiveDrawStyle = (drawMode: "draw" | "marker"): DrawElementStyle => {
     const selectedDrawElements = scene.elements.filter(
       (element): element is DrawElement =>
-        selectedIds.includes(element.id) && element.type === "draw",
+        selectedIds.includes(element.id) &&
+        element.type === "draw" &&
+        (element.drawMode ?? "draw") === drawMode,
     );
 
     if (selectedDrawElements.length === 0) {
+      if (drawMode === "marker") {
+        return {
+          drawMode,
+          stroke: "#f1e66d",
+          strokeWidth: MARKER_STROKE_OPTIONS[0],
+        };
+      }
+
       return {
+        drawMode,
         stroke: "#2f3b52",
         strokeWidth: 2,
       };
@@ -943,6 +224,7 @@ export const CanvasView = ({
     const activeStrokeWidth = selectedDrawElements[0].strokeWidth;
 
     return {
+      drawMode,
       stroke:
         typeof activeStroke === "string" && activeStroke.trim().length > 0
           ? activeStroke
@@ -1040,8 +322,31 @@ export const CanvasView = ({
         }
 
         ctx.font = getTextRunFont(style, run);
+        const metrics = ctx.measureText(run.text);
+        const runWidth = metrics.width;
+
         ctx.fillText(run.text, cursorX, baselineY);
-        cursorX += ctx.measureText(run.text).width;
+
+        if (run.strikethrough) {
+          const previousStrokeStyle = ctx.strokeStyle;
+          const previousLineWidth = ctx.lineWidth;
+
+          ctx.strokeStyle = ctx.fillStyle;
+          ctx.lineWidth = Math.max(style.fontSize * 0.04, 0.75);
+
+          if (run.strikethrough) {
+            const strikeY = baselineY - style.fontSize * 0.3;
+            ctx.beginPath();
+            ctx.moveTo(cursorX, strikeY);
+            ctx.lineTo(cursorX + runWidth, strikeY);
+            ctx.stroke();
+          }
+
+          ctx.strokeStyle = previousStrokeStyle;
+          ctx.lineWidth = previousLineWidth;
+        }
+
+        cursorX += runWidth;
       }
     });
 
@@ -1072,8 +377,31 @@ export const CanvasView = ({
         }
 
         ctx.font = getTextRunFont(style, run);
+        const metrics = ctx.measureText(run.text);
+        const runWidth = metrics.width;
+
         ctx.fillText(run.text, cursorX, baselineY);
-        cursorX += ctx.measureText(run.text).width;
+
+        if (run.strikethrough) {
+          const previousStrokeStyle = ctx.strokeStyle;
+          const previousLineWidth = ctx.lineWidth;
+
+          ctx.strokeStyle = ctx.fillStyle;
+          ctx.lineWidth = Math.max(style.fontSize * 0.04, 0.75);
+
+          if (run.strikethrough) {
+            const strikeY = baselineY - style.fontSize * 0.3;
+            ctx.beginPath();
+            ctx.moveTo(cursorX, strikeY);
+            ctx.lineTo(cursorX + runWidth, strikeY);
+            ctx.stroke();
+          }
+
+          ctx.strokeStyle = previousStrokeStyle;
+          ctx.lineWidth = previousLineWidth;
+        }
+
+        cursorX += runWidth;
       }
     });
 
@@ -1179,14 +507,11 @@ export const CanvasView = ({
     accentColor: string,
   ) => {
     const handleSize = HANDLE_SIZE / zoom;
-    const handleHalf = handleSize / 2;
     const handleRadius = HANDLE_BORDER_RADIUS_PX / zoom;
     const handles: ResizeHandle[] = ["nw", "ne", "se", "sw"];
 
     for (const handle of handles) {
       const center = getHandleCenter(bounds, handle);
-      const handleX = center.x - handleHalf;
-      const handleY = center.y - handleHalf;
 
       const isHovered = hoveredResizeHandle === handle;
       const isActive = activeResizeHandle === handle;
@@ -1263,8 +588,6 @@ export const CanvasView = ({
           ? "rgba(255, 255, 255, 0.25)"
           : "rgba(255, 255, 255, 0.15)";
         const insetSize = scaledSize * 0.5;
-        const insetX = center.x - insetSize / 2;
-        const insetY = center.y - insetSize / 2;
         ctx.beginPath();
         ctx.arc(center.x, center.y, insetSize / 2, 0, Math.PI * 2);
         ctx.fill();
@@ -1472,6 +795,33 @@ export const CanvasView = ({
     return null;
   };
 
+  const renderDrawStrokePreview = (
+    previews: typeof DRAW_STROKE_PREVIEWS,
+    index: number,
+  ) => {
+    const preview = previews[index] ?? previews[0];
+    if (!preview) {
+      return null;
+    }
+
+    return (
+      <svg
+        width={preview.width}
+        height={preview.height}
+        viewBox={preview.viewBox}
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <path
+          d={preview.path}
+          stroke="currentColor"
+          strokeWidth={preview.strokeWidth}
+          strokeLinecap="round"
+        />
+      </svg>
+    );
+  };
+
   const renderSelectionBarContents = () => {
     const selectedTextElements = scene.elements.filter(
       (element): element is EditableElement =>
@@ -1532,14 +882,81 @@ export const CanvasView = ({
     const activeEditorMarks = editingText
       ? ((Editor.marks(editor) as Record<string, unknown> | null) ?? null)
       : null;
-    const isBoldControlActive =
-      activeEditorMarks?.bold === true || (!editingText && isBoldActive);
-    const isItalicControlActive =
-      activeEditorMarks?.italic === true || (!editingText && isItalicActive);
+
+    const isEditingBaseBold =
+      editingText &&
+      (editingText.style.fontWeight === "bold" ||
+        editingText.style.fontWeight === "700" ||
+        editingText.style.fontWeight === "800" ||
+        editingText.style.fontWeight === "900");
+    const isEditingBaseItalic = editingText?.style.fontStyle === "italic";
+
+    const isEditorBoldActive =
+      activeEditorMarks?.bold === true ||
+      (activeEditorMarks?.bold !== false && isEditingBaseBold);
+    const isEditorItalicActive =
+      activeEditorMarks?.italic === true ||
+      (activeEditorMarks?.italic !== false && isEditingBaseItalic);
+
+    const isElementFullyStrikethrough = (element: EditableElement): boolean => {
+      const document = deserializeRichTextDocument(element.text);
+
+      return document.every((paragraph) =>
+        paragraph.children.every((leaf) => leaf.strikethrough === true),
+      );
+    };
+
+    const areAllSelectedElementsStrikethrough =
+      selectedTextElements.length > 0 &&
+      selectedTextElements.every((element) =>
+        isElementFullyStrikethrough(element),
+      );
+
+    const isBoldControlActive = editingText ? isEditorBoldActive : isBoldActive;
+    const isItalicControlActive = editingText
+      ? isEditorItalicActive
+      : isItalicActive;
+    const isStrikethroughControlActive = editingText
+      ? activeEditorMarks?.strikethrough === true
+      : areAllSelectedElementsStrikethrough;
+
+    const toggleStrikethroughForSelectedElements = () => {
+      const nextValue = !areAllSelectedElementsStrikethrough;
+
+      for (const element of selectedTextElements) {
+        const document = deserializeRichTextDocument(element.text);
+        const nextDocument: RichTextDocument = document.map((paragraph) => ({
+          ...paragraph,
+          children: paragraph.children.map((leaf) => ({
+            ...leaf,
+            strikethrough: nextValue,
+          })),
+        }));
+
+        onTextCommit(element.id, serializeRichTextDocument(nextDocument));
+      }
+    };
     const selectedDrawElements = scene.elements.filter(
       (element): element is DrawElement =>
         selectedIds.includes(element.id) && element.type === "draw",
     );
+
+    const allSameDrawMode =
+      selectedDrawElements.length > 0 &&
+      selectedDrawElements.every(
+        (element) =>
+          (element.drawMode ?? "draw") ===
+          (selectedDrawElements[0]?.drawMode ?? "draw"),
+      );
+    const selectedDrawMode = allSameDrawMode
+      ? (selectedDrawElements[0]?.drawMode ?? "draw")
+      : "draw";
+    const strokeOptions =
+      selectedDrawMode === "marker" ? MARKER_STROKE_OPTIONS : DRAW_STROKE_OPTIONS;
+    const strokePreviews =
+      selectedDrawMode === "marker"
+        ? MARKER_STROKE_PREVIEWS
+        : DRAW_STROKE_PREVIEWS;
 
     const allSameDrawStrokeWidth =
       selectedDrawElements.length > 0 &&
@@ -1547,11 +964,18 @@ export const CanvasView = ({
         (element) =>
           element.strokeWidth === selectedDrawElements[0].strokeWidth,
       );
-    const selectedDrawStrokeWidth = getClosestDrawStrokeOption(
+    const selectedDrawStrokeWidth =
+      selectedDrawMode === "marker"
+        ? getClosestMarkerStrokeOption(
+            allSameDrawStrokeWidth
+              ? selectedDrawElements[0].strokeWidth
+              : MARKER_STROKE_OPTIONS[0],
+          )
+        : getClosestDrawStrokeOption(
       allSameDrawStrokeWidth
         ? selectedDrawElements[0].strokeWidth
         : DRAW_STROKE_OPTIONS[1],
-    );
+          );
     const selectedDrawStrokeColor =
       selectedDrawElements[0]?.stroke || "#2f3b52";
     const drawStrokeColorSelectValue = STROKE_COLORS.some(
@@ -1562,12 +986,7 @@ export const CanvasView = ({
       ? selectedDrawStrokeColor
       : "multi";
     const openCustomDrawColorPicker = (initialColor: string) => {
-      const parsed = parseColor(initialColor);
-      setCustomDrawColorPickerColor(
-        parsed
-          ? `rgba(${parsed.r}, ${parsed.g}, ${parsed.b}, ${parsed.a})`
-          : "#2f3b52",
-      );
+      setCustomDrawColorPickerColor(parseColorForPicker(initialColor));
       setIsCustomDrawColorPickerOpen(true);
     };
 
@@ -1767,13 +1186,15 @@ export const CanvasView = ({
                   />
                 </span>
                 <span className="draw-stroke-option-line-wrap">
-                  {
-                    DRAW_STROKE_SVGS[
-                      DRAW_STROKE_OPTIONS?.indexOf(
-                        selectedDrawStrokeWidth as 2 | 12 | 1 | 4 | 7,
-                      ) || 0
-                    ]
-                  }
+                  {renderDrawStrokePreview(
+                    strokePreviews,
+                    Math.max(
+                      0,
+                      strokeOptions.findIndex(
+                        (option) => option === selectedDrawStrokeWidth,
+                      ),
+                    ),
+                  )}
                 </span>
               </SelectTrigger>
             </TooltipTrigger>
@@ -1782,7 +1203,7 @@ export const CanvasView = ({
             </TooltipContent>
           </Tooltip>
           <SelectContent position="popper">
-            {DRAW_STROKE_OPTIONS.map((strokeWidth, index) => (
+            {strokeOptions.map((strokeWidth, index) => (
               <SelectItem
                 key={strokeWidth}
                 check={false}
@@ -1790,7 +1211,7 @@ export const CanvasView = ({
                 className="draw-stroke-select-item"
               >
                 <span className="draw-stroke-option-line-wrap">
-                  {DRAW_STROKE_SVGS[index]}
+                  {renderDrawStrokePreview(strokePreviews, index)}
                 </span>
               </SelectItem>
             ))}
@@ -1838,7 +1259,7 @@ export const CanvasView = ({
                   <HandwrittenTypography />
                 ) : selectedFontFamily === "Cascadia Code" ? (
                   <TechnicalTypography />
-                ) : selectedFontFamily === "Alegreya" ? (
+                ) : selectedFontFamily === "Imbue" ? (
                   <ElegantTypography />
                 ) : (
                   <SimpleTypography />
@@ -1856,7 +1277,7 @@ export const CanvasView = ({
             <SelectItem check={false} value="Shantell Sans">
               {localeMessages.fontFamilies.handwritten}
             </SelectItem>
-            <SelectItem check={false} value="Alegreya">
+            <SelectItem check={false} value="Imbue">
               {localeMessages.fontFamilies.elegant}
             </SelectItem>
             <SelectItem check={false} value="Cascadia Code">
@@ -1994,6 +1415,38 @@ export const CanvasView = ({
             </TooltipTrigger>
             <TooltipContent>
               <p>{localeMessages.selectionBar.italic}</p>
+            </TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                onPointerDown={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                }}
+                onClick={() => {
+                  if (editingText) {
+                    toggleEditorMark("strikethrough");
+                    ReactEditor.focus(editor);
+                    return;
+                  }
+
+                  toggleStrikethroughForSelectedElements();
+                }}
+                className={
+                  "toggle-selectionbar-button" +
+                  (isStrikethroughControlActive ? " active" : "")
+                }
+              >
+                <Strikethrough />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>
+                {localeMessages.selectionBar.strikethrough ||
+                  "Strikethrough (Ctrl+S)"}
+              </p>
             </TooltipContent>
           </Tooltip>
           <div className="selectionbar-separator" />
@@ -2504,6 +1957,7 @@ export const CanvasView = ({
       const rotationRadians = (element.rotation * Math.PI) / 180;
 
       if (element.type === "draw") {
+        const drawMode = element.drawMode ?? "draw";
         const bounds = {
           x: element.x,
           y: element.y,
@@ -2518,32 +1972,58 @@ export const CanvasView = ({
         ctx.translate(-center.x, -center.y);
 
         if (element.points.length > 0) {
+          const renderStyle = getDrawRenderStyle(drawMode, isDarkMode);
+          const previousComposite = ctx.globalCompositeOperation;
+          const previousAlpha = ctx.globalAlpha;
+          ctx.globalCompositeOperation = renderStyle.compositeOperation;
+          ctx.globalAlpha *= renderStyle.opacity;
+
+          const visibleStrokeWidth = getVisibleStrokeWidth(element.strokeWidth);
           ctx.strokeStyle = toThemeColor(element.stroke);
-          ctx.lineWidth = getVisibleStrokeWidth(element.strokeWidth);
+          ctx.fillStyle = toThemeColor(element.stroke);
+          ctx.lineWidth = visibleStrokeWidth;
           ctx.lineJoin = "round";
-          ctx.lineCap = "round";
+          ctx.lineCap = getDrawLineCap(drawMode);
 
           const worldPoints = element.points.map((point) => ({
             x: element.x + point.x,
             y: element.y + point.y,
           }));
+          const revealedPointCount = getAnimatedDrawPointCount(
+            worldPoints.length,
+            element.createdAt,
+            drawNow,
+            220,
+          );
+          const visibleWorldPoints = worldPoints.slice(0, revealedPointCount);
 
-          if (worldPoints.length === 1) {
-            ctx.beginPath();
-            ctx.arc(
-              worldPoints[0].x,
-              worldPoints[0].y,
-              ctx.lineWidth / 2,
-              0,
-              Math.PI * 2,
-            );
-            ctx.fillStyle = toThemeColor(element.stroke);
-            ctx.fill();
-          } else {
-            ctx.beginPath();
-            drawSmoothStrokePath(ctx, worldPoints);
-            ctx.stroke();
+          if (visibleWorldPoints.length === 1) {
+            if (drawMode === "marker") {
+              drawMarkerStroke(ctx, visibleWorldPoints, visibleStrokeWidth);
+            } else {
+              ctx.beginPath();
+              ctx.arc(
+                visibleWorldPoints[0].x,
+                visibleWorldPoints[0].y,
+                ctx.lineWidth / 2,
+                0,
+                Math.PI * 2,
+              );
+              ctx.fillStyle = toThemeColor(element.stroke);
+              ctx.fill();
+            }
+          } else if (visibleWorldPoints.length > 1) {
+            if (drawMode === "marker") {
+              drawMarkerStroke(ctx, visibleWorldPoints, visibleStrokeWidth);
+            } else {
+              ctx.beginPath();
+              drawSmoothStrokePath(ctx, visibleWorldPoints);
+              ctx.stroke();
+            }
           }
+
+          ctx.globalCompositeOperation = previousComposite;
+          ctx.globalAlpha = previousAlpha;
         }
 
         if (isSelected) {
@@ -2954,30 +2434,48 @@ export const CanvasView = ({
     }
 
     if (drawSelection && drawSelection.points.length > 0) {
+      const renderStyle = getDrawRenderStyle(drawSelection.drawMode, isDarkMode);
+      const previousComposite = ctx.globalCompositeOperation;
+      const previousAlpha = ctx.globalAlpha;
+
+      ctx.globalCompositeOperation = renderStyle.compositeOperation;
+      ctx.globalAlpha *= renderStyle.opacity;
       ctx.save();
+      const visibleStrokeWidth = getVisibleStrokeWidth(drawSelection.strokeWidth);
       ctx.strokeStyle = toThemeColor(drawSelection.stroke);
-      ctx.lineWidth = getVisibleStrokeWidth(drawSelection.strokeWidth);
+      ctx.fillStyle = toThemeColor(drawSelection.stroke);
+      ctx.lineWidth = visibleStrokeWidth;
       ctx.lineJoin = "round";
-      ctx.lineCap = "round";
+      ctx.lineCap = getDrawLineCap(drawSelection.drawMode);
 
       if (drawSelection.points.length === 1) {
-        ctx.beginPath();
-        ctx.arc(
-          drawSelection.points[0].x,
-          drawSelection.points[0].y,
-          ctx.lineWidth / 2,
-          0,
-          Math.PI * 2,
-        );
-        ctx.fillStyle = toThemeColor(drawSelection.stroke);
-        ctx.fill();
+        if (drawSelection.drawMode === "marker") {
+          drawMarkerStroke(ctx, drawSelection.points, visibleStrokeWidth);
+        } else {
+          ctx.beginPath();
+          ctx.arc(
+            drawSelection.points[0].x,
+            drawSelection.points[0].y,
+            ctx.lineWidth / 2,
+            0,
+            Math.PI * 2,
+          );
+          ctx.fillStyle = toThemeColor(drawSelection.stroke);
+          ctx.fill();
+        }
       } else {
-        ctx.beginPath();
-        drawSmoothStrokePath(ctx, drawSelection.points);
-        ctx.stroke();
+        if (drawSelection.drawMode === "marker") {
+          drawMarkerStroke(ctx, drawSelection.points, visibleStrokeWidth);
+        } else {
+          ctx.beginPath();
+          drawSmoothStrokePath(ctx, drawSelection.points);
+          ctx.stroke();
+        }
       }
 
       ctx.restore();
+      ctx.globalCompositeOperation = previousComposite;
+      ctx.globalAlpha = previousAlpha;
     }
 
     if (laserTrails.length > 0) {
@@ -2996,17 +2494,7 @@ export const CanvasView = ({
     }
 
     ctx.restore();
-  }, [
-    scene,
-    editingText,
-    canvasSize,
-    camera,
-    marqueeSelection,
-    drawingSelection,
-    drawSelection,
-    laserTrails,
-    laserNow,
-  ]);
+  });
 
   useEffect(() => {
     if (!editingText || !editingDocument) {
@@ -3018,7 +2506,7 @@ export const CanvasView = ({
       const end = Editor.end(editor, []);
       Transforms.select(editor, end);
     });
-  }, [editor, editingText?.id]);
+  }, [editor, editingDocument, editingText]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -3147,68 +2635,6 @@ export const CanvasView = ({
   ]);
 
   useEffect(() => {
-    const handleAltStateChange = (event: KeyboardEvent) => {
-      if (event.key !== "Alt") {
-        return;
-      }
-
-      setIsAltPressed(event.type === "keydown");
-    };
-
-    const handleBlur = () => {
-      setIsAltPressed(false);
-    };
-
-    window.addEventListener("keydown", handleAltStateChange);
-    window.addEventListener("keyup", handleAltStateChange);
-    window.addEventListener("blur", handleBlur);
-
-    return () => {
-      window.removeEventListener("keydown", handleAltStateChange);
-      window.removeEventListener("keyup", handleAltStateChange);
-      window.removeEventListener("blur", handleBlur);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (
-      activeRotatingHandle ||
-      activeResizeHandle ||
-      activeRadiusElementId ||
-      isDraggingElement ||
-      drawingSelection ||
-      drawSelection ||
-      isLaserDrawing
-    ) {
-      return;
-    }
-
-    const lastPointer = lastPointerRef.current;
-    if (!lastPointer) {
-      return;
-    }
-
-    setCanvasCursor(
-      resolveIdleCursor(lastPointer.x, lastPointer.y, isAltPressed),
-    );
-  }, [
-    activeResizeHandle,
-    activeRotatingHandle,
-    activeRadiusElementId,
-    editingText,
-    isAltPressed,
-    isDraggingElement,
-    scene.elements,
-    selectedElementId,
-    selectedIds,
-    drawingSelection,
-    drawSelection,
-    isLaserDrawing,
-    drawingTool,
-    interactionMode,
-  ]);
-
-  useEffect(() => {
     if (laserTrails.length === 0) {
       return;
     }
@@ -3229,6 +2655,61 @@ export const CanvasView = ({
     };
   }, [laserTrails.length]);
 
+  useEffect(() => {
+    const revealWindowMs = 240;
+    const hasRecentlyCreatedDraw = scene.elements.some(
+      (element) =>
+        element.type === "draw" &&
+        typeof element.createdAt === "number" &&
+        Date.now() - element.createdAt >= 0 &&
+        Date.now() - element.createdAt < revealWindowMs,
+    );
+
+    if (!hasRecentlyCreatedDraw) {
+      return;
+    }
+
+    let animationFrame = 0;
+
+    const animate = () => {
+      setDrawNow(Date.now());
+      animationFrame = window.requestAnimationFrame(animate);
+    };
+
+    animationFrame = window.requestAnimationFrame(animate);
+
+    return () => {
+      window.cancelAnimationFrame(animationFrame);
+    };
+  }, [scene.elements]);
+
+  // Force re-render when fonts are loaded to update canvas text rendering
+  const fontsLoadedRef = useRef(false);
+  const [, setRenderTrigger] = useState(0);
+  useEffect(() => {
+    const handleFontsLoaded = () => {
+      if (!fontsLoadedRef.current) {
+        fontsLoadedRef.current = true;
+        // Defer the state update to avoid synchronous setState in effect
+        setTimeout(() => {
+          setRenderTrigger((prev) => prev + 1);
+        }, 0);
+      }
+    };
+
+    // Check if fonts are already loaded
+    if (
+      (window as unknown as { __FONTS_LOADED__?: boolean }).__FONTS_LOADED__
+    ) {
+      fontsLoadedRef.current = true;
+    }
+
+    window.addEventListener("fontsLoaded", handleFontsLoaded);
+    return () => {
+      window.removeEventListener("fontsLoaded", handleFontsLoaded);
+    };
+  }, []);
+
   const handlePointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -3238,6 +2719,20 @@ export const CanvasView = ({
     const screenY = e.clientY - rect.top;
     const pointer = screenToWorld(screenX, screenY);
     lastPointerRef.current = pointer;
+
+    if (e.button === 1) {
+      e.preventDefault();
+      isMiddleMousePanningRef.current = true;
+      panStateRef.current = { screenX, screenY };
+      setActiveRotatingHandle(null);
+      setActiveResizeHandle(null);
+      setMarqueeSelection(null);
+      setIsDraggingElement(false);
+      setIsDuplicateDragging(false);
+      setCanvasCursor("grabbing");
+      canvas.setPointerCapture(e.pointerId);
+      return;
+    }
 
     if (interactionMode === "pan") {
       panStateRef.current = { screenX, screenY };
@@ -3268,15 +2763,16 @@ export const CanvasView = ({
             points: [{ x: pointer.x, y: pointer.y, t: now }],
           },
         ]);
-        setIsLaserDrawing(true);
         activeLaserTrailIdRef.current = trailId;
-      } else if (drawingTool === "draw") {
-        const drawStyle = getActiveDrawStyle();
+      } else if (drawingTool === "draw" || drawingTool === "marker") {
+        const drawMode = drawingTool;
+        const drawStyle = getActiveDrawStyle(drawMode);
 
         setDrawSelection({
           points: [pointer],
           stroke: drawStyle.stroke,
           strokeWidth: drawStyle.strokeWidth,
+          drawMode,
           isLine: e.shiftKey,
         });
       } else {
@@ -3511,6 +3007,22 @@ export const CanvasView = ({
     const pointer = screenToWorld(screenX, screenY);
     lastPointerRef.current = pointer;
 
+    if (isMiddleMousePanningRef.current) {
+      const panState = panStateRef.current;
+      if (panState) {
+        const deltaX = screenX - panState.screenX;
+        const deltaY = screenY - panState.screenY;
+
+        if (deltaX !== 0 || deltaY !== 0) {
+          onWheelPan(-deltaX, -deltaY);
+          panStateRef.current = { screenX, screenY };
+        }
+      }
+
+      setCanvasCursor("grabbing");
+      return;
+    }
+
     if (interactionMode === "pan") {
       const panState = panStateRef.current;
       if (panState) {
@@ -3571,7 +3083,7 @@ export const CanvasView = ({
             now,
           );
         });
-      } else if (drawingTool === "draw") {
+      } else if (drawingTool === "draw" || drawingTool === "marker") {
         setDrawSelection((current) => {
           if (!current) {
             return current;
@@ -3765,13 +3277,32 @@ export const CanvasView = ({
       return;
     }
 
+    if (isMiddleMousePanningRef.current) {
+      isMiddleMousePanningRef.current = false;
+      panStateRef.current = null;
+      setActiveRadiusElementId(null);
+      setActiveRadiusHandle(null);
+
+      const rect = canvas?.getBoundingClientRect();
+      if (rect) {
+        const screenX = e.clientX - rect.left;
+        const screenY = e.clientY - rect.top;
+        const pointer = screenToWorld(screenX, screenY);
+        lastPointerRef.current = pointer;
+        setCanvasCursor(resolveIdleCursor(pointer.x, pointer.y, e.altKey));
+      } else {
+        setCanvasCursor("default");
+      }
+      return;
+    }
+
     if (drawingTool) {
       if (drawingTool === "laser") {
         activeLaserTrailIdRef.current = null;
-        setIsLaserDrawing(false);
-      } else if (drawingTool === "draw") {
+      } else if (drawingTool === "draw" || drawingTool === "marker") {
         if (drawSelection && drawSelection.points.length > 1) {
           onCreateDrawElement(drawSelection.points, {
+            drawMode: drawSelection.drawMode,
             stroke: drawSelection.stroke,
             strokeWidth: drawSelection.strokeWidth,
           });
@@ -3859,6 +3390,11 @@ export const CanvasView = ({
   const handlePointerLeave = () => {
     lastPointerRef.current = null;
 
+    if (isMiddleMousePanningRef.current) {
+      setCanvasCursor("grabbing");
+      return;
+    }
+
     if (interactionMode === "pan") {
       setCanvasCursor(panStateRef.current ? "grabbing" : "grab");
       return;
@@ -3867,7 +3403,6 @@ export const CanvasView = ({
     if (drawingTool) {
       if (drawingTool === "laser") {
         activeLaserTrailIdRef.current = null;
-        setIsLaserDrawing(false);
       }
       setCanvasCursor("crosshair");
       return;
@@ -4002,11 +3537,35 @@ export const CanvasView = ({
     });
   };
 
-  const toggleEditorMark = (mark: "bold" | "italic") => {
+  const toggleEditorMark = (mark: "bold" | "italic" | "strikethrough") => {
     const marks = Editor.marks(editor) as Record<string, unknown> | null;
-    const isActive = marks?.[mark] === true;
+    const currentValue = marks?.[mark];
 
-    if (isActive) {
+    if (mark === "bold" || mark === "italic") {
+      const isBaseActive =
+        mark === "bold"
+          ? !!editingText &&
+            (editingText.style.fontWeight === "bold" ||
+              editingText.style.fontWeight === "700" ||
+              editingText.style.fontWeight === "800" ||
+              editingText.style.fontWeight === "900")
+          : !!editingText && editingText.style.fontStyle === "italic";
+
+      if (isBaseActive) {
+        Editor.addMark(editor, mark, currentValue === false);
+        return;
+      }
+
+      if (currentValue === true) {
+        Editor.removeMark(editor, mark);
+        return;
+      }
+
+      Editor.addMark(editor, mark, true);
+      return;
+    }
+
+    if (currentValue === true) {
       Editor.removeMark(editor, mark);
     } else {
       Editor.addMark(editor, mark, true);
@@ -4032,6 +3591,12 @@ export const CanvasView = ({
       return;
     }
 
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
+      e.preventDefault();
+      toggleEditorMark("strikethrough");
+      return;
+    }
+
     if (e.key === "Escape") {
       setEditingDocument(null);
       setEditingText(null);
@@ -4040,17 +3605,35 @@ export const CanvasView = ({
 
   const renderLeaf = useCallback(
     ({ attributes, children, leaf }: RenderLeafProps) => {
-      let content = children;
+      const richLeaf = leaf as RichTextLeaf;
 
-      if ((leaf as RichTextLeaf).bold) {
-        content = <strong>{content}</strong>;
-      }
-
-      if ((leaf as RichTextLeaf).italic) {
-        content = <em>{content}</em>;
-      }
-
-      return <span {...attributes}>{content}</span>;
+      return (
+        <span
+          {...attributes}
+          style={{
+            fontWeight:
+              richLeaf.bold === true
+                ? 700
+                : richLeaf.bold === false
+                  ? 400
+                  : undefined,
+            fontStyle:
+              richLeaf.italic === true
+                ? "italic"
+                : richLeaf.italic === false
+                  ? "normal"
+                  : undefined,
+            textDecorationLine:
+              richLeaf.strikethrough === true ? "line-through" : "none",
+            textDecorationColor:
+              richLeaf.strikethrough === true ? "currentColor" : undefined,
+            textDecorationThickness:
+              richLeaf.strikethrough === true ? "0.05em" : undefined,
+          }}
+        >
+          {children}
+        </span>
+      );
     },
     [],
   );
@@ -4076,6 +3659,16 @@ export const CanvasView = ({
         onPointerCancel={handlePointerUp}
         onPointerLeave={handlePointerLeave}
         onDoubleClick={handleDoubleClick}
+        onMouseDown={(event) => {
+          if (event.button === 1) {
+            event.preventDefault();
+          }
+        }}
+        onAuxClick={(event) => {
+          if (event.button === 1) {
+            event.preventDefault();
+          }
+        }}
         style={{
           display: "block",
           cursor:
@@ -4196,8 +3789,8 @@ export const CanvasView = ({
                 height: "100%",
                 minHeight: `${editingText.style.fontSize * camera.zoom}px`,
                 outline: "none",
-                whiteSpace: "pre-wrap",
-                wordBreak: "break-word",
+                whiteSpace: "pre",
+                wordBreak: "normal",
                 background: "transparent",
               }}
             />

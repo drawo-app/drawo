@@ -15,8 +15,9 @@ export interface TextElement {
 
 export interface RichTextRun {
   text: string;
-  bold: boolean;
-  italic: boolean;
+  bold?: boolean;
+  italic?: boolean;
+  strikethrough?: boolean;
 }
 
 export interface RichTextLine {
@@ -27,6 +28,7 @@ interface StoredRichTextLeaf {
   text?: unknown;
   bold?: unknown;
   italic?: unknown;
+  strikethrough?: unknown;
 }
 
 interface StoredRichTextBlock {
@@ -60,7 +62,8 @@ const isStoredBlockArray = (value: unknown): value is StoredRichTextBlock[] => {
   return (
     Array.isArray(value) &&
     value.every(
-      (item) => item !== null && typeof item === "object" && !Array.isArray(item),
+      (item) =>
+        item !== null && typeof item === "object" && !Array.isArray(item),
     )
   );
 };
@@ -69,11 +72,13 @@ const parsePlainTextToLines = (text: string): RichTextLine[] => {
   const lines = text.split("\n");
 
   return (lines.length > 0 ? lines : [""]).map((line) => ({
-    runs: [{ text: line, bold: false, italic: false }],
+    runs: [{ text: line }],
   }));
 };
 
-const parseStoredBlocksToLines = (blocks: StoredRichTextBlock[]): RichTextLine[] => {
+const parseStoredBlocksToLines = (
+  blocks: StoredRichTextBlock[],
+): RichTextLine[] => {
   const lines: RichTextLine[] = [];
 
   for (const block of blocks) {
@@ -82,25 +87,35 @@ const parseStoredBlocksToLines = (blocks: StoredRichTextBlock[]): RichTextLine[]
 
     for (const child of children as StoredRichTextLeaf[]) {
       const text = typeof child.text === "string" ? child.text : "";
-      const bold = child.bold === true;
-      const italic = child.italic === true;
+      const bold =
+        child.bold === true ? true : child.bold === false ? false : undefined;
+      const italic =
+        child.italic === true
+          ? true
+          : child.italic === false
+            ? false
+            : undefined;
+      const strikethrough =
+        child.strikethrough === true
+          ? true
+          : child.strikethrough === false
+            ? false
+            : undefined;
 
-      runs.push({ text, bold, italic });
+      runs.push({ text, bold, italic, strikethrough });
     }
 
     lines.push({
-      runs: runs.length > 0 ? runs : [{ text: "", bold: false, italic: false }],
+      runs: runs.length > 0 ? runs : [{ text: "" }],
     });
   }
 
-  return lines.length > 0
-    ? lines
-    : [{ runs: [{ text: "", bold: false, italic: false }] }];
+  return lines.length > 0 ? lines : [{ runs: [{ text: "" }] }];
 };
 
 export const parseRichText = (text: string): RichTextLine[] => {
   if (!text.trim()) {
-    return [{ runs: [{ text: "", bold: false, italic: false }] }];
+    return [{ runs: [{ text: "" }] }];
   }
 
   try {
@@ -123,7 +138,8 @@ export const getTextLineHeight = (fontSize: number): number => {
 export const estimateTextHeight = (textElement: TextElement): number => {
   const lineCount = Math.max(1, parseRichText(textElement.text).length);
   return (
-    textElement.fontSize + (lineCount - 1) * getTextLineHeight(textElement.fontSize)
+    textElement.fontSize +
+    (lineCount - 1) * getTextLineHeight(textElement.fontSize)
   );
 };
 
@@ -134,8 +150,18 @@ export const getTextRunFont = (
   >,
   run: Pick<RichTextRun, "bold" | "italic">,
 ): string => {
-  const fontWeight = run.bold ? "700" : textElement.fontWeight;
-  const fontStyle = run.italic ? "italic" : textElement.fontStyle;
+  const fontWeight =
+    run.bold === true
+      ? "700"
+      : run.bold === false
+        ? "400"
+        : textElement.fontWeight;
+  const fontStyle =
+    run.italic === true
+      ? "italic"
+      : run.italic === false
+        ? "normal"
+        : textElement.fontStyle;
   return `${fontStyle} ${fontWeight} ${textElement.fontSize}px ${textElement.fontFamily}`;
 };
 

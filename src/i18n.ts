@@ -7,7 +7,7 @@ export interface LocaleMessages {
   settings: {
     showGrid: string;
     snapToGrid: string;
-    darkMode: string;
+    theme: string;
     language: string;
   };
   localeNames: {
@@ -22,6 +22,8 @@ export interface LocaleMessages {
     ellipse: string;
     draw: string;
     laser: string;
+    marker: string;
+    pen: string;
   };
   fontFamilies: {
     simple: string;
@@ -42,6 +44,7 @@ export interface LocaleMessages {
     fontSize: string;
     bold: string;
     italic: string;
+    strikethrough: string;
     strokeColor: string;
     fillColor: string;
     fillStyle: string;
@@ -53,6 +56,11 @@ export interface LocaleMessages {
       right: string;
     };
     textColor: string;
+  };
+  panels: {
+    playing: string;
+    music: string;
+    timer: string;
   };
   canvas: {
     newText: string;

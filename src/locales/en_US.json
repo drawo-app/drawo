@@ -2,7 +2,7 @@
   "settings": {
     "showGrid": "Show grid",
     "snapToGrid": "Snap to grid",
-    "darkMode": "Dark mode",
+    "theme": "Theme",
     "language": "Language"
   },
   "localeNames": {
@@ -16,7 +16,9 @@
     "rectangle": "Rectangle",
     "ellipse": "Ellipse",
     "draw": "Draw",
-    "laser": "Laser pointer"
+    "laser": "Laser pointer",
+    "marker": "Marker",
+    "pen": "Pen"
   },
   "fontFamilies": {
     "simple": "Simple",
@@ -37,6 +39,7 @@
     "fontSize": "Font size",
     "bold": "Bold",
     "italic": "Italic",
+    "strikethrough": "Strikethrough",
     "strokeColor": "Stroke color",
     "fillColor": "Fill color",
     "fillStyle": "Fill style",
@@ -48,6 +51,11 @@
       "right": "Right"
     },
     "textColor": "Text color"
+  },
+  "panels": {
+    "playing": "(playing)",
+    "music": "Music",
+    "timer": "Timer"
   },
   "canvas": {
     "newText": "New text",

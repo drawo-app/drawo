@@ -6,6 +6,8 @@ export interface DrawPoint {
 export interface DrawElement {
   id: string;
   type: "draw";
+  drawMode: "draw" | "marker";
+  createdAt?: number;
   rotation: number;
   x: number;
   y: number;
@@ -86,7 +88,10 @@ export const hitTestDraw = (
 
   const localX = pointInLocal.x - draw.x;
   const localY = pointInLocal.y - draw.y;
-  const tolerance = Math.max(6, draw.strokeWidth * 2);
+  const tolerance =
+    draw.drawMode === "marker"
+      ? Math.max(8, draw.strokeWidth * 1.35)
+      : Math.max(6, draw.strokeWidth * 2);
 
   for (let index = 1; index < draw.points.length; index++) {
     const start = draw.points[index - 1];

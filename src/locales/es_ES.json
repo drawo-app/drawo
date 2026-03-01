@@ -2,7 +2,7 @@
   "settings": {
     "showGrid": "Mostrar cuadrícula",
     "snapToGrid": "Ajustar a cuadrícula",
-    "darkMode": "Modo oscuro",
+    "theme": "Tema",
     "language": "Idioma"
   },
   "localeNames": {
@@ -16,7 +16,9 @@
     "rectangle": "Rectángulo",
     "ellipse": "Elipse",
     "draw": "Dibujar",
-    "laser": "Puntero láser"
+    "laser": "Puntero láser",
+    "marker": "Subrayador",
+    "pen": "Lápiz"
   },
   "fontFamilies": {
     "simple": "Simple",
@@ -37,6 +39,7 @@
     "fontSize": "Tamaño de la fuente",
     "bold": "Negrita",
     "italic": "Cursiva",
+    "strikethrough": "Tachado",
     "strokeColor": "Color de la línea",
     "fillColor": "Color de relleno",
     "fillStyle": "Estilo de relleno",
@@ -48,6 +51,11 @@
       "right": "Right"
     },
     "textColor": "Color del texto"
+  },
+  "panels": {
+    "playing": "(reproduciendo)",
+    "music": "Música",
+    "timer": "Cuenta atrás"
   },
   "canvas": {
     "newText": "Nuevo texto",
