@@ -164,6 +164,40 @@ html.dark .switch-row {
     transition: 0.1s;
     transform: translateY(2px);
 }
+
+/* Color picker styles */
+.color-picker-container {
+    margin-left: 4px;
+    margin-right: 4px;
+    display: flex;
+    align-items: center;
+}
+
+.color-picker-button {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    border: 1px solid var(--panel-border);
+    background: var(--panel-bg);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    transition: all 0.1s ease;
+}
+
+.color-picker-button:hover {
+    background: var(--panel-bg-hover);
+    border-color: var(--panel-border-hover);
+}
+
+.color-preview {
+    width: 20px;
+    height: 20px;
+    border-radius: 4px;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+}
 .tool-bar {
     border-radius: 15px;
     position: absolute;
@@ -361,7 +395,12 @@ html.dark .selection-toolbar {
 [data-slate-node] strong {
     font-weight: 700;
 }
-.drawo-content-color {
+.drawo-content-color.inferior {
+    box-shadow: none !important;
+    transform: translateY(-10px) !important;
+    
+}
+.drawo-content-color:not(.inferior) {
     box-shadow: none !important;
     transform: translateY(60px) !important;
 }
@@ -379,6 +418,7 @@ html.dark .selection-toolbar {
     padding-top: 24px;
     border-top: 1px solid rgba(var(--text-rgb), 0.1);
 }
+
 .drawo-content-color
     [style="flex: 1 1 0%;"]
     .w-color-alpha-horizontal
@@ -795,8 +835,8 @@ html.dark .selection-toolbar {
     inset: 0;
     z-index: 5000;
     background: rgba(0, 0, 0, 0.1);
-    backdrop-filter: blur(2px);
-    animation: drawo-fade-in 120ms ease;
+    backdrop-filter: blur(10px);
+    animation: drawo-fade-in 520ms ease;
 }
 
 .dark .drawo-dialog-overlay {

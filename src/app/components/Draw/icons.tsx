@@ -1,4 +1,4 @@
-export function PenIcon({ className }) {
+export function PenIcon({ className, color }) {
   return (
     <svg
       width="24"
@@ -34,7 +34,7 @@ export function PenIcon({ className }) {
           <g filter="url(#filter1_i_1539_179)">
             <path
               d="M11.383 3.74726C11.6089 3.19493 12.3911 3.19493 12.6171 3.74725L15 9.57232H9L11.383 3.74726Z"
-              fill="#1E1E1E"
+              fill={color || "#1E1E1E"}
             />
           </g>
           <path
@@ -147,7 +147,7 @@ export function PenIcon({ className }) {
   );
 }
 
-export function MarkerIcon({ className }) {
+export function MarkerIcon({ className, color }) {
   return (
     <svg
       width="24"
@@ -160,7 +160,7 @@ export function MarkerIcon({ className }) {
       <g clip-path="url(#clip0_1538_150)">
         <path
           d="M7.95337 5.71142C7.95337 5.36004 8.16295 5.04253 8.48605 4.9044L13.7522 2.65314C14.3313 2.40559 14.9748 2.83041 14.9748 3.46017L14.9748 10.9073L7.95337 10.9073L7.95337 5.71142Z"
-          fill="#FFEE00"
+          fill={color || "#FFEE00"}
         />
         <path
           d="M7.95337 5.71142C7.95337 5.36004 8.16295 5.04253 8.48605 4.9044L13.7522 2.65314C14.3313 2.40559 14.9748 2.83041 14.9748 3.46017L14.9748 10.9073L7.95337 10.9073L7.95337 5.71142Z"

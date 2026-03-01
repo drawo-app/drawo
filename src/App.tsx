@@ -211,9 +211,7 @@ export default function App() {
           onTextAlignChange={handleTextAlignChange}
           onDrawStrokeWidthChange={handleDrawStrokeWidthChange}
           onDrawStrokeColorChange={handleDrawStrokeColorChange}
-          onDrawDefaultStrokeColorChange={
-            handleDrawDefaultStrokeColorChange
-          }
+          onDrawDefaultStrokeColorChange={handleDrawDefaultStrokeColorChange}
           onRectangleBorderRadiusChange={handleRectangleBorderRadiusChange}
           localeMessages={messages}
         />
@@ -224,6 +222,8 @@ export default function App() {
           messages={messages}
           setInteractionMode={setInteractionMode}
           setDrawingTool={setDrawingTool}
+          drawDefaults={scene.settings.drawDefaults}
+          onDrawDefaultStrokeColorChange={handleDrawDefaultStrokeColorChange}
         />
       </TooltipProvider>
     </div>

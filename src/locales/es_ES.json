@@ -27,7 +27,9 @@
     "draw": "Dibujar",
     "laser": "Puntero láser",
     "marker": "Subrayador",
-    "pen": "Lápiz"
+    "pen": "Lápiz",
+    "penColor": "Color del lápiz",
+    "markerColor": "Color del subrayador"
   },
   "fontFamilies": {
     "simple": "Simple",
