@@ -1,5 +1,9 @@
 import { useCallback, useRef } from "react";
-import { estimateTextHeight, estimateTextWidth, getTextStartX } from "../core/elements";
+import {
+  estimateTextHeight,
+  estimateTextWidth,
+  getTextStartX,
+} from "../core/elements";
 import { findHitElement } from "../core/hitTest";
 import {
   addDrawElementToScene,
@@ -15,6 +19,7 @@ import {
   updateElementRotation,
   updateGroupElementsRotation,
   updateRectangleElementBounds,
+  updateSceneSettings,
   updateTextElementContent,
   updateTextElementLayout,
   updateTextElementsFontFamily,
@@ -855,7 +860,7 @@ export const useInteraction = ({
 
   const handleWheelPan = useCallback(
     (deltaX: number, deltaY: number) => {
-      setScene((currentScene) => {
+      setSceneWithoutHistory((currentScene) => {
         const zoom = currentScene.camera.zoom;
 
         return {
@@ -868,12 +873,12 @@ export const useInteraction = ({
         };
       });
     },
-    [setScene],
+    [setSceneWithoutHistory],
   );
 
   const handleWheelZoom = useCallback(
     (screenX: number, screenY: number, deltaY: number) => {
-      setScene((currentScene) => {
+      setSceneWithoutHistory((currentScene) => {
         const currentZoom = currentScene.camera.zoom;
         const zoomFactor = Math.exp(-deltaY * ZOOM_SENSITIVITY);
         const nextZoom = clamp(
@@ -899,7 +904,7 @@ export const useInteraction = ({
         };
       });
     },
-    [setScene],
+    [setSceneWithoutHistory],
   );
 
   const handleCreateElement = useCallback(
@@ -1043,6 +1048,26 @@ export const useInteraction = ({
     [setScene],
   );
 
+  const handleDrawDefaultStrokeColorChange = useCallback(
+    (drawMode: "draw" | "marker", strokeColor: string) => {
+      setScene((currentScene) =>
+        updateSceneSettings(currentScene, {
+          drawDefaults:
+            drawMode === "marker"
+              ? {
+                  ...currentScene.settings.drawDefaults,
+                  markerStroke: strokeColor,
+                }
+              : {
+                  ...currentScene.settings.drawDefaults,
+                  drawStroke: strokeColor,
+                },
+        }),
+      );
+    },
+    [setScene],
+  );
+
   return {
     handlePointerDown,
     handlePointerMove,
@@ -1064,5 +1089,6 @@ export const useInteraction = ({
     handleCreateDrawElement,
     handleDrawStrokeWidthChange,
     handleDrawStrokeColorChange,
+    handleDrawDefaultStrokeColorChange,
   };
 };

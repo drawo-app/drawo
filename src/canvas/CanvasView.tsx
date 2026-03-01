@@ -71,7 +71,6 @@ import {
 } from "./color";
 import {
   drawCatmullRomCurve,
-  getAnimatedDrawPointCount,
   getDrawLineCap,
   getDrawRenderStyle,
   drawMarkerStroke,
@@ -130,6 +129,7 @@ export const CanvasView = ({
   onTextAlignChange,
   onDrawStrokeWidthChange,
   onDrawStrokeColorChange,
+  onDrawDefaultStrokeColorChange,
   onRectangleBorderRadiusChange,
   onGroupResizeStart,
   onGroupRotateStart,
@@ -166,7 +166,6 @@ export const CanvasView = ({
   );
   const [laserTrails, setLaserTrails] = useState<LaserTrail[]>([]);
   const [laserNow, setLaserNow] = useState(() => performance.now());
-  const [drawNow, setDrawNow] = useState(() => Date.now());
   const activeLaserTrailIdRef = useRef<string | null>(null);
   const customDrawColorPickerWrapRef = useRef<HTMLDivElement>(null);
   const customDrawColorPickerContentRef = useRef<HTMLDivElement>(null);
@@ -207,18 +206,16 @@ export const CanvasView = ({
     );
 
     if (selectedDrawElements.length === 0) {
-      if (drawMode === "marker") {
-        return {
-          drawMode,
-          stroke: "#f1e66d",
-          strokeWidth: MARKER_STROKE_OPTIONS[0],
-        };
-      }
+      const defaultStroke =
+        drawMode === "marker"
+          ? scene.settings.drawDefaults.markerStroke
+          : scene.settings.drawDefaults.drawStroke;
 
       return {
         drawMode,
-        stroke: "#2f3b52",
-        strokeWidth: 2,
+        stroke: defaultStroke,
+        strokeWidth:
+          drawMode === "marker" ? MARKER_STROKE_OPTIONS[0] : 2,
       };
     }
 
@@ -230,7 +227,9 @@ export const CanvasView = ({
       stroke:
         typeof activeStroke === "string" && activeStroke.trim().length > 0
           ? activeStroke
-          : "#2f3b52",
+          : drawMode === "marker"
+            ? scene.settings.drawDefaults.markerStroke
+            : scene.settings.drawDefaults.drawStroke,
       strokeWidth:
         typeof activeStrokeWidth === "number" &&
         Number.isFinite(activeStrokeWidth)
@@ -980,8 +979,12 @@ export const CanvasView = ({
               ? selectedDrawElements[0].strokeWidth
               : DRAW_STROKE_OPTIONS[1],
           );
+    const defaultDrawStrokeColor =
+      selectedDrawMode === "marker"
+        ? scene.settings.drawDefaults.markerStroke
+        : scene.settings.drawDefaults.drawStroke;
     const selectedDrawStrokeColor =
-      selectedDrawElements[0]?.stroke || "#2f3b52";
+      selectedDrawElements[0]?.stroke || defaultDrawStrokeColor;
     const drawStrokeColorSelectValue = STROKE_COLORS.some(
       (color) =>
         color !== "multi" &&
@@ -1010,6 +1013,12 @@ export const CanvasView = ({
               }
 
               setIsCustomDrawColorPickerOpen(false);
+
+              if (selectedDrawElements.length === 0) {
+                onDrawDefaultStrokeColorChange(selectedDrawMode, value);
+                return;
+              }
+
               onDrawStrokeColorChange(
                 selectedDrawElements.map((element) => element.id),
                 value,
@@ -1045,7 +1054,7 @@ export const CanvasView = ({
                       border: "1px solid #ffffff20",
                       height: "20px",
                       background: uniColor(
-                        selectedDrawStrokeColor || STROKE_COLORS[1],
+                        selectedDrawStrokeColor || defaultDrawStrokeColor,
                       ),
                     }}
                   />
@@ -1156,6 +1165,12 @@ export const CanvasView = ({
                   const next = color.hexa || color.hex;
                   if (next) {
                     setCustomDrawColorPickerColor(next);
+
+                    if (selectedDrawElements.length === 0) {
+                      onDrawDefaultStrokeColorChange(selectedDrawMode, next);
+                      return;
+                    }
+
                     onDrawStrokeColorChange(
                       selectedDrawElements.map((element) => element.id),
                       next,
@@ -1234,6 +1249,10 @@ export const CanvasView = ({
 
     if (selectedTextElements.length === 0) {
       if (selectedDrawElements.length > 0) {
+        return renderDrawStrokeSelector();
+      }
+
+      if (drawingTool === "draw" || drawingTool === "marker") {
         return renderDrawStrokeSelector();
       }
 
@@ -1993,13 +2012,7 @@ export const CanvasView = ({
             x: element.x + point.x,
             y: element.y + point.y,
           }));
-          const revealedPointCount = getAnimatedDrawPointCount(
-            worldPoints.length,
-            element.createdAt,
-            drawNow,
-            220,
-          );
-          const visibleWorldPoints = worldPoints.slice(0, revealedPointCount);
+          const visibleWorldPoints = worldPoints;
 
           if (visibleWorldPoints.length === 1) {
             if (drawMode === "marker") {
@@ -2664,33 +2677,7 @@ export const CanvasView = ({
     };
   }, [laserTrails.length]);
 
-  useEffect(() => {
-    const revealWindowMs = 240;
-    const hasRecentlyCreatedDraw = scene.elements.some(
-      (element) =>
-        element.type === "draw" &&
-        typeof element.createdAt === "number" &&
-        Date.now() - element.createdAt >= 0 &&
-        Date.now() - element.createdAt < revealWindowMs,
-    );
 
-    if (!hasRecentlyCreatedDraw) {
-      return;
-    }
-
-    let animationFrame = 0;
-
-    const animate = () => {
-      setDrawNow(Date.now());
-      animationFrame = window.requestAnimationFrame(animate);
-    };
-
-    animationFrame = window.requestAnimationFrame(animate);
-
-    return () => {
-      window.cancelAnimationFrame(animationFrame);
-    };
-  }, [scene.elements]);
 
   // Force re-render when fonts are loaded to update canvas text rendering
   const fontsLoadedRef = useRef(false);

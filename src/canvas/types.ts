@@ -93,6 +93,10 @@ export interface CanvasViewProps {
   onTextAlignChange: (ids: string[], textAlign: CanvasTextAlign) => void;
   onDrawStrokeWidthChange: (ids: string[], strokeWidth: number) => void;
   onDrawStrokeColorChange: (ids: string[], strokeColor: string) => void;
+  onDrawDefaultStrokeColorChange: (
+    drawMode: "draw" | "marker",
+    strokeColor: string,
+  ) => void;
   onRectangleBorderRadiusChange: (ids: string[], borderRadius: number) => void;
   onGroupResizeStart: (
     handle: ResizeHandle,

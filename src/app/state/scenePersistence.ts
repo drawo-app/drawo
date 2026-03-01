@@ -77,6 +77,22 @@ const isValidTheme = (value: unknown): value is SceneSettings["theme"] => {
   return value === "light" || value === "dark";
 };
 
+const isValidDrawDefaults = (
+  value: unknown,
+): value is SceneSettings["drawDefaults"] => {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const drawDefaults = value as SceneSettings["drawDefaults"];
+  return (
+    typeof drawDefaults.drawStroke === "string" &&
+    drawDefaults.drawStroke.trim().length > 0 &&
+    typeof drawDefaults.markerStroke === "string" &&
+    drawDefaults.markerStroke.trim().length > 0
+  );
+};
+
 export const loadInitialScene = (): Scene => {
   const baseScene = initScene();
 
@@ -103,6 +119,9 @@ export const loadInitialScene = (): Scene => {
       }
       if (parsedSettings && isValidTheme(parsedSettings.theme)) {
         nextSettings.theme = parsedSettings.theme;
+      }
+      if (parsedSettings && isValidDrawDefaults(parsedSettings.drawDefaults)) {
+        nextSettings.drawDefaults = parsedSettings.drawDefaults;
       }
 
       const nextScene: Scene = {
@@ -159,6 +178,9 @@ export const loadInitialScene = (): Scene => {
     }
     if (isValidTheme(parsed.theme)) {
       nextSettings.theme = parsed.theme;
+    }
+    if (isValidDrawDefaults(parsed.drawDefaults)) {
+      nextSettings.drawDefaults = parsed.drawDefaults;
     }
 
     return updateSceneSettings(baseScene, nextSettings);

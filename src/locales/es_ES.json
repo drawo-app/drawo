@@ -3,7 +3,16 @@
     "showGrid": "Mostrar cuadrícula",
     "snapToGrid": "Ajustar a cuadrícula",
     "theme": "Tema",
-    "language": "Idioma"
+    "language": "Idioma",
+    "clearCanvas": "Vaciar canvas"
+  },
+  "dialogs": {
+    "clearCanvas": {
+      "title": "¿Vaciar el canvas?",
+      "description": "Esta acción eliminará todos los elementos y no se puede deshacer.",
+      "confirm": "Vaciar",
+      "cancel": "Cancelar"
+    }
   },
   "localeNames": {
     "en_US": "English (US)",

@@ -68,6 +68,51 @@ export const drawSmoothStrokePath = (
   ctx.lineTo(last.x, last.y);
 };
 
+/**
+ * Draws a rounded-rectangle cap at the tip of a marker stroke.
+ *
+ * After translate(px,py) + rotate(outwardAngle):
+ *   +X = outward direction (away from stroke body)
+ *   +Y = perpendicular (cap width)
+ *
+ * The inner edge is flush with the stroke endpoint (x=0), perfectly flat.
+ * Only the two outer corners (at x=extend) are rounded.
+ *
+ *   (0, -half) ←─── inner edge ───→ (0, +half)
+ *         ↓                                ↓
+ *   (extend, -half+r) ←─ outer ─→ (extend, +half-r)
+ *               └── only these two corners are rounded ──┘
+ */
+const drawMarkerRoundedRectCap = (
+  offCtx: CanvasRenderingContext2D,
+  px: number,
+  py: number,
+  outwardAngle: number,
+  strokeWidth: number,
+) => {
+  const half = strokeWidth / 2;
+  // How far the cap protrudes past the stroke endpoint (~30 % of half-width).
+  const extend = half * 0.3;
+  // Radius for the two outer corners only.
+  const cornerR = Math.min(half * 0.25, extend * 0.8);
+
+  offCtx.save();
+  offCtx.translate(px, py);
+  offCtx.rotate(outwardAngle);
+
+  offCtx.beginPath();
+  offCtx.moveTo(0, -half);                                         // inner top
+  offCtx.lineTo(extend - cornerR, -half);                          // outer top before corner
+  offCtx.quadraticCurveTo(extend, -half, extend, -half + cornerR); // top-outer corner
+  offCtx.lineTo(extend, half - cornerR);                           // outer bottom before corner
+  offCtx.quadraticCurveTo(extend, half, extend - cornerR, half);   // bottom-outer corner
+  offCtx.lineTo(0, half);                                          // inner bottom
+  offCtx.closePath();
+  offCtx.fill();
+
+  offCtx.restore();
+};
+
 export const drawMarkerStroke = (
   ctx: CanvasRenderingContext2D,
   points: Array<{ x: number; y: number }>,
@@ -76,105 +121,75 @@ export const drawMarkerStroke = (
   if (points.length === 0) {
     return;
   }
-
   const width = Math.max(1, strokeWidth);
-  const halfWidth = width / 2;
-  const cornerRadius = Math.max(1, width * 0.25);
-  const capLength = halfWidth;
 
-  const drawLeftRoundedRect = (w: number, h: number, r: number) => {
-    const y = -h / 2;
-    ctx.moveTo(0, y);
-    ctx.lineTo(-w + r, y);
-    ctx.quadraticCurveTo(-w, y, -w, y + r);
-    ctx.lineTo(-w, y + h - r);
-    ctx.quadraticCurveTo(-w, y + h, -w + r, y + h);
-    ctx.lineTo(0, y + h);
-    ctx.lineTo(0, y);
-  };
+  // Draw into an offscreen canvas so the body + both caps form a single
+  // opaque shape before it is composited (multiply / screen) onto the main
+  // canvas.  Without this, drawing the cap on top of the already-blended
+  // stroke body would produce a brighter/darker band at each end.
+  const mainCanvas = ctx.canvas;
+  const offscreen = document.createElement("canvas");
+  offscreen.width = mainCanvas.width;
+  offscreen.height = mainCanvas.height;
+  const offCtx = offscreen.getContext("2d")!;
 
-  const drawRightRoundedRect = (w: number, h: number, r: number) => {
-    const y = -h / 2;
-    ctx.moveTo(0, y);
-    ctx.lineTo(w - r, y);
-    ctx.quadraticCurveTo(w, y, w, y + r);
-    ctx.lineTo(w, y + h - r);
-    ctx.quadraticCurveTo(w, y + h, w - r, y + h);
-    ctx.lineTo(0, y + h);
-    ctx.lineTo(0, y);
-  };
-
-  ctx.beginPath();
+  // Replicate the full transform (camera zoom + element rotation).
+  offCtx.setTransform(ctx.getTransform());
+  offCtx.strokeStyle = ctx.strokeStyle;
+  offCtx.fillStyle = ctx.strokeStyle;
 
   if (points.length === 1) {
-    const point = points[0];
-    const dabSize = width;
-    const r = cornerRadius;
-    const x = point.x - dabSize / 2;
-    const y = point.y - dabSize / 2;
+    // Single point → small circle whose diameter equals the stroke width.
+    offCtx.beginPath();
+    offCtx.arc(points[0].x, points[0].y, width / 2, 0, Math.PI * 2);
+    offCtx.fill();
+  } else {
+    // ── Stroke body (lineCap "butt" = flat, exact endpoints) ──────────────
+    offCtx.lineWidth = width;
+    offCtx.lineJoin = "round";
+    offCtx.lineCap = "butt";
+    offCtx.beginPath();
+    drawSmoothStrokePath(offCtx, points);
+    offCtx.stroke();
 
-    ctx.moveTo(x + r, y);
-    ctx.lineTo(x + dabSize - r, y);
-    ctx.quadraticCurveTo(x + dabSize, y, x + dabSize, y + r);
-    ctx.lineTo(x + dabSize, y + dabSize - r);
-    ctx.quadraticCurveTo(
-      x + dabSize,
-      y + dabSize,
-      x + dabSize - r,
-      y + dabSize,
-    );
-    ctx.lineTo(x + r, y + dabSize);
-    ctx.quadraticCurveTo(x, y + dabSize, x, y + dabSize - r);
-    ctx.lineTo(x, y + r);
-    ctx.quadraticCurveTo(x, y, x + r, y);
-    ctx.fill("nonzero");
-    return;
-  }
-
-  const firstPt = points[0];
-  const secondPt = points[1];
-  const firstAngle = Math.atan2(secondPt.y - firstPt.y, secondPt.x - firstPt.x);
-  ctx.save();
-  ctx.translate(firstPt.x, firstPt.y);
-  ctx.rotate(firstAngle);
-  drawLeftRoundedRect(capLength, width, cornerRadius);
-  ctx.restore();
-
-  for (let index = 1; index < points.length; index++) {
-    const start = points[index - 1];
-    const end = points[index];
-    const dx = end.x - start.x;
-    const dy = end.y - start.y;
-    const segmentLength = Math.hypot(dx, dy);
-
-    if (segmentLength <= 0.001) {
-      continue;
+    // ── Start cap ──────────────────────────────────────────────────────────
+    const sDx = points[0].x - points[1].x;
+    const sDy = points[0].y - points[1].y;
+    const sLen = Math.sqrt(sDx * sDx + sDy * sDy);
+    if (sLen > 0) {
+      drawMarkerRoundedRectCap(
+        offCtx,
+        points[0].x,
+        points[0].y,
+        Math.atan2(sDy, sDx),
+        width,
+      );
     }
 
-    const angle = Math.atan2(dy, dx);
-    ctx.save();
-    ctx.translate(start.x, start.y);
-    ctx.rotate(angle);
-    ctx.rect(0, -halfWidth, segmentLength, width);
-    ctx.restore();
+    // ── End cap ────────────────────────────────────────────────────────────
+    const last = points[points.length - 1];
+    const prev = points[points.length - 2];
+    const eDx = last.x - prev.x;
+    const eDy = last.y - prev.y;
+    const eLen = Math.sqrt(eDx * eDx + eDy * eDy);
+    if (eLen > 0) {
+      drawMarkerRoundedRectCap(
+        offCtx,
+        last.x,
+        last.y,
+        Math.atan2(eDy, eDx),
+        width,
+      );
+    }
   }
 
-  for (let index = 1; index < points.length - 1; index++) {
-    const point = points[index];
-    ctx.moveTo(point.x + halfWidth, point.y);
-    ctx.arc(point.x, point.y, halfWidth, 0, Math.PI * 2);
-  }
-
-  const lastPt = points[points.length - 1];
-  const prevPt = points[points.length - 2];
-  const lastAngle = Math.atan2(lastPt.y - prevPt.y, lastPt.x - prevPt.x);
+  // Blit the completed offscreen shape onto the main canvas.
+  // The caller has already set globalCompositeOperation / globalAlpha,
+  // so the whole stroke is composited in one shot — no double-blending.
   ctx.save();
-  ctx.translate(lastPt.x, lastPt.y);
-  ctx.rotate(lastAngle);
-  drawRightRoundedRect(capLength, width, cornerRadius);
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.drawImage(offscreen, 0, 0);
   ctx.restore();
-
-  ctx.fill("nonzero");
 };
 
 export const getVisibleStrokeWidth = (strokeWidth: number): number => {
@@ -204,7 +219,7 @@ export const getDrawRenderStyle = (
 };
 
 export const getDrawLineCap = (drawMode: "draw" | "marker"): CanvasLineCap => {
-  return drawMode === "marker" ? "butt" : "round";
+  return "round";
 };
 
 export const getAnimatedDrawPointCount = (

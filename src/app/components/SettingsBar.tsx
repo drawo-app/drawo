@@ -1,4 +1,4 @@
-import type { Dispatch, SetStateAction } from "react";
+import { useMemo, useState, type Dispatch, type SetStateAction } from "react";
 import type { LocaleCode, LocaleMessages } from "../../i18n";
 import { isLocaleCode } from "../../i18n";
 import { type Scene, updateSceneSettings } from "../../core/scene";
@@ -21,6 +21,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../../components/select";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "../../components/dialog";
 
 interface SettingsBarProps {
   scene: Scene;
@@ -39,6 +48,27 @@ export const SettingsBar = ({
   setLocale,
   setScene,
 }: SettingsBarProps) => {
+  const [isClearDialogOpen, setIsClearDialogOpen] = useState(false);
+  const hasElements = scene.elements.length > 0;
+
+  const handleClearCanvas = useMemo(() => {
+    return () => {
+      setScene((currentScene) => {
+        if (currentScene.elements.length === 0) {
+          return currentScene;
+        }
+
+        return {
+          ...currentScene,
+          elements: [],
+          selectedId: null,
+          selectedIds: [],
+        };
+      });
+      setIsClearDialogOpen(false);
+    };
+  }, [setScene]);
+
   return (
     <div className="settings-bar">
       <DropdownMenu>
@@ -48,8 +78,11 @@ export const SettingsBar = ({
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent>
-          <DropdownMenuItem onClick={() => {}}>
-            <PaperBin /> Vaciar canvas
+          <DropdownMenuItem
+            onClick={() => setIsClearDialogOpen(true)}
+            disabled={!hasElements}
+          >
+            <PaperBin /> {messages.settings.clearCanvas}
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuCheckboxItem
@@ -132,6 +165,32 @@ export const SettingsBar = ({
           </div>
         </DropdownMenuContent>
       </DropdownMenu>
+      <Dialog open={isClearDialogOpen} onOpenChange={setIsClearDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{messages.dialogs.clearCanvas.title}</DialogTitle>
+            <DialogDescription>
+              {messages.dialogs.clearCanvas.description}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <div className="drawo-dialog-actions">
+              <DialogClose asChild>
+                <button type="button" className="drawo-btn-secondary">
+                  {messages.dialogs.clearCanvas.cancel}
+                </button>
+              </DialogClose>
+              <button
+                type="button"
+                className="drawo-btn-danger"
+                onClick={handleClearCanvas}
+              >
+                {messages.dialogs.clearCanvas.confirm}
+              </button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

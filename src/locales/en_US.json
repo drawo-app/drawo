@@ -3,7 +3,16 @@
     "showGrid": "Show grid",
     "snapToGrid": "Snap to grid",
     "theme": "Theme",
-    "language": "Language"
+    "language": "Language",
+    "clearCanvas": "Clear canvas"
+  },
+  "dialogs": {
+    "clearCanvas": {
+      "title": "Clear the canvas?",
+      "description": "This will remove all elements and cannot be undone.",
+      "confirm": "Clear",
+      "cancel": "Cancel"
+    }
   },
   "localeNames": {
     "en_US": "English (US)",

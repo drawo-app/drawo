@@ -9,6 +9,15 @@ export interface LocaleMessages {
     snapToGrid: string;
     theme: string;
     language: string;
+    clearCanvas: string;
+  };
+  dialogs: {
+    clearCanvas: {
+      title: string;
+      description: string;
+      confirm: string;
+      cancel: string;
+    };
   };
   localeNames: {
     en_US: string;

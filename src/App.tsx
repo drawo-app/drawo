@@ -130,6 +130,7 @@ export default function App() {
     handleTextAlignChange,
     handleDrawStrokeWidthChange,
     handleDrawStrokeColorChange,
+    handleDrawDefaultStrokeColorChange,
   } = useInteraction({
     scene,
     setScene,
@@ -210,6 +211,9 @@ export default function App() {
           onTextAlignChange={handleTextAlignChange}
           onDrawStrokeWidthChange={handleDrawStrokeWidthChange}
           onDrawStrokeColorChange={handleDrawStrokeColorChange}
+          onDrawDefaultStrokeColorChange={
+            handleDrawDefaultStrokeColorChange
+          }
           onRectangleBorderRadiusChange={handleRectangleBorderRadiusChange}
           localeMessages={messages}
         />
