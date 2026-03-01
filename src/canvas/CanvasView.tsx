@@ -196,7 +196,9 @@ export const CanvasView = ({
   const camera = scene.camera;
   const isDarkMode = scene.settings.theme === "dark";
 
-  const getActiveDrawStyle = (drawMode: "draw" | "marker"): DrawElementStyle => {
+  const getActiveDrawStyle = (
+    drawMode: "draw" | "marker",
+  ): DrawElementStyle => {
     const selectedDrawElements = scene.elements.filter(
       (element): element is DrawElement =>
         selectedIds.includes(element.id) &&
@@ -952,7 +954,9 @@ export const CanvasView = ({
       ? (selectedDrawElements[0]?.drawMode ?? "draw")
       : "draw";
     const strokeOptions =
-      selectedDrawMode === "marker" ? MARKER_STROKE_OPTIONS : DRAW_STROKE_OPTIONS;
+      selectedDrawMode === "marker"
+        ? MARKER_STROKE_OPTIONS
+        : DRAW_STROKE_OPTIONS;
     const strokePreviews =
       selectedDrawMode === "marker"
         ? MARKER_STROKE_PREVIEWS
@@ -972,9 +976,9 @@ export const CanvasView = ({
               : MARKER_STROKE_OPTIONS[0],
           )
         : getClosestDrawStrokeOption(
-      allSameDrawStrokeWidth
-        ? selectedDrawElements[0].strokeWidth
-        : DRAW_STROKE_OPTIONS[1],
+            allSameDrawStrokeWidth
+              ? selectedDrawElements[0].strokeWidth
+              : DRAW_STROKE_OPTIONS[1],
           );
     const selectedDrawStrokeColor =
       selectedDrawElements[0]?.stroke || "#2f3b52";
@@ -2434,14 +2438,19 @@ export const CanvasView = ({
     }
 
     if (drawSelection && drawSelection.points.length > 0) {
-      const renderStyle = getDrawRenderStyle(drawSelection.drawMode, isDarkMode);
+      const renderStyle = getDrawRenderStyle(
+        drawSelection.drawMode,
+        isDarkMode,
+      );
       const previousComposite = ctx.globalCompositeOperation;
       const previousAlpha = ctx.globalAlpha;
 
       ctx.globalCompositeOperation = renderStyle.compositeOperation;
       ctx.globalAlpha *= renderStyle.opacity;
       ctx.save();
-      const visibleStrokeWidth = getVisibleStrokeWidth(drawSelection.strokeWidth);
+      const visibleStrokeWidth = getVisibleStrokeWidth(
+        drawSelection.strokeWidth,
+      );
       ctx.strokeStyle = toThemeColor(drawSelection.stroke);
       ctx.fillStyle = toThemeColor(drawSelection.stroke);
       ctx.lineWidth = visibleStrokeWidth;

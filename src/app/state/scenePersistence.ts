@@ -41,7 +41,8 @@ const normalizeElement = (element: SceneElement): SceneElement => {
       ...element,
       drawMode: element.drawMode === "marker" ? "marker" : "draw",
       createdAt:
-        typeof element.createdAt === "number" && Number.isFinite(element.createdAt)
+        typeof element.createdAt === "number" &&
+        Number.isFinite(element.createdAt)
           ? element.createdAt
           : undefined,
       width:

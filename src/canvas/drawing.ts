@@ -117,7 +117,12 @@ export const drawMarkerStroke = (
     ctx.lineTo(x + dabSize - r, y);
     ctx.quadraticCurveTo(x + dabSize, y, x + dabSize, y + r);
     ctx.lineTo(x + dabSize, y + dabSize - r);
-    ctx.quadraticCurveTo(x + dabSize, y + dabSize, x + dabSize - r, y + dabSize);
+    ctx.quadraticCurveTo(
+      x + dabSize,
+      y + dabSize,
+      x + dabSize - r,
+      y + dabSize,
+    );
     ctx.lineTo(x + r, y + dabSize);
     ctx.quadraticCurveTo(x, y + dabSize, x, y + dabSize - r);
     ctx.lineTo(x, y + r);
@@ -198,9 +203,7 @@ export const getDrawRenderStyle = (
   };
 };
 
-export const getDrawLineCap = (
-  drawMode: "draw" | "marker",
-): CanvasLineCap => {
+export const getDrawLineCap = (drawMode: "draw" | "marker"): CanvasLineCap => {
   return drawMode === "marker" ? "butt" : "round";
 };
 
