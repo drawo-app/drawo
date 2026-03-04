@@ -31,7 +31,10 @@ import {
   VolumeLoud,
 } from "@solar-icons/react";
 import { CDSVG } from "./CD";
-import { parseColor } from "../../../canvas/color";
+import {
+  invertLightnessPreservingHue,
+  parseColor,
+} from "../../../canvas/color";
 import { MUSIC_BAR_STORAGE_KEY } from "../../state/constants";
 import type { LocaleMessages } from "../../../i18n";
 
@@ -977,21 +980,13 @@ export const MusicBar = ({ isOpen, onOpenChange, messages }: MusicBarProps) => {
           onClick={() => onOpenChange(!isOpen)}
           aria-expanded={isOpen}
           aria-controls="music-panel"
+          style={{
+            background: isPlaying ? "rgba(var(--accent-rgb), .5)" : undefined,
+          }}
         >
           <div className="music-bar-toggle-content">
             {isPlaying ? (
               <>
-                <div
-                  style={{
-                    background: CATEGORY_COLORS[activeStation],
-                    height: "100%",
-                    width: "100%",
-                    opacity: 0.2,
-                    position: "absolute",
-                    top: 0,
-                    left: 0,
-                  }}
-                />
                 <div className={`music-bar-icon`}>
                   <ActiveCategoryIcon weight="Bold" />
                 </div>
@@ -1012,7 +1007,9 @@ export const MusicBar = ({ isOpen, onOpenChange, messages }: MusicBarProps) => {
                 <div className={`music-bar-icon`}>
                   <MusicNotes weight="Bold" />
                 </div>
-                <span className="music-bar-now-playing">{messages.panels.music}</span>
+                <span className="music-bar-now-playing">
+                  {messages.panels.music}
+                </span>
               </>
             )}
           </div>

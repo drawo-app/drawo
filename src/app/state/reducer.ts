@@ -2,6 +2,20 @@ import { MAX_HISTORY_ENTRIES } from "./constants";
 import { loadInitialScene } from "./scenePersistence";
 import type { AppAction, AppState } from "./types";
 
+const withCameraFrom = (
+  target: AppState["present"],
+  source: AppState["present"],
+) => {
+  if (target.camera === source.camera) {
+    return target;
+  }
+
+  return {
+    ...target,
+    camera: source.camera,
+  };
+};
+
 export const createInitialAppState = (): AppState => ({
   past: [],
   present: loadInitialScene(),
@@ -15,9 +29,10 @@ export const appReducer = (state: AppState, action: AppAction): AppState => {
     }
 
     const previous = state.past[state.past.length - 1];
+    const nextPresent = withCameraFrom(previous, state.present);
     return {
       past: state.past.slice(0, -1),
-      present: previous,
+      present: nextPresent,
       future: [state.present, ...state.future],
     };
   }
@@ -28,9 +43,10 @@ export const appReducer = (state: AppState, action: AppAction): AppState => {
     }
 
     const [next, ...restFuture] = state.future;
+    const nextPresent = withCameraFrom(next, state.present);
     return {
       past: [...state.past, state.present].slice(-MAX_HISTORY_ENTRIES),
-      present: next,
+      present: nextPresent,
       future: restFuture,
     };
   }

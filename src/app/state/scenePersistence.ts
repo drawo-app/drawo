@@ -89,7 +89,11 @@ const isValidDrawDefaults = (
     typeof drawDefaults.drawStroke === "string" &&
     drawDefaults.drawStroke.trim().length > 0 &&
     typeof drawDefaults.markerStroke === "string" &&
-    drawDefaults.markerStroke.trim().length > 0
+    drawDefaults.markerStroke.trim().length > 0 &&
+    (typeof drawDefaults.drawStrokeWidth === "number" ||
+      typeof drawDefaults.drawStrokeWidth === "undefined") &&
+    (typeof drawDefaults.markerStrokeWidth === "number" ||
+      typeof drawDefaults.markerStrokeWidth === "undefined")
   );
 };
 
@@ -121,7 +125,18 @@ export const loadInitialScene = (): Scene => {
         nextSettings.theme = parsedSettings.theme;
       }
       if (parsedSettings && isValidDrawDefaults(parsedSettings.drawDefaults)) {
-        nextSettings.drawDefaults = parsedSettings.drawDefaults;
+        nextSettings.drawDefaults = {
+          drawStroke: parsedSettings.drawDefaults.drawStroke,
+          markerStroke: parsedSettings.drawDefaults.markerStroke,
+          drawStrokeWidth:
+            typeof parsedSettings.drawDefaults.drawStrokeWidth === "number"
+              ? parsedSettings.drawDefaults.drawStrokeWidth
+              : 2,
+          markerStrokeWidth:
+            typeof parsedSettings.drawDefaults.markerStrokeWidth === "number"
+              ? parsedSettings.drawDefaults.markerStrokeWidth
+              : 18,
+        };
       }
 
       const nextScene: Scene = {
@@ -180,7 +195,18 @@ export const loadInitialScene = (): Scene => {
       nextSettings.theme = parsed.theme;
     }
     if (isValidDrawDefaults(parsed.drawDefaults)) {
-      nextSettings.drawDefaults = parsed.drawDefaults;
+      nextSettings.drawDefaults = {
+        drawStroke: parsed.drawDefaults.drawStroke,
+        markerStroke: parsed.drawDefaults.markerStroke,
+        drawStrokeWidth:
+          typeof parsed.drawDefaults.drawStrokeWidth === "number"
+            ? parsed.drawDefaults.drawStrokeWidth
+            : 2,
+        markerStrokeWidth:
+          typeof parsed.drawDefaults.markerStrokeWidth === "number"
+            ? parsed.drawDefaults.markerStrokeWidth
+            : 18,
+      };
     }
 
     return updateSceneSettings(baseScene, nextSettings);

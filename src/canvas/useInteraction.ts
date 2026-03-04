@@ -1068,6 +1068,26 @@ export const useInteraction = ({
     [setScene],
   );
 
+  const handleDrawDefaultStrokeWidthChange = useCallback(
+    (drawMode: "draw" | "marker", strokeWidth: number) => {
+      setScene((currentScene) =>
+        updateSceneSettings(currentScene, {
+          drawDefaults:
+            drawMode === "marker"
+              ? {
+                  ...currentScene.settings.drawDefaults,
+                  markerStrokeWidth: strokeWidth,
+                }
+              : {
+                  ...currentScene.settings.drawDefaults,
+                  drawStrokeWidth: strokeWidth,
+                },
+        }),
+      );
+    },
+    [setScene],
+  );
+
   return {
     handlePointerDown,
     handlePointerMove,
@@ -1090,5 +1110,6 @@ export const useInteraction = ({
     handleDrawStrokeWidthChange,
     handleDrawStrokeColorChange,
     handleDrawDefaultStrokeColorChange,
+    handleDrawDefaultStrokeWidthChange,
   };
 };

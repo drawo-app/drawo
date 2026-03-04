@@ -100,6 +100,62 @@ export default function App() {
     localStorage.removeItem(TOPBAR_OPEN_PANEL_STORAGE_KEY);
   }, [openTopbarPanel]);
 
+  useEffect(() => {
+    const handlePreventPageZoom = (event: KeyboardEvent) => {
+      if (!(event.ctrlKey || event.metaKey) || event.altKey) {
+        return;
+      }
+
+      const key = event.key;
+      const code = event.code;
+      const isZoomShortcut =
+        key === "+" ||
+        key === "-" ||
+        key === "=" ||
+        key === "_" ||
+        key === "0" ||
+        code === "Equal" ||
+        code === "Minus" ||
+        code === "NumpadAdd" ||
+        code === "NumpadSubtract" ||
+        code === "Digit0" ||
+        code === "Numpad0";
+
+      if (!isZoomShortcut) {
+        return;
+      }
+
+      event.preventDefault();
+      event.stopPropagation();
+    };
+
+    const handlePreventPageZoomWheel = (event: WheelEvent) => {
+      if (!(event.ctrlKey || event.metaKey)) {
+        return;
+      }
+
+      event.preventDefault();
+      event.stopPropagation();
+    };
+
+    window.addEventListener("keydown", handlePreventPageZoom, {
+      capture: true,
+    });
+    window.addEventListener("wheel", handlePreventPageZoomWheel, {
+      capture: true,
+      passive: false,
+    });
+
+    return () => {
+      window.removeEventListener("keydown", handlePreventPageZoom, {
+        capture: true,
+      });
+      window.removeEventListener("wheel", handlePreventPageZoomWheel, {
+        capture: true,
+      });
+    };
+  }, []);
+
   useAppKeyboardShortcuts({
     scene,
     dispatch,
@@ -131,6 +187,7 @@ export default function App() {
     handleDrawStrokeWidthChange,
     handleDrawStrokeColorChange,
     handleDrawDefaultStrokeColorChange,
+    handleDrawDefaultStrokeWidthChange,
   } = useInteraction({
     scene,
     setScene,
@@ -212,6 +269,7 @@ export default function App() {
           onDrawStrokeWidthChange={handleDrawStrokeWidthChange}
           onDrawStrokeColorChange={handleDrawStrokeColorChange}
           onDrawDefaultStrokeColorChange={handleDrawDefaultStrokeColorChange}
+          onDrawDefaultStrokeWidthChange={handleDrawDefaultStrokeWidthChange}
           onRectangleBorderRadiusChange={handleRectangleBorderRadiusChange}
           localeMessages={messages}
         />
@@ -224,6 +282,7 @@ export default function App() {
           setDrawingTool={setDrawingTool}
           drawDefaults={scene.settings.drawDefaults}
           onDrawDefaultStrokeColorChange={handleDrawDefaultStrokeColorChange}
+          onDrawDefaultStrokeWidthChange={handleDrawDefaultStrokeWidthChange}
         />
       </TooltipProvider>
     </div>

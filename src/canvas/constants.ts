@@ -22,7 +22,7 @@ export const STROKE_COLORS = [
   "#2F973B",
   "#006EC3",
   "#3B01AE",
-  "#FEFEFF",
+  "#f8f8f8",
   "multi",
 ] as const;
 

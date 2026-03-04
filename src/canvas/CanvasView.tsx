@@ -215,7 +215,9 @@ export const CanvasView = ({
         drawMode,
         stroke: defaultStroke,
         strokeWidth:
-          drawMode === "marker" ? MARKER_STROKE_OPTIONS[0] : 2,
+          drawMode === "marker"
+            ? scene.settings.drawDefaults.markerStrokeWidth
+            : scene.settings.drawDefaults.drawStrokeWidth,
       };
     }
 
@@ -234,7 +236,9 @@ export const CanvasView = ({
         typeof activeStrokeWidth === "number" &&
         Number.isFinite(activeStrokeWidth)
           ? Math.max(1, activeStrokeWidth)
-          : 2,
+          : drawMode === "marker"
+            ? scene.settings.drawDefaults.markerStrokeWidth
+            : scene.settings.drawDefaults.drawStrokeWidth,
     };
   };
 
@@ -2677,8 +2681,6 @@ export const CanvasView = ({
     };
   }, [laserTrails.length]);
 
-
-
   // Force re-render when fonts are loaded to update canvas text rendering
   const fontsLoadedRef = useRef(false);
   const [, setRenderTrigger] = useState(0);
@@ -2783,7 +2785,15 @@ export const CanvasView = ({
         });
       }
 
-      setCanvasCursor("crosshair");
+      if (drawingTool === "laser") {
+        setCanvasCursor("laser");
+      } else if (drawingTool === "draw") {
+        setCanvasCursor("pencil");
+      } else if (drawingTool === "marker") {
+        setCanvasCursor("marker");
+      } else {
+        setCanvasCursor("crosshair");
+      }
       setActiveRotatingHandle(null);
       setActiveResizeHandle(null);
       setMarqueeSelection(null);
@@ -3159,7 +3169,15 @@ export const CanvasView = ({
         });
       }
 
-      setCanvasCursor("crosshair");
+      if (drawingTool === "laser") {
+        setCanvasCursor("laser");
+      } else if (drawingTool === "draw") {
+        setCanvasCursor("pencil");
+      } else if (drawingTool === "marker") {
+        setCanvasCursor("marker");
+      } else {
+        setCanvasCursor("crosshair");
+      }
       return;
     }
 
@@ -3300,7 +3318,6 @@ export const CanvasView = ({
           onCreateDrawElement(drawSelection.points, {
             drawMode: drawSelection.drawMode,
             stroke: drawSelection.stroke,
-            strokeWidth: drawSelection.strokeWidth,
           });
         }
 
@@ -3320,7 +3337,15 @@ export const CanvasView = ({
 
       setActiveRadiusElementId(null);
       setActiveRadiusHandle(null);
-      setCanvasCursor("crosshair");
+      if (drawingTool === "laser") {
+        setCanvasCursor("laser");
+      } else if (drawingTool === "draw") {
+        setCanvasCursor("pencil");
+      } else if (drawingTool === "marker") {
+        setCanvasCursor("marker");
+      } else {
+        setCanvasCursor("crosshair");
+      }
       return;
     }
 
@@ -3399,8 +3424,14 @@ export const CanvasView = ({
     if (drawingTool) {
       if (drawingTool === "laser") {
         activeLaserTrailIdRef.current = null;
+        setCanvasCursor("laser");
+      } else if (drawingTool === "draw") {
+        setCanvasCursor("pencil");
+      } else if (drawingTool === "marker") {
+        setCanvasCursor("marker");
+      } else {
+        setCanvasCursor("crosshair");
       }
-      setCanvasCursor("crosshair");
       return;
     }
 
@@ -3671,9 +3702,11 @@ export const CanvasView = ({
             'url("/cursors/' +
             canvasCursor +
             '.svg")' +
-            (["default", "pointer", "clone"].includes(canvasCursor)
+            (["default", "pointer", "clone", "laser"].includes(canvasCursor)
               ? ""
-              : " 12 12") +
+              : ["marker", "pencil"].includes(canvasCursor)
+                ? " -4 26"
+                : " 12 12") +
             ', url("/cursors/default.svg"), auto',
           touchAction: "none",
         }}
@@ -3734,10 +3767,16 @@ export const CanvasView = ({
               />
             </g>
           </svg>
-          <p style={{ fontFamily: "Shantell Sans", fontSize: "24px" }}>
-            {/* placeholder asthetick here */}
-            {localeMessages.canvas.tagline}
-          </p>
+          <p
+            style={{
+              fontFamily: "Shantell Sans",
+              fontSize: "24px",
+              textAlign: "center",
+            }}
+            dangerouslySetInnerHTML={{
+              __html: localeMessages.canvas.tagline.replaceAll("\n", "<br>"),
+            }}
+          />
         </div>
       )}
 

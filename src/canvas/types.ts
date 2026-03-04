@@ -97,6 +97,10 @@ export interface CanvasViewProps {
     drawMode: "draw" | "marker",
     strokeColor: string,
   ) => void;
+  onDrawDefaultStrokeWidthChange: (
+    drawMode: "draw" | "marker",
+    strokeWidth: number,
+  ) => void;
   onRectangleBorderRadiusChange: (ids: string[], borderRadius: number) => void;
   onGroupResizeStart: (
     handle: ResizeHandle,

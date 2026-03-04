@@ -190,14 +190,16 @@ export const addDrawElementToScene = (
   const stroke =
     typeof style?.stroke === "string" && style.stroke.trim().length > 0
       ? style.stroke
-      : "#2f3b52";
+      : style?.drawMode === "marker"
+        ? scene.settings.drawDefaults.markerStroke
+        : scene.settings.drawDefaults.drawStroke;
   const drawMode = style?.drawMode === "marker" ? "marker" : "draw";
   const strokeWidth =
     typeof style?.strokeWidth === "number" && Number.isFinite(style.strokeWidth)
       ? Math.max(1, style.strokeWidth)
       : drawMode === "marker"
-        ? 12
-        : 2;
+        ? scene.settings.drawDefaults.markerStrokeWidth
+        : scene.settings.drawDefaults.drawStrokeWidth;
 
   const minX = Math.min(...nextPoints.map((point) => point.x));
   const minY = Math.min(...nextPoints.map((point) => point.y));

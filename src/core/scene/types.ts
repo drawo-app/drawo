@@ -14,6 +14,8 @@ export interface SceneSettings {
   drawDefaults: {
     drawStroke: string;
     markerStroke: string;
+    drawStrokeWidth: number;
+    markerStrokeWidth: number;
   };
 }
 
@@ -58,6 +60,8 @@ export const initScene = (): Scene => ({
     drawDefaults: {
       drawStroke: "#2f3b52",
       markerStroke: "#f1e66d",
+      drawStrokeWidth: 2,
+      markerStrokeWidth: 18,
     },
   },
 });

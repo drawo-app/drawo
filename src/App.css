@@ -90,6 +90,21 @@ html.dark .switch-row {
     padding: 8px 8px;
 }
 
+.tool-bar .draw-stroke-trigger:hover {
+    background-color: rgba(var(--text-rgb), .1);
+}
+.tool-bar .draw-stroke-trigger {
+    border: none;
+    background-color: transparent;
+    corner-shape: squircle;
+    border-radius: 24px;
+    display: flex;
+    transition: .1s;
+    height: 40px;
+    width: calc(180px / 1.9)!important;
+    padding: 12px ;
+    color: currentColor;
+}
 .selection-toolbar .select-trigger.draw-stroke-trigger {
     width: 78px;
     justify-content: center;
@@ -101,6 +116,9 @@ html.dark .switch-row {
 .draw-stroke-select-item {
     display: flex;
     padding: 7px 8px !important;
+}
+.tool-bar .draw-stroke-option-line-wrap svg {
+    transform: scaleX(0.4) translateX(-76%);
 }
 
 .draw-stroke-option-line-wrap svg {

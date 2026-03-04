@@ -16,7 +16,20 @@ import {
 import { MarkerIcon, PenIcon } from "./Draw/icons";
 import { invertLightnessPreservingHue } from "../../canvas/color";
 import Chrome from "@uiw/react-color-chrome";
-import { STROKE_COLORS } from "../../canvas/constants";
+import {
+  DRAW_STROKE_OPTIONS,
+  DRAW_STROKE_PREVIEWS,
+  MARKER_STROKE_OPTIONS,
+  MARKER_STROKE_PREVIEWS,
+  STROKE_COLORS,
+} from "../../canvas/constants";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../../components/select";
 
 interface ToolBarProps {
   interactionMode: "select" | "pan";
@@ -27,10 +40,16 @@ interface ToolBarProps {
   drawDefaults: {
     drawStroke: string;
     markerStroke: string;
+    drawStrokeWidth: number;
+    markerStrokeWidth: number;
   };
   onDrawDefaultStrokeColorChange: (
     drawMode: "draw" | "marker",
     strokeColor: string,
+  ) => void;
+  onDrawDefaultStrokeWidthChange: (
+    drawMode: "draw" | "marker",
+    strokeWidth: number,
   ) => void;
 }
 
@@ -42,6 +61,7 @@ export const ToolBar = ({
   setDrawingTool,
   drawDefaults,
   onDrawDefaultStrokeColorChange,
+  onDrawDefaultStrokeWidthChange,
 }: ToolBarProps) => {
   const [isColorPickerOpen, setIsColorPickerOpen] = useState(false);
   const [colorPickerColor, setColorPickerColor] = useState(
@@ -49,6 +69,11 @@ export const ToolBar = ({
       ? drawDefaults.markerStroke
       : drawDefaults.drawStroke,
   );
+
+  const strokeOptions =
+    drawingTool === "marker" ? MARKER_STROKE_OPTIONS : DRAW_STROKE_OPTIONS;
+  const strokePreviews =
+    drawingTool === "marker" ? MARKER_STROKE_PREVIEWS : DRAW_STROKE_PREVIEWS;
 
   const uniColor = (color: string) =>
     document.documentElement.classList.contains("dark")
@@ -69,6 +94,33 @@ export const ToolBar = ({
     }
   };
 
+  const renderDrawStrokePreview = (
+    previews: typeof DRAW_STROKE_PREVIEWS,
+    index: number,
+  ) => {
+    const preview = previews[index] ?? previews[0];
+    if (!preview) {
+      return null;
+    }
+
+    return (
+      <svg
+        width={preview.width}
+        height={preview.height}
+        viewBox={preview.viewBox}
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <path
+          d={preview.path}
+          stroke="currentColor"
+          strokeWidth={preview.strokeWidth}
+          strokeLinecap="round"
+        />
+      </svg>
+    );
+  };
+
   const drawTools = ["draw", "marker"];
   return (
     <div className="tool-bar">
@@ -82,6 +134,7 @@ export const ToolBar = ({
                 onClick={() => {
                   setInteractionMode("select");
                   setDrawingTool("draw");
+                  setIsColorPickerOpen(false);
                 }}
               >
                 <PenIcon
@@ -102,6 +155,7 @@ export const ToolBar = ({
                 onClick={() => {
                   setInteractionMode("select");
                   setDrawingTool("marker");
+                  setIsColorPickerOpen(false);
                 }}
               >
                 <MarkerIcon
@@ -120,9 +174,14 @@ export const ToolBar = ({
               key={color}
               className="drawo-colorselect-item"
               onClick={() => {
-                handleColorChange({
-                  hex: color,
-                });
+                color === "multi"
+                  ? setIsColorPickerOpen(!isColorPickerOpen)
+                  : (() => {
+                      setIsColorPickerOpen(false);
+                      handleColorChange({
+                        hex: color,
+                      });
+                    })();
               }}
             >
               {/* onPointerDown={
@@ -191,41 +250,80 @@ export const ToolBar = ({
               </div>
             </div>
           ))}
-          {/*
-  <Tooltip open={isColorPickerOpen}>
-    <TooltipTrigger asChild>
-      <div className="color-picker-container">
-        <button
-          type="button"
-          className="color-picker-button"
-          onClick={(e) => {
-            e.stopPropagation();
-            setColorPickerColor(currentColor);
-            setIsColorPickerOpen(true);
-          }}
-        >
-          <div
-            className="color-preview"
-            style={{
-              backgroundColor: currentColor,
+
+          <Tooltip open={isColorPickerOpen}>
+            <TooltipTrigger asChild>
+              <span style={{ opacity: 0 }}>.</span>
+            </TooltipTrigger>
+            <TooltipContent
+              className="drawo-content-color inferior"
+              side="bottom"
+              style={{ background: "transparent", padding: 0 }}
+              onPointerDown={(event) => event.stopPropagation()}
+            >
+              <Chrome color={colorPickerColor} onChange={handleColorChange} />
+            </TooltipContent>
+          </Tooltip>
+
+          <div className="tool-separator" />
+
+          <Select
+            value={String(
+              drawingTool === "marker"
+                ? drawDefaults.markerStrokeWidth
+                : drawDefaults.drawStrokeWidth,
+            )}
+            onValueChange={(value) => {
+              const drawMode = drawingTool === "marker" ? "marker" : "draw";
+              onDrawDefaultStrokeWidthChange(drawMode, Number(value));
             }}
-          />
-        </button>
-      </div>
-    </TooltipTrigger>
-    <TooltipContent
-      className="drawo-content-color inferior"
-      side="bottom"
-      style={{ background: "transparent", padding: 0 }}
-      onPointerDown={(event) => event.stopPropagation()}
-    >
-      <Chrome
-        color={colorPickerColor}
-        onChange={handleColorChange}
-        presetColors={STROKE_COLORS.filter(c => c !== "multi")}
-      />
-    </TooltipContent>
-  </Tooltip> */}
+          >
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <SelectTrigger
+                  noArrow
+                  className="draw-stroke-trigger"
+                  style={{
+                    gap: "0px",
+                    width: "fit-content",
+                  }}
+                >
+                  <span className="draw-stroke-option-line-wrap">
+                    {(() => {
+                      const currentWidth =
+                        drawingTool === "marker"
+                          ? drawDefaults.markerStrokeWidth
+                          : drawDefaults.drawStrokeWidth;
+                      const index = Math.max(
+                        0,
+                        strokeOptions.findIndex(
+                          (option) => option === currentWidth,
+                        ),
+                      );
+                      return renderDrawStrokePreview(strokePreviews, index);
+                    })()}
+                  </span>
+                </SelectTrigger>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>{messages.selectionBar?.strokeWidth || "Stroke Width"}</p>
+              </TooltipContent>
+            </Tooltip>
+            <SelectContent position="popper">
+              {strokeOptions.map((strokeWidth, index) => (
+                <SelectItem
+                  key={strokeWidth}
+                  check={false}
+                  value={String(strokeWidth)}
+                  className="draw-stroke-select-item"
+                >
+                  <span className="draw-stroke-option-line-wrap">
+                    {renderDrawStrokePreview(strokePreviews, index)}
+                  </span>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       ) : (
         <></>
