@@ -139,6 +139,7 @@ export const CanvasView = ({
 }: CanvasViewProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const editorWrapRef = useRef<HTMLDivElement>(null);
+  const focusedEditingTextIdRef = useRef<string | null>(null);
   const [editingText, setEditingText] = useState<EditingTextState | null>(null);
   const [editingDocument, setEditingDocument] =
     useState<RichTextDocument | null>(null);
@@ -2523,16 +2524,23 @@ export const CanvasView = ({
   });
 
   useEffect(() => {
-    if (!editingText || !editingDocument) {
+    if (!editingText) {
+      focusedEditingTextIdRef.current = null;
       return;
     }
+
+    if (focusedEditingTextIdRef.current === editingText.id) {
+      return;
+    }
+
+    focusedEditingTextIdRef.current = editingText.id;
 
     requestAnimationFrame(() => {
       ReactEditor.focus(editor);
       const end = Editor.end(editor, []);
       Transforms.select(editor, end);
     });
-  }, [editor, editingDocument, editingText]);
+  }, [editor, editingText]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
