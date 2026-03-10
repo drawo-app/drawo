@@ -418,6 +418,9 @@ html.dark .selection-toolbar {
     box-shadow: none !important;
     transform: translateY(60px) !important;
 }
+.drawo-content-color.inferior {
+    transform: translateY(-20px) !important;
+}
 .dark .drawo-content-color .w-color-chrome {
     --github-background-color: #111 !important;
 }

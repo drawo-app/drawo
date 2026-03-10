@@ -239,7 +239,9 @@ export const ToolBar = ({
               <div
                 style={{
                   border:
-                    currentColor === color
+                    currentColor === color ||
+                    (color === "multi" &&
+                      !STROKE_COLORS.includes(currentColor as any))
                       ? "2px solid var(--accent)"
                       : "2px solid transparent",
                   borderRadius: "100%",
