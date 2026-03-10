@@ -32,19 +32,22 @@ export interface DrawStrokePreview {
   viewBox: string;
   path: string;
   fill?: string;
+  stroke?: string;
   strokeWidth?: number;
+  strokeLinecap?: CanvasLineCap;
+  strokeLinejoin?: CanvasLineJoin;
 }
 
-export const LINE_STROKELINECAPS: any[] = [
+export const LINE_STROKELINECAPS = [
   "none",
   "line arrow",
   "triangle arrow",
   "inverted triangle",
   "circular arrow",
   "diamond arrow",
-];
+] as const;
 
-export const LINE_STROKELINECAPS_PREVIEWS: any[] = [
+export const LINE_STROKELINECAPS_PREVIEWS: DrawStrokePreview[] = [
   {
     width: 104,
     height: 42,

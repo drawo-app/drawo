@@ -1,4 +1,4 @@
-import { useMemo, useState, type Dispatch, type SetStateAction } from "react";
+import { useCallback, useState, type Dispatch, type SetStateAction } from "react";
 import type { LocaleCode, LocaleMessages } from "../../i18n";
 import { isLocaleCode } from "../../i18n";
 import { type Scene, updateSceneSettings } from "../../core/scene";
@@ -8,12 +8,11 @@ import {
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "../../components/dropdown-menu";
 import { Moon, PaperBin, Sun } from "@solar-icons/react";
-import { Check, LayoutCells, SquareDashedCircle } from "@gravity-ui/icons";
+import { LayoutCells, SquareDashedCircle } from "@gravity-ui/icons";
 import {
   Select,
   SelectContent,
@@ -33,7 +32,6 @@ import {
 
 interface SettingsBarProps {
   scene: Scene;
-  isDarkMode: boolean;
   locale: LocaleCode;
   messages: LocaleMessages;
   setLocale: Dispatch<SetStateAction<LocaleCode>>;
@@ -42,7 +40,6 @@ interface SettingsBarProps {
 
 export const SettingsBar = ({
   scene,
-  isDarkMode,
   locale,
   messages,
   setLocale,
@@ -51,22 +48,20 @@ export const SettingsBar = ({
   const [isClearDialogOpen, setIsClearDialogOpen] = useState(false);
   const hasElements = scene.elements.length > 0;
 
-  const handleClearCanvas = useMemo(() => {
-    return () => {
-      setScene((currentScene) => {
-        if (currentScene.elements.length === 0) {
-          return currentScene;
-        }
+  const handleClearCanvas = useCallback(() => {
+    setScene((currentScene) => {
+      if (currentScene.elements.length === 0) {
+        return currentScene;
+      }
 
-        return {
-          ...currentScene,
-          elements: [],
-          selectedId: null,
-          selectedIds: [],
-        };
-      });
-      setIsClearDialogOpen(false);
-    };
+      return {
+        ...currentScene,
+        elements: [],
+        selectedId: null,
+        selectedIds: [],
+      };
+    });
+    setIsClearDialogOpen(false);
   }, [setScene]);
 
   return (
@@ -194,66 +189,3 @@ export const SettingsBar = ({
     </div>
   );
 };
-
-{
-  /*   <label className="switch-row">
-  <input
-    type="checkbox"
-    checked={scene.settings.showGrid}
-    onChange={(event) =>
-      setScene((currentScene) =>
-        updateSceneSettings(currentScene, {
-          showGrid: event.target.checked,
-        }),
-      )
-    }
-  />
-  <span>{messages.settings.showGrid}</span>
-</label>
-
-<label className="switch-row">
-  <input
-    type="checkbox"
-    checked={scene.settings.snapToGrid}
-    onChange={(event) =>
-      setScene((currentScene) =>
-        updateSceneSettings(currentScene, {
-          snapToGrid: event.target.checked,
-        }),
-      )
-    }
-  />
-  <span>{messages.settings.snapToGrid}</span>
-</label>
-
-<label className="switch-row">
-  <input
-    type="checkbox"
-    checked={isDarkMode}
-    onChange={(event) =>
-      setScene((currentScene) =>
-        updateSceneSettings(currentScene, {
-          theme: event.target.checked ? "dark" : "light",
-        }),
-      )
-    }
-  />
-  <span>{messages.settings.darkMode}</span>
-</label>
-
-<label className="switch-row">
-  <span>{messages.settings.language}</span>
-  <select
-    value={locale}
-    onChange={(event) => {
-      const next = event.target.value;
-      if (isLocaleCode(next)) {
-        setLocale(next);
-      }
-    }}
-  >
-    <option value="en_US">{messages.localeNames.en_US}</option>
-    <option value="es_ES">{messages.localeNames.es_ES}</option>
-  </select>
-</label> */
-}

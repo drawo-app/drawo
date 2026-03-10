@@ -78,16 +78,19 @@ function ContextMenuContent({
 function ContextMenuItem({
   className,
   inset,
+  disabled = false,
   variant = "default",
   ...props
 }: React.ComponentProps<typeof ContextMenuPrimitive.Item> & {
   inset?: boolean;
+  disabled?: boolean;
   variant?: "default" | "destructive";
 }) {
   return (
     <ContextMenuPrimitive.Item
       data-slot="context-menu-item"
       data-inset={inset}
+      data-disabled={disabled}
       data-variant={variant}
       className={"drawo-contextmenu-item" + (className ? " " + className : "")}
       {...props}

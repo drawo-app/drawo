@@ -8,6 +8,10 @@ import {
   type SetStateAction,
 } from "react";
 import {
+  duplicateSelectedElements,
+  pasteElementsIntoScene,
+  removeSelectedElement,
+  reorderSelectedElements,
   type NewElementType,
   type Scene,
   updateRectangleElementsBorderRadius,
@@ -213,6 +217,63 @@ export default function App() {
     [setScene],
   );
 
+  const handleCopySelection = useCallback(() => {
+    const selectedIds =
+      scene.selectedIds.length > 0
+        ? scene.selectedIds
+        : scene.selectedId
+          ? [scene.selectedId]
+          : [];
+
+    if (selectedIds.length === 0) {
+      return;
+    }
+
+    clipboardRef.current = scene.elements
+      .filter((element) => selectedIds.includes(element.id))
+      .map((element) => ({ ...element }));
+    pasteOffsetRef.current = 0;
+  }, [scene]);
+
+  const handleCutSelection = useCallback(() => {
+    handleCopySelection();
+    setScene((currentScene) => removeSelectedElement(currentScene));
+  }, [handleCopySelection, setScene]);
+
+  const handlePasteAt = useCallback(
+    (x: number, y: number) => {
+      const clipboardElements = clipboardRef.current;
+      if (!clipboardElements || clipboardElements.length === 0) {
+        return;
+      }
+
+      setScene((currentScene) =>
+        pasteElementsIntoScene(currentScene, clipboardElements, {
+          anchorX: x,
+          anchorY: y,
+        }),
+      );
+    },
+    [setScene],
+  );
+
+  const handleDuplicateSelection = useCallback(() => {
+    setScene((currentScene) => duplicateSelectedElements(currentScene));
+  }, [setScene]);
+
+  const handleDeleteSelection = useCallback(() => {
+    setScene((currentScene) => removeSelectedElement(currentScene));
+  }, [setScene]);
+
+  const handleReorderSelection = useCallback(
+    (direction: "forward" | "backward" | "front" | "back") => {
+      setScene((currentScene) =>
+        reorderSelectedElements(currentScene, direction),
+      );
+    },
+    [setScene],
+  );
+
   useEffect(() => {
     if (isDarkMode) {
       document.documentElement.classList.add("dark");
@@ -228,7 +289,6 @@ export default function App() {
           <div className="drawo-topbar-left">
             <SettingsBar
               scene={scene}
-              isDarkMode={isDarkMode}
               locale={locale}
               messages={messages}
               setLocale={setLocale}
@@ -284,6 +344,12 @@ export default function App() {
           onLineEditStart={handleLineEditStart}
           onLineGeometryChange={handleLineGeometryChange}
           onRectangleBorderRadiusChange={handleRectangleBorderRadiusChange}
+          onCopySelection={handleCopySelection}
+          onCutSelection={handleCutSelection}
+          onPasteAt={handlePasteAt}
+          onDuplicateSelection={handleDuplicateSelection}
+          onDeleteSelection={handleDeleteSelection}
+          onReorderSelection={handleReorderSelection}
           localeMessages={messages}
         />
 

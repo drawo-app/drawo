@@ -3,6 +3,7 @@ import {
   estimateTextHeight,
   estimateTextWidth,
   getTextStartX,
+  createElementId,
 } from "../core/elements";
 import { findHitElement } from "../core/hitTest";
 import {
@@ -75,10 +76,9 @@ export const useInteraction = ({
   }, [scene]);
 
   const createClonedElement = (element: SceneElement): SceneElement => {
-    const clonedId = `${element.type}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
     return {
       ...element,
-      id: clonedId,
+      id: createElementId(element.type),
     };
   };
 

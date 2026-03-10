@@ -28,7 +28,6 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
 } from "../../components/select";
 
 interface ToolBarProps {
@@ -97,6 +96,9 @@ export const ToolBar = ({
       : drawingTool === "quill"
         ? drawDefaults.quillStroke
         : drawDefaults.drawStroke;
+  const isPresetCurrentColor = STROKE_COLORS.some(
+    (strokeColor) => strokeColor !== "multi" && strokeColor === currentColor,
+  );
 
   const handleColorChange = (color: { hexa?: string; hex?: string }) => {
     const next = color.hexa || color.hex;
@@ -209,39 +211,22 @@ export const ToolBar = ({
               key={color}
               className="drawo-colorselect-item"
               onClick={() => {
-                color === "multi"
-                  ? setIsColorPickerOpen(!isColorPickerOpen)
-                  : (() => {
-                      setIsColorPickerOpen(false);
-                      handleColorChange({
-                        hex: color,
-                      });
-                    })();
+                if (color === "multi") {
+                  setIsColorPickerOpen((current) => !current);
+                  return;
+                }
+
+                setIsColorPickerOpen(false);
+                handleColorChange({
+                  hex: color,
+                });
               }}
             >
-              {/* onPointerDown={
-                color === "multi"
-                  ? (event) => {
-                      event.preventDefault();
-                      event.stopPropagation();
-                      openCustomDrawColorPicker(selectedDrawStrokeColor);
-                    }
-                  : undefined
-              }
-              onSelect={
-                color === "multi"
-                  ? (event) => {
-                      event.preventDefault();
-                      openCustomDrawColorPicker(selectedDrawStrokeColor);
-                    }
-                  : undefined
-              } */}
               <div
                 style={{
                   border:
                     currentColor === color ||
-                    (color === "multi" &&
-                      !STROKE_COLORS.includes(currentColor as any))
+                    (color === "multi" && !isPresetCurrentColor)
                       ? "2px solid var(--accent)"
                       : "2px solid transparent",
                   borderRadius: "100%",

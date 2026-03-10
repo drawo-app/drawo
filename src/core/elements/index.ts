@@ -18,6 +18,7 @@ export type { TextElement } from "./text";
 export type { LineCap, LineElement } from "./line";
 
 export { hitTestCircle } from "./circle";
+export { createElementId } from "./createId";
 export { hitTestDraw } from "./draw";
 export { hitTestRectangle } from "./rectangle";
 export { hitTestLine } from "./line";

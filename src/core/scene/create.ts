@@ -1,15 +1,11 @@
 import type { LocaleMessages } from "../../i18n";
-import type { DrawPoint, SceneElement } from "../elements";
+import { createElementId, type DrawPoint, type SceneElement } from "../elements";
 import type {
   DrawElementStyle,
   ElementCreationBounds,
   NewElementType,
   Scene,
 } from "./types";
-
-const createElementId = (type: NewElementType): string => {
-  return `${type}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-};
 
 const smoothDrawPoints = (points: DrawPoint[]): DrawPoint[] => {
   if (points.length <= 2) {

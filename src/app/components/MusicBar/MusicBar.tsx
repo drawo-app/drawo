@@ -18,15 +18,11 @@ import {
   Bolt,
   CloudRain,
   HeadphonesRoundSound,
-  LightbulbBolt,
   MusicNotes,
-  Palette2,
-  PaletteRound,
   Pause,
   Play,
   Radio,
   Rocket2,
-  RulerCrossPen,
   SkipNext,
   SkipPrevious,
   Soundwave,
@@ -35,10 +31,7 @@ import {
   VolumeLoud,
 } from "@solar-icons/react";
 import { CDSVG } from "./CD";
-import {
-  invertLightnessPreservingHue,
-  parseColor,
-} from "../../../canvas/color";
+import { parseColor } from "../../../canvas/color";
 import { MUSIC_BAR_STORAGE_KEY } from "../../state/constants";
 import type { LocaleMessages } from "../../../i18n";
 

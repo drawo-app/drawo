@@ -79,7 +79,7 @@ const getInitialTimerState = (): TimerStoredState => {
 };
 
 export const Timer = ({ isOpen, onOpenChange, messages }: TimerProps) => {
-  const initialState = useMemo(getInitialTimerState, []);
+  const initialState = useMemo(() => getInitialTimerState(), []);
   const [total, setTotal] = useState(initialState.total);
   const [remaining, setRemaining] = useState(initialState.remaining);
   const [running, setRunning] = useState(initialState.running);

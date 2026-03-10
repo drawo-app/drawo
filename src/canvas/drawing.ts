@@ -396,9 +396,7 @@ export const getDrawRenderStyle = (
   };
 };
 
-export const getDrawLineCap = (
-  drawMode: "draw" | "marker" | "quill",
-): CanvasLineCap => {
+export const getDrawLineCap = (): CanvasLineCap => {
   return "round";
 };
 

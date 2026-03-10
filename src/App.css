@@ -52,7 +52,7 @@ html.dark .app-root {
 }
 .settings-bar {
     border-radius: 25px;
-    wdith: fit-content;
+    width: fit-content;
     z-index: 10;
     display: flex;
     corner-shape: squircle;
@@ -586,19 +586,25 @@ html.dark .selection-toolbar {
 }
 
 .drawo-contextmenu-content {
-    background: var(--popover, #fff);
-    color: var(--popover-foreground, #111);
-    min-width: 9rem;
-    border-radius: 0.5rem;
+    background: var(--panel-bg, #fff);
+    color: rgb(var(--text-rgb));
+    min-width: 12rem;
+    border-radius: 24px;
     padding: 4px;
+    font-family: Inter;
     box-shadow: var(--panel-shadow);
 
     z-index: 50;
     max-height: var(--radix-context-menu-content-available-height);
     transform-origin: var(--radix-context-menu-content-transform-origin);
     overflow-x: hidden;
+    corner-shape: squircle;
     overflow-y: auto;
-    border: 1px solid rgba(0, 0, 0, 0.1);
+    border: 1px solid var(--panel-border);
+}
+.dark .drawo-contextmenu-content,
+.dark .drawo-contextmenu-subcontent {
+    background: var(--popover-dark, #1f1f1f) !important;
 }
 
 .drawo-contextmenu-item,
@@ -608,34 +614,44 @@ html.dark .selection-toolbar {
     display: flex;
     align-items: center;
     gap: 6px;
-    border-radius: 6px;
-    padding: 4px 6px;
-    font-size: 14px;
-    cursor: default;
+    border-radius: 28px;
+    corner-shape: squircle;
+    padding: 8px 12px;
+    font-size: 16px;
+    cursor: pointer;
     outline: none;
     user-select: none;
 }
 
-.drawo-contextmenu-item:focus,
-.drawo-contextmenu-subtrigger:focus,
-.drawo-contextmenu-checkboxitem:focus,
-.drawo-contextmenu-radioitem:focus {
-    background: var(--accent, #eee);
-    color: var(--accent-foreground, #000);
+.drawo-contextmenu-item[data-disabled="true"],
+.drawo-contextmenu-subtrigger[data-disabled="true"],
+.drawo-contextmenu-checkboxitem[data-disabled="true"],
+.drawo-contextmenu-radioitem[data-disabled="true"] {
+    cursor: not-allowed;
+    opacity: 0.5;
+}
+
+.drawo-contextmenu-item:not([data-disabled="true"]):focus,
+.drawo-contextmenu-subtrigger:not([data-disabled="true"]):focus,
+.drawo-contextmenu-checkboxitem:not([data-disabled="true"]):focus,
+.drawo-contextmenu-radioitem:not([data-disabled="true"]):focus {
+    background: rgba(var(--text-rgb), 0.1);
 }
 
 .drawo-contextmenu-subcontent {
-    background: var(--popover, #fff);
-    color: var(--popover-foreground, #111);
-    min-width: 8rem;
-    border-radius: 0.5rem;
+    background: var(--panel-bg, #fff);
+    color: rgb(var(--text-rgb));
+    min-width: 12rem;
+    border-radius: 24px;
     padding: 4px;
+    font-family: Inter;
     box-shadow: var(--panel-shadow);
-
+    
     z-index: 50;
     transform-origin: var(--radix-context-menu-content-transform-origin);
     overflow: hidden;
-    border: 1px solid rgba(0, 0, 0, 0.1);
+    corner-shape: squircle;
+    border: 1px solid var(--panel-border);
 }
 
 .drawo-contextmenu-label {
@@ -647,8 +663,8 @@ html.dark .selection-toolbar {
 
 .drawo-contextmenu-separator {
     height: 1px;
-    margin: 4px 0;
-    background: #e5e5e5;
+    margin: 3px 8px;
+    background: rgba(var(--text-rgb), 0.1);
 }
 
 .drawo-contextmenu-shortcut {
@@ -666,6 +682,8 @@ html.dark .selection-toolbar {
 
 .drawo-contextmenu-chevron {
     margin-left: auto;
+    scale: 0.9;
+    stroke-width: 1.4;
 }
 
 /**

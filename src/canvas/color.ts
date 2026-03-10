@@ -88,14 +88,12 @@ const rgbToHsl = ({ r, g, b }: RgbaColor) => {
   const saturation =
     lightness > 0.5 ? delta / (2 - max - min) : delta / (max + min);
 
-  let hue = 0;
-  if (max === rn) {
-    hue = (gn - bn) / delta + (gn < bn ? 6 : 0);
-  } else if (max === gn) {
-    hue = (bn - rn) / delta + 2;
-  } else {
-    hue = (rn - gn) / delta + 4;
-  }
+  const hue =
+    max === rn
+      ? (gn - bn) / delta + (gn < bn ? 6 : 0)
+      : max === gn
+        ? (bn - rn) / delta + 2
+        : (rn - gn) / delta + 4;
 
   return { hue: hue / 6, saturation, lightness };
 };
@@ -159,12 +157,12 @@ export const invertLightnessPreservingHue = (value: string): string => {
 };
 
 export const normalizeRgbTriplet = (value: string): string | null => {
-  const channels = value.match(/\d+(?:\.\d+)?/g);
-  if (!channels || channels.length < 3) {
+  const rawChannels = value.match(/\d+(?:\.\d+)?/g);
+  if (!rawChannels || rawChannels.length < 3) {
     return null;
   }
 
-  return channels
+  return rawChannels
     .slice(0, 3)
     .map((channel) => {
       const numeric = Number(channel);

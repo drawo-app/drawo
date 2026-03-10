@@ -87,6 +87,14 @@ export interface CanvasViewProps {
   ) => void;
   onDrawingToolComplete: () => void;
   onSelectElements: (ids: string[]) => void;
+  onCopySelection: () => void;
+  onCutSelection: () => void;
+  onPasteAt: (x: number, y: number) => void;
+  onDuplicateSelection: () => void;
+  onDeleteSelection: () => void;
+  onReorderSelection: (
+    direction: "forward" | "backward" | "front" | "back",
+  ) => void;
   onTextFontFamilyChange: (ids: string[], fontFamily: string) => void;
   onTextFontSizeChange: (ids: string[], fontSize: number) => void;
   onTextFontWeightChange: (ids: string[], fontWeight: string) => void;
