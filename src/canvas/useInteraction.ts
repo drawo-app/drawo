@@ -547,6 +547,16 @@ export const useInteraction = ({
                 };
               }
 
+              if (element.type === "line") {
+                return {
+                  ...element,
+                  x: appliedX,
+                  y: appliedY,
+                  width: appliedWidth,
+                  height: appliedHeight,
+                };
+              }
+
               const scale = Math.max(widthRatio, heightRatio);
               const startFontSize = startElement.fontSize ?? element.fontSize;
               const nextFontSize = Math.max(
@@ -864,6 +874,17 @@ export const useInteraction = ({
             };
           }
 
+          if (element.type === "line") {
+            return {
+              id: element.id,
+              type: element.type,
+              x: bounds.x,
+              y: bounds.y,
+              width: bounds.width,
+              height: bounds.height,
+            };
+          }
+
           return {
             id: element.id,
             type: element.type,
@@ -1152,10 +1173,7 @@ export const useInteraction = ({
   );
 
   const handleLineStartCapChange = useCallback(
-    (
-      ids: string[],
-      startCap: LineCap,
-    ) => {
+    (ids: string[], startCap: LineCap) => {
       setScene((currentScene) => ({
         ...currentScene,
         elements: currentScene.elements.map((element) =>

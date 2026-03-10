@@ -29,6 +29,7 @@ export interface LocaleMessages {
     text: string;
     rectangle: string;
     ellipse: string;
+    line: string;
     draw: string;
     laser: string;
     marker: string;
