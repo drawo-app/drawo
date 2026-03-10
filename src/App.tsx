@@ -134,6 +134,11 @@ export default function App() {
         return;
       }
 
+      // Allow canvas to handle its own zoom
+      if (event.target instanceof HTMLCanvasElement) {
+        return;
+      }
+
       event.preventDefault();
       event.stopPropagation();
     };
@@ -188,6 +193,10 @@ export default function App() {
     handleDrawStrokeColorChange,
     handleDrawDefaultStrokeColorChange,
     handleDrawDefaultStrokeWidthChange,
+    handleLineStartCapChange,
+    handleLineEndCapChange,
+    handleLineEditStart,
+    handleLineGeometryChange,
   } = useInteraction({
     scene,
     setScene,
@@ -270,6 +279,10 @@ export default function App() {
           onDrawStrokeColorChange={handleDrawStrokeColorChange}
           onDrawDefaultStrokeColorChange={handleDrawDefaultStrokeColorChange}
           onDrawDefaultStrokeWidthChange={handleDrawDefaultStrokeWidthChange}
+          onLineStartCapChange={handleLineStartCapChange}
+          onLineEndCapChange={handleLineEndCapChange}
+          onLineEditStart={handleLineEditStart}
+          onLineGeometryChange={handleLineGeometryChange}
           onRectangleBorderRadiusChange={handleRectangleBorderRadiusChange}
           localeMessages={messages}
         />

@@ -6,6 +6,7 @@ import type {
 } from "../core/scene";
 import type {
   CircleElement,
+  LineCap,
   RectangleElement,
   TextElement,
 } from "../core/elements";
@@ -100,6 +101,19 @@ export interface CanvasViewProps {
   onDrawDefaultStrokeWidthChange: (
     drawMode: "draw" | "marker",
     strokeWidth: number,
+  ) => void;
+  onLineStartCapChange: (ids: string[], startCap: LineCap) => void;
+  onLineEndCapChange: (ids: string[], endCap: LineCap) => void;
+  onLineEditStart: () => void;
+  onLineGeometryChange: (
+    id: string,
+    nextGeometry: {
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+      controlPoint: { x: number; y: number } | null;
+    },
   ) => void;
   onRectangleBorderRadiusChange: (ids: string[], borderRadius: number) => void;
   onGroupResizeStart: (

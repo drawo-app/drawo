@@ -28,7 +28,7 @@ import {
   updateTextElementsFontWeight,
   updateTextElementsTextAlign,
 } from "../core/scene";
-import type { SceneElement } from "../core/elements";
+import type { LineCap, SceneElement } from "../core/elements";
 import type { LocaleMessages } from "../i18n";
 import type { ResizeHandle } from "./types";
 import {
@@ -215,7 +215,8 @@ export const useInteraction = ({
         if (
           resizeState.startElement.type === "rectangle" ||
           resizeState.startElement.type === "circle" ||
-          resizeState.startElement.type === "draw"
+          resizeState.startElement.type === "draw" ||
+          resizeState.startElement.type === "line"
         ) {
           const startBounds = {
             x: resizeState.startElement.x,
@@ -273,7 +274,10 @@ export const useInteraction = ({
               altKey,
             );
             const minSize =
-              resizeState.startElement.type === "draw" ? 1 : MIN_ELEMENT_SIZE;
+              resizeState.startElement.type === "draw" ||
+              resizeState.startElement.type === "line"
+                ? 1
+                : MIN_ELEMENT_SIZE;
 
             nextBounds = {
               ...aspectLockedBounds,
@@ -293,13 +297,19 @@ export const useInteraction = ({
                 ? snapValue(nextBounds.y, currentScene.settings.gridSize)
                 : nextBounds.y,
               Math.max(
-                resizeState.startElement.type === "draw" ? 1 : MIN_ELEMENT_SIZE,
+                resizeState.startElement.type === "draw" ||
+                  resizeState.startElement.type === "line"
+                  ? 1
+                  : MIN_ELEMENT_SIZE,
                 currentScene.settings.snapToGrid
                   ? snapValue(nextBounds.width, currentScene.settings.gridSize)
                   : nextBounds.width,
               ),
               Math.max(
-                resizeState.startElement.type === "draw" ? 1 : MIN_ELEMENT_SIZE,
+                resizeState.startElement.type === "draw" ||
+                  resizeState.startElement.type === "line"
+                  ? 1
+                  : MIN_ELEMENT_SIZE,
                 currentScene.settings.snapToGrid
                   ? snapValue(nextBounds.height, currentScene.settings.gridSize)
                   : nextBounds.height,
@@ -607,14 +617,33 @@ export const useInteraction = ({
             const nextX = startElement.x + dx;
             const nextY = startElement.y + dy;
 
+            const appliedX = currentScene.settings.snapToGrid
+              ? snapValue(nextX, currentScene.settings.gridSize)
+              : nextX;
+            const appliedY = currentScene.settings.snapToGrid
+              ? snapValue(nextY, currentScene.settings.gridSize)
+              : nextY;
+
+            if (element.type === "line") {
+              const controlPoint = element.controlPoint
+                ? {
+                    x: appliedX + (element.controlPoint.x - element.x),
+                    y: appliedY + (element.controlPoint.y - element.y),
+                  }
+                : null;
+
+              return {
+                ...element,
+                x: appliedX,
+                y: appliedY,
+                controlPoint,
+              };
+            }
+
             return {
               ...element,
-              x: currentScene.settings.snapToGrid
-                ? snapValue(nextX, currentScene.settings.gridSize)
-                : nextX,
-              y: currentScene.settings.snapToGrid
-                ? snapValue(nextY, currentScene.settings.gridSize)
-                : nextY,
+              x: appliedX,
+              y: appliedY,
             };
           }),
         };
@@ -753,6 +782,23 @@ export const useInteraction = ({
       }
 
       if (element.type === "draw") {
+        resizeStateRef.current = {
+          id,
+          handle,
+          startPointerX: pointerX,
+          startPointerY: pointerY,
+          startElement: {
+            type: element.type,
+            x: element.x,
+            y: element.y,
+            width: element.width,
+            height: element.height,
+          },
+        };
+        return;
+      }
+
+      if (element.type === "line") {
         resizeStateRef.current = {
           id,
           handle,
@@ -923,14 +969,30 @@ export const useInteraction = ({
           ? snapValue(y, currentScene.settings.gridSize)
           : y;
 
-        const nextBounds = bounds
-          ? {
-              x: currentScene.settings.snapToGrid
-                ? snapValue(bounds.x, currentScene.settings.gridSize)
-                : bounds.x,
-              y: currentScene.settings.snapToGrid
-                ? snapValue(bounds.y, currentScene.settings.gridSize)
-                : bounds.y,
+        let nextBounds: ElementCreationBounds | undefined;
+
+        if (bounds) {
+          const snapCoord = (value: number): number =>
+            currentScene.settings.snapToGrid
+              ? snapValue(value, currentScene.settings.gridSize)
+              : value;
+
+          if (type === "line") {
+            const startX = snapCoord(bounds.x);
+            const startY = snapCoord(bounds.y);
+            const endX = snapCoord(bounds.x + bounds.width);
+            const endY = snapCoord(bounds.y + bounds.height);
+
+            nextBounds = {
+              x: startX,
+              y: startY,
+              width: endX - startX,
+              height: endY - startY,
+            };
+          } else {
+            nextBounds = {
+              x: snapCoord(bounds.x),
+              y: snapCoord(bounds.y),
               width: currentScene.settings.snapToGrid
                 ? Math.max(
                     1,
@@ -943,8 +1005,9 @@ export const useInteraction = ({
                     snapValue(bounds.height, currentScene.settings.gridSize),
                   )
                 : bounds.height,
-            }
-          : undefined;
+            };
+          }
+        }
 
         return addElementToScene(
           currentScene,
@@ -1088,6 +1151,78 @@ export const useInteraction = ({
     [setScene],
   );
 
+  const handleLineStartCapChange = useCallback(
+    (
+      ids: string[],
+      startCap: LineCap,
+    ) => {
+      setScene((currentScene) => ({
+        ...currentScene,
+        elements: currentScene.elements.map((element) =>
+          ids.includes(element.id) && element.type === "line"
+            ? { ...element, startCap }
+            : element,
+        ),
+      }));
+    },
+    [setScene],
+  );
+
+  const handleLineEndCapChange = useCallback(
+    (ids: string[], endCap: LineCap) => {
+      setScene((currentScene) => ({
+        ...currentScene,
+        elements: currentScene.elements.map((element) =>
+          ids.includes(element.id) && element.type === "line"
+            ? { ...element, endCap }
+            : element,
+        ),
+      }));
+    },
+    [setScene],
+  );
+
+  const handleLineEditStart = useCallback(() => {
+    dragStateRef.current = null;
+    resizeStateRef.current = null;
+    groupResizeStateRef.current = null;
+    rotationStateRef.current = null;
+    groupRotationStateRef.current = null;
+    beginInteractionHistory();
+  }, [beginInteractionHistory]);
+
+  const handleLineGeometryChange = useCallback(
+    (
+      id: string,
+      nextGeometry: {
+        x: number;
+        y: number;
+        width: number;
+        height: number;
+        controlPoint: { x: number; y: number } | null;
+      },
+    ) => {
+      setSceneWithoutHistory((currentScene) => ({
+        ...currentScene,
+        elements: currentScene.elements.map((element) => {
+          if (element.id !== id || element.type !== "line") {
+            return element;
+          }
+
+          return {
+            ...element,
+            x: nextGeometry.x,
+            y: nextGeometry.y,
+            width: nextGeometry.width,
+            height: nextGeometry.height,
+            controlPoint: nextGeometry.controlPoint,
+          };
+        }),
+      }));
+    },
+    [setSceneWithoutHistory],
+  );
+
   return {
     handlePointerDown,
     handlePointerMove,
@@ -1111,5 +1246,9 @@ export const useInteraction = ({
     handleDrawStrokeColorChange,
     handleDrawDefaultStrokeColorChange,
     handleDrawDefaultStrokeWidthChange,
+    handleLineStartCapChange,
+    handleLineEndCapChange,
+    handleLineEditStart,
+    handleLineGeometryChange,
   };
 };

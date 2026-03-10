@@ -13,6 +13,11 @@ import {
 } from "../../core/scene";
 import { createElementId } from "../state/ids";
 import type { AppAction } from "../state/types";
+import {
+  MAX_CAMERA_ZOOM,
+  MIN_CAMERA_ZOOM,
+  ZOOM_SENSITIVITY,
+} from "../../canvas/interaction/constants";
 
 interface UseAppKeyboardShortcutsProps {
   scene: Scene;
@@ -162,6 +167,123 @@ export const useAppKeyboardShortcuts = ({
           },
         });
         return;
+      }
+
+      if (hasShortcutModifier && !event.altKey) {
+        const code = event.code;
+        const isZoomIn =
+          key === "+" ||
+          key === "=" ||
+          code === "Equal" ||
+          code === "NumpadAdd";
+        const isZoomOut =
+          key === "-" ||
+          key === "_" ||
+          code === "Minus" ||
+          code === "NumpadSubtract";
+        const isZoomReset =
+          key === "0" || code === "Digit0" || code === "Numpad0";
+
+        if (isZoomIn) {
+          event.preventDefault();
+          dispatch({
+            type: "setScene",
+            trackHistory: false,
+            updater: (currentScene) => {
+              const currentZoom = currentScene.camera.zoom;
+              const zoomFactor = Math.exp(100 * ZOOM_SENSITIVITY);
+              const nextZoom = Math.min(
+                currentZoom * zoomFactor,
+                MAX_CAMERA_ZOOM,
+              );
+
+              if (nextZoom === currentZoom) {
+                return currentScene;
+              }
+
+              const centerX = window.innerWidth / 2;
+              const centerY = window.innerHeight / 2;
+              const worldX = centerX / currentZoom + currentScene.camera.x;
+              const worldY = centerY / currentZoom + currentScene.camera.y;
+
+              return {
+                ...currentScene,
+                camera: {
+                  x: worldX - centerX / nextZoom,
+                  y: worldY - centerY / nextZoom,
+                  zoom: nextZoom,
+                },
+              };
+            },
+          });
+          return;
+        }
+
+        if (isZoomOut) {
+          event.preventDefault();
+          dispatch({
+            type: "setScene",
+            trackHistory: false,
+            updater: (currentScene) => {
+              const currentZoom = currentScene.camera.zoom;
+              const zoomFactor = Math.exp(-100 * ZOOM_SENSITIVITY);
+              const nextZoom = Math.max(
+                currentZoom * zoomFactor,
+                MIN_CAMERA_ZOOM,
+              );
+
+              if (nextZoom === currentZoom) {
+                return currentScene;
+              }
+
+              const centerX = window.innerWidth / 2;
+              const centerY = window.innerHeight / 2;
+              const worldX = centerX / currentZoom + currentScene.camera.x;
+              const worldY = centerY / currentZoom + currentScene.camera.y;
+
+              return {
+                ...currentScene,
+                camera: {
+                  x: worldX - centerX / nextZoom,
+                  y: worldY - centerY / nextZoom,
+                  zoom: nextZoom,
+                },
+              };
+            },
+          });
+          return;
+        }
+
+        if (isZoomReset) {
+          event.preventDefault();
+          dispatch({
+            type: "setScene",
+            trackHistory: false,
+            updater: (currentScene) => {
+              const currentZoom = currentScene.camera.zoom;
+              const nextZoom = 1;
+
+              if (nextZoom === currentZoom) {
+                return currentScene;
+              }
+
+              const centerX = window.innerWidth / 2;
+              const centerY = window.innerHeight / 2;
+              const worldX = centerX / currentZoom + currentScene.camera.x;
+              const worldY = centerY / currentZoom + currentScene.camera.y;
+
+              return {
+                ...currentScene,
+                camera: {
+                  x: worldX - centerX / nextZoom,
+                  y: worldY - centerY / nextZoom,
+                  zoom: nextZoom,
+                },
+              };
+            },
+          });
+          return;
+        }
       }
 
       if (!hasShortcutModifier && !event.altKey) {

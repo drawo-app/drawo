@@ -5,6 +5,40 @@ import { MIN_ELEMENT_SIZE } from "./constants";
 import type { Bounds } from "./types";
 import type { ResizeHandle } from "../types";
 
+const getDrawPadding = (strokeWidth: number, drawMode: "draw" | "marker"): number => {
+  if (drawMode === "marker") {
+    return Math.max(6, strokeWidth * 0.65);
+  }
+
+  return Math.max(3, strokeWidth / 2);
+};
+
+const getLineCapPadding = (
+  cap:
+    | "none"
+    | "line arrow"
+    | "triangle arrow"
+    | "inverted triangle"
+    | "circular arrow"
+    | "diamond arrow",
+  strokeWidth: number,
+): number => {
+  if (
+    cap === "line arrow" ||
+    cap === "triangle arrow" ||
+    cap === "inverted triangle" ||
+    cap === "diamond arrow"
+  ) {
+    return Math.max(8, strokeWidth * 1.5);
+  }
+
+  if (cap === "circular arrow") {
+    return Math.max(4, strokeWidth * 0.75);
+  }
+
+  return 0;
+};
+
 export const snapValue = (value: number, gridSize: number): number => {
   return Math.round(value / gridSize) * gridSize;
 };
@@ -176,11 +210,36 @@ export const getElementBounds = (element: SceneElement): Bounds => {
   }
 
   if (element.type === "draw") {
+    const padding = getDrawPadding(element.strokeWidth, element.drawMode ?? "draw");
     return {
-      x: element.x,
-      y: element.y,
-      width: element.width,
-      height: element.height,
+      x: element.x - padding,
+      y: element.y - padding,
+      width: element.width + padding * 2,
+      height: element.height + padding * 2,
+    };
+  }
+
+  if (element.type === "line") {
+    const startX = element.x;
+    const startY = element.y;
+    const endX = element.x + element.width;
+    const endY = element.y + element.height;
+    const minX = Math.min(startX, endX);
+    const minY = Math.min(startY, endY);
+    const maxX = Math.max(startX, endX);
+    const maxY = Math.max(startY, endY);
+    const strokePadding = Math.max(2, element.strokeWidth / 2);
+    const capPadding = Math.max(
+      getLineCapPadding(element.startCap, element.strokeWidth),
+      getLineCapPadding(element.endCap, element.strokeWidth),
+    );
+    const padding = strokePadding + capPadding;
+
+    return {
+      x: minX - padding,
+      y: minY - padding,
+      width: Math.max(1, maxX - minX) + padding * 2,
+      height: Math.max(1, maxY - minY) + padding * 2,
     };
   }
 

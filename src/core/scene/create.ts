@@ -64,14 +64,24 @@ export const addElementToScene = (
   messages: LocaleMessages,
   bounds?: ElementCreationBounds,
 ): Scene => {
-  const normalizedBounds = bounds
-    ? {
-        x: Math.min(bounds.x, bounds.x + bounds.width),
-        y: Math.min(bounds.y, bounds.y + bounds.height),
-        width: Math.max(1, Math.abs(bounds.width)),
-        height: Math.max(1, Math.abs(bounds.height)),
-      }
-    : null;
+  const normalizedBounds =
+    bounds && type !== "line"
+      ? {
+          x: Math.min(bounds.x, bounds.x + bounds.width),
+          y: Math.min(bounds.y, bounds.y + bounds.height),
+          width: Math.max(1, Math.abs(bounds.width)),
+          height: Math.max(1, Math.abs(bounds.height)),
+        }
+      : null;
+  const lineBounds =
+    bounds && type === "line"
+      ? {
+          x: bounds.x,
+          y: bounds.y,
+          width: bounds.width,
+          height: bounds.height,
+        }
+      : null;
 
   let newElement: SceneElement;
 
@@ -144,6 +154,24 @@ export const addElementToScene = (
       fontStyle: "normal",
       color: "#2f3b52",
       textAlign: "left",
+    };
+  } else if (type === "line") {
+    const width = lineBounds ? lineBounds.width : 100;
+    const height = lineBounds ? lineBounds.height : 0;
+
+    newElement = {
+      id: createElementId("line"),
+      type: "line",
+      rotation: 0,
+      x: lineBounds ? lineBounds.x : x,
+      y: lineBounds ? lineBounds.y : y,
+      width,
+      height,
+      stroke: "#2f3b52",
+      strokeWidth: 2,
+      startCap: "none",
+      endCap: "none",
+      controlPoint: null,
     };
   } else {
     const drawMode = type === "marker" ? "marker" : "draw";

@@ -91,7 +91,7 @@ html.dark .switch-row {
 }
 
 .tool-bar .draw-stroke-trigger:hover {
-    background-color: rgba(var(--text-rgb), .1);
+    background-color: rgba(var(--text-rgb), 0.1);
 }
 .tool-bar .draw-stroke-trigger {
     border: none;
@@ -99,12 +99,13 @@ html.dark .switch-row {
     corner-shape: squircle;
     border-radius: 24px;
     display: flex;
-    transition: .1s;
+    transition: 0.1s;
     height: 40px;
-    width: calc(180px / 1.9)!important;
-    padding: 12px ;
+    width: calc(180px / 1.9) !important;
+    padding: 12px;
     color: currentColor;
 }
+
 .selection-toolbar .select-trigger.draw-stroke-trigger {
     width: 78px;
     justify-content: center;
@@ -413,12 +414,7 @@ html.dark .selection-toolbar {
 [data-slate-node] strong {
     font-weight: 700;
 }
-.drawo-content-color.inferior {
-    box-shadow: none !important;
-    transform: translateY(-10px) !important;
-    
-}
-.drawo-content-color:not(.inferior) {
+.drawo-content-color {
     box-shadow: none !important;
     transform: translateY(60px) !important;
 }
@@ -853,8 +849,8 @@ html.dark .selection-toolbar {
     inset: 0;
     z-index: 5000;
     background: rgba(0, 0, 0, 0.1);
-    backdrop-filter: blur(10px);
-    animation: drawo-fade-in 520ms ease;
+    backdrop-filter: blur(2px);
+    animation: drawo-fade-in 120ms ease;
 }
 
 .dark .drawo-dialog-overlay {

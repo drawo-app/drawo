@@ -18,11 +18,15 @@ import {
   Bolt,
   CloudRain,
   HeadphonesRoundSound,
+  LightbulbBolt,
   MusicNotes,
+  Palette2,
   PaletteRound,
   Pause,
   Play,
   Radio,
+  Rocket2,
+  RulerCrossPen,
   SkipNext,
   SkipPrevious,
   Soundwave,
@@ -44,7 +48,7 @@ const CATEGORY_ICONS = {
   rain: CloudRain,
   chill: TeaCup,
   energy: Bolt,
-  creative: PaletteRound,
+  creative: Rocket2,
   default: Radio,
 } satisfies Record<string, typeof Radio>;
 
@@ -919,9 +923,11 @@ export const MusicBar = ({ isOpen, onOpenChange, messages }: MusicBarProps) => {
             borderRadius: "50%",
             overflow: "hidden",
             zIndex: 5,
-            background: getCategoryColor(stationLabel),
+            backdropFilter: "blur(200px)",
+            background: `linear-gradient(to right, ${getCategoryColor(stationLabel)}, ${getCategoryColor(stationLabel)}50)`,
           }}
         >
+          <p>a</p>
           <ActiveCategoryIcon
             style={{
               width: "50%",
@@ -934,20 +940,6 @@ export const MusicBar = ({ isOpen, onOpenChange, messages }: MusicBarProps) => {
               transform: "translate(-50%, -50%)",
             }}
             weight="BoldDuotone"
-          />
-          <ActiveCategoryIcon
-            style={{
-              width: "180%",
-              color: getCategoryColor(stationLabel),
-              height: "180%",
-              filter: "blur(32px) brightness(0.8)",
-              top: "50%",
-              left: "50%",
-              position: "absolute",
-              zIndex: 5,
-              transform: " translateX(-50%) translateY(-30%)",
-            }}
-            weight="Bold"
           />
         </div>
         <span

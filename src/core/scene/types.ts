@@ -45,7 +45,8 @@ export type NewElementType =
   | "circle"
   | "text"
   | "draw"
-  | "marker";
+  | "marker"
+  | "line";
 
 export const initScene = (): Scene => ({
   elements: [],

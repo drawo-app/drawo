@@ -34,28 +34,58 @@ export const updateRectangleElementBounds = (
       return element;
     }
 
-    if (element.type !== "rectangle" && element.type !== "circle") {
-      if (element.type !== "draw") {
-        return element;
-      }
-
-      const startWidth = Math.max(1, element.width);
-      const startHeight = Math.max(1, element.height);
-      const widthRatio = width / startWidth;
-      const heightRatio = height / startHeight;
-
+    if (element.type === "rectangle" || element.type === "circle") {
       return {
         ...element,
         x,
         y,
         width,
         height,
-        points: element.points.map((point) => ({
-          x: point.x * widthRatio,
-          y: point.y * heightRatio,
-        })),
       };
     }
+
+    if (element.type === "line") {
+      const startUsesMaxX = element.width < 0;
+      const startUsesMaxY = element.height < 0;
+      const nextStartX = startUsesMaxX ? x + width : x;
+      const nextStartY = startUsesMaxY ? y + height : y;
+      const nextEndX = startUsesMaxX ? x : x + width;
+      const nextEndY = startUsesMaxY ? y : y + height;
+
+      const startWidth = element.width === 0 ? 1 : element.width;
+      const startHeight = element.height === 0 ? 1 : element.height;
+      const nextWidth = nextEndX - nextStartX;
+      const nextHeight = nextEndY - nextStartY;
+      const scaledControlPoint = element.controlPoint
+        ? {
+            x:
+              nextStartX +
+              ((element.controlPoint.x - element.x) / startWidth) * nextWidth,
+            y:
+              nextStartY +
+              ((element.controlPoint.y - element.y) / startHeight) *
+                nextHeight,
+          }
+        : null;
+
+      return {
+        ...element,
+        x: nextStartX,
+        y: nextStartY,
+        width: nextEndX - nextStartX,
+        height: nextEndY - nextStartY,
+        controlPoint: scaledControlPoint,
+      };
+    }
+
+    if (element.type !== "draw") {
+      return element;
+    }
+
+    const startWidth = Math.max(1, element.width);
+    const startHeight = Math.max(1, element.height);
+    const widthRatio = width / startWidth;
+    const heightRatio = height / startHeight;
 
     return {
       ...element,
@@ -63,6 +93,10 @@ export const updateRectangleElementBounds = (
       y,
       width,
       height,
+      points: element.points.map((point) => ({
+        x: point.x * widthRatio,
+        y: point.y * heightRatio,
+      })),
     };
   }),
 });

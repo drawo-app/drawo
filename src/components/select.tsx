@@ -58,7 +58,7 @@ function SelectTrigger({
 
 function SelectContent({
   className,
-  children, 
+  children,
   position = "item-aligned",
   align = "center",
   ...props

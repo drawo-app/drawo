@@ -3,6 +3,7 @@ import {
   hitTestDraw,
   hitTestRectangle,
   hitTestText,
+  hitTestLine,
   type SceneElement,
 } from "./elements";
 
@@ -21,6 +22,10 @@ export const hitTestElement = (
 
   if (element.type === "draw") {
     return hitTestDraw(element, pointX, pointY);
+  }
+
+  if (element.type === "line") {
+    return hitTestLine(element, pointX, pointY);
   }
 
   return hitTestText(element, pointX, pointY);

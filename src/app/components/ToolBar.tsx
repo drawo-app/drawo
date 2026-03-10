@@ -1,7 +1,7 @@
 import { useState, type Dispatch, type SetStateAction } from "react";
 import type { NewElementType } from "../../core/scene";
 import type { LocaleMessages } from "../../i18n";
-import { MapArrowUp, Pen, Text } from "@solar-icons/react";
+import { ArrowUp, MapArrowUp, Pen, Text } from "@solar-icons/react";
 import {
   GrabHandLinear,
   LaserIcon,
@@ -113,9 +113,10 @@ export const ToolBar = ({
       >
         <path
           d={preview.path}
-          stroke="currentColor"
+          stroke={preview.strokeWidth ? "currentColor" : undefined}
           strokeWidth={preview.strokeWidth}
-          strokeLinecap="round"
+          strokeLinecap={preview.strokeWidth ? "round" : undefined}
+          fill={preview.fill}
         />
       </svg>
     );
@@ -422,6 +423,24 @@ export const ToolBar = ({
         </TooltipTrigger>
         <TooltipContent>
           <p>{messages.toolNames.ellipse}</p>
+        </TooltipContent>
+      </Tooltip>
+
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button
+            type="button"
+            className={`tool-item${drawingTool === "line" ? " active" : ""}`}
+            onClick={() => {
+              setInteractionMode("select");
+              setDrawingTool("line");
+            }}
+          >
+            <ArrowUp style={{ scale: "1.2" }} strokeWidth={1.1} />
+          </button>
+        </TooltipTrigger>
+        <TooltipContent>
+          <p>{messages.toolNames.line}</p>
         </TooltipContent>
       </Tooltip>
 

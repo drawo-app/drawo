@@ -226,7 +226,10 @@ export const updateDrawElementsStrokeWidth = (
   return {
     ...scene,
     elements: scene.elements.map((element) => {
-      if (!targetIds.has(element.id) || element.type !== "draw") {
+      if (
+        !targetIds.has(element.id) ||
+        (element.type !== "draw" && element.type !== "line")
+      ) {
         return element;
       }
 
@@ -252,7 +255,10 @@ export const updateDrawElementsStrokeColor = (
   return {
     ...scene,
     elements: scene.elements.map((element) => {
-      if (!targetIds.has(element.id) || element.type !== "draw") {
+      if (
+        !targetIds.has(element.id) ||
+        (element.type !== "draw" && element.type !== "line")
+      ) {
         return element;
       }
 

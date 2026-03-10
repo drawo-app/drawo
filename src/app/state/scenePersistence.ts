@@ -70,6 +70,46 @@ const normalizeElement = (element: SceneElement): SceneElement => {
     };
   }
 
+  if (element.type === "line") {
+    const normalizedStartCap =
+      element.startCap === "line arrow" ||
+      element.startCap === "triangle arrow" ||
+      element.startCap === "inverted triangle" ||
+      element.startCap === "circular arrow" ||
+      element.startCap === "diamond arrow"
+        ? element.startCap
+        : "none";
+    const normalizedEndCap =
+      element.endCap === "line arrow" ||
+      element.endCap === "triangle arrow" ||
+      element.endCap === "inverted triangle" ||
+      element.endCap === "circular arrow" ||
+      element.endCap === "diamond arrow"
+        ? element.endCap
+        : "none";
+
+    return {
+      ...element,
+      stroke: typeof element.stroke === "string" ? element.stroke : "#2f3b52",
+      strokeWidth:
+        typeof element.strokeWidth === "number" &&
+        Number.isFinite(element.strokeWidth)
+          ? Math.max(1, element.strokeWidth)
+          : 2,
+      startCap: normalizedStartCap,
+      endCap: normalizedEndCap,
+      controlPoint:
+        element.controlPoint &&
+        typeof element.controlPoint.x === "number" &&
+        typeof element.controlPoint.y === "number"
+          ? {
+              x: element.controlPoint.x,
+              y: element.controlPoint.y,
+            }
+          : null,
+    };
+  }
+
   return element;
 };
 

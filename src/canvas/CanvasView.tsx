@@ -1,4 +1,11 @@
-import { useRef, useEffect, useMemo, useState, useCallback } from "react";
+import {
+  useRef,
+  useEffect,
+  useMemo,
+  useState,
+  useCallback,
+  type CSSProperties,
+} from "react";
 import type { DrawElementStyle } from "../core/scene";
 import {
   estimateTextHeight,
@@ -13,8 +20,11 @@ import {
 import { findHitElement } from "../core/hitTest";
 import type {
   DrawElement,
+  LineCap,
   RectangleElement,
   TextElement,
+  LineElement,
+  SceneElement,
 } from "../core/elements";
 import {
   Select,
@@ -63,6 +73,8 @@ import {
   STROKE_COLORS,
   TEXT_SELECTION_PADDING_PX,
   SHAPE_TEXT_HORIZONTAL_PADDING_PX,
+  LINE_STROKELINECAPS,
+  LINE_STROKELINECAPS_PREVIEWS,
 } from "./constants";
 import {
   invertLightnessPreservingHue,
@@ -130,6 +142,10 @@ export const CanvasView = ({
   onDrawStrokeWidthChange,
   onDrawStrokeColorChange,
   onDrawDefaultStrokeColorChange,
+  onLineStartCapChange,
+  onLineEndCapChange,
+  onLineEditStart,
+  onLineGeometryChange,
   onRectangleBorderRadiusChange,
   onGroupResizeStart,
   onGroupRotateStart,
@@ -179,6 +195,23 @@ export const CanvasView = ({
   >(null);
   const [activeRadiusHandle, setActiveRadiusHandle] =
     useState<ResizeHandle | null>(null);
+  const [hoveredLineHandle, setHoveredLineHandle] = useState<
+    "start" | "end" | "control" | null
+  >(null);
+  const [activeLineHandle, setActiveLineHandle] = useState<
+    "start" | "end" | "control" | null
+  >(null);
+  const lineHandleDragRef = useRef<{
+    id: string;
+    handle: "start" | "end" | "control";
+    startLine: {
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+      controlPoint: { x: number; y: number } | null;
+    };
+  } | null>(null);
   const lastPointerRef = useRef<{ x: number; y: number } | null>(null);
   const panStateRef = useRef<{ screenX: number; screenY: number } | null>(null);
   const isMiddleMousePanningRef = useRef(false);
@@ -451,21 +484,145 @@ export const CanvasView = ({
     };
   }, [isCustomDrawColorPickerOpen]);
 
-  const getElementBounds = (
-    elementId: string,
-    ctx?: CanvasRenderingContext2D,
-    includeTextPadding: boolean = true,
-  ): ElementBounds | null => {
-    const element = scene.elements.find((item) => item.id === elementId);
-    if (!element) {
-      return null;
+  const getLineCapPadding = (cap: LineCap, strokeWidth: number): number => {
+    if (
+      cap === "line arrow" ||
+      cap === "triangle arrow" ||
+      cap === "inverted triangle" ||
+      cap === "diamond arrow"
+    ) {
+      return Math.max(12, strokeWidth * 2);
+    }
+
+    if (cap === "circular arrow") {
+      return Math.max(9, strokeWidth * 1.2);
+    }
+
+    return 0;
+  };
+
+  const getDrawSelectionBounds = (element: DrawElement): ElementBounds => {
+    const padding =
+      element.drawMode === "marker"
+        ? Math.max(6, element.strokeWidth * 0.65)
+        : Math.max(3, element.strokeWidth / 2);
+
+    return {
+      x: element.x - padding,
+      y: element.y - padding,
+      width: element.width + padding * 2,
+      height: element.height + padding * 2,
+    };
+  };
+
+  const getLineSelectionBounds = (element: LineElement): ElementBounds => {
+    const startX = element.x;
+    const startY = element.y;
+    const endX = element.x + element.width;
+    const endY = element.y + element.height;
+    const controlX = element.controlPoint
+      ? element.controlPoint.x
+      : startX + (endX - startX) / 2;
+    const controlY = element.controlPoint
+      ? element.controlPoint.y
+      : startY + (endY - startY) / 2;
+    const curveControlX = controlX * 2 - (startX + endX) * 0.5;
+    const curveControlY = controlY * 2 - (startY + endY) * 0.5;
+    const minX = Math.min(startX, endX, controlX, curveControlX);
+    const minY = Math.min(startY, endY, controlY, curveControlY);
+    const maxX = Math.max(startX, endX, controlX, curveControlX);
+    const maxY = Math.max(startY, endY, controlY, curveControlY);
+    const strokePadding = Math.max(2, element.strokeWidth / 2);
+    const capPadding = Math.max(
+      getLineCapPadding(element.startCap, element.strokeWidth),
+      getLineCapPadding(element.endCap, element.strokeWidth),
+    );
+    const padding = strokePadding + capPadding;
+
+    return {
+      x: minX - padding,
+      y: minY - padding,
+      width: Math.max(1, maxX - minX) + padding * 2,
+      height: Math.max(1, maxY - minY) + padding * 2,
+    };
+  };
+
+  const getLineMidpoint = (line: LineElement) => ({
+    x: line.x + line.width / 2,
+    y: line.y + line.height / 2,
+  });
+
+  const getLinePoints = (line: LineElement) => {
+    const start = { x: line.x, y: line.y };
+    const end = { x: line.x + line.width, y: line.y + line.height };
+    const throughPoint = line.controlPoint ?? getLineMidpoint(line);
+
+    return { start, end, throughPoint };
+  };
+
+  const getLineCurveControlPoint = (
+    start: { x: number; y: number },
+    end: { x: number; y: number },
+    throughPoint: { x: number; y: number },
+  ) => {
+    return {
+      x: throughPoint.x * 2 - (start.x + end.x) * 0.5,
+      y: throughPoint.y * 2 - (start.y + end.y) * 0.5,
+    };
+  };
+
+  const toLineLocalPointer = (
+    line: LineElement,
+    pointX: number,
+    pointY: number,
+  ) => {
+    const center = {
+      x: line.x + line.width / 2,
+      y: line.y + line.height / 2,
+    };
+
+    return rotatePointAroundCenter(
+      pointX,
+      pointY,
+      center.x,
+      center.y,
+      (-line.rotation * Math.PI) / 180,
+    );
+  };
+
+  const getHoveredLineHandle = (
+    line: LineElement,
+    localPointX: number,
+    localPointY: number,
+    zoom: number,
+  ): "start" | "end" | "control" | null => {
+    const { start, end, throughPoint } = getLinePoints(line);
+    const hitRadius = Math.max(7 / zoom, HANDLE_SIZE / (2.3 * zoom));
+
+    if (Math.hypot(localPointX - start.x, localPointY - start.y) <= hitRadius) {
+      return "start";
+    }
+
+    if (Math.hypot(localPointX - end.x, localPointY - end.y) <= hitRadius) {
+      return "end";
     }
 
     if (
-      element.type === "rectangle" ||
-      element.type === "circle" ||
-      element.type === "draw"
+      Math.hypot(localPointX - throughPoint.x, localPointY - throughPoint.y) <=
+      hitRadius
     ) {
+      return "control";
+    }
+
+    return null;
+  };
+
+  const measureElementBounds = (
+    element: SceneElement,
+    ctx?: CanvasRenderingContext2D,
+    includeTextPadding: boolean = true,
+  ): ElementBounds => {
+    if (element.type === "rectangle" || element.type === "circle") {
       return {
         x: element.x,
         y: element.y,
@@ -474,7 +631,15 @@ export const CanvasView = ({
       };
     }
 
-    const width = ctx
+    if (element.type === "draw") {
+      return getDrawSelectionBounds(element);
+    }
+
+    if (element.type === "line") {
+      return getLineSelectionBounds(element);
+    }
+
+    const measuredWidth = ctx
       ? measureRichTextLayout(ctx, element.text, {
           fontFamily: element.fontFamily,
           fontSize: element.fontSize,
@@ -482,13 +647,16 @@ export const CanvasView = ({
           fontStyle: element.fontStyle,
         }).width
       : Math.max(16, estimateTextWidth(element));
-    const startX = getAlignedStartX(element.x, width, element.textAlign);
+    const startX = getAlignedStartX(
+      element.x,
+      measuredWidth,
+      element.textAlign,
+    );
     const textHeight = estimateTextHeight(element);
-
     const baseBounds = {
       x: startX,
       y: element.y - element.fontSize,
-      width,
+      width: measuredWidth,
       height: textHeight,
     };
 
@@ -504,6 +672,19 @@ export const CanvasView = ({
       width: baseBounds.width + padding * 2,
       height: baseBounds.height + padding * 2,
     };
+  };
+
+  const getElementBounds = (
+    elementId: string,
+    ctx?: CanvasRenderingContext2D,
+    includeTextPadding: boolean = true,
+  ): ElementBounds | null => {
+    const element = scene.elements.find((item) => item.id === elementId);
+    if (!element) {
+      return null;
+    }
+
+    return measureElementBounds(element, ctx, includeTextPadding);
   };
 
   const drawResizeHandles = (
@@ -603,6 +784,53 @@ export const CanvasView = ({
     }
   };
 
+  const drawLineEditHandles = (
+    ctx: CanvasRenderingContext2D,
+    line: LineElement,
+    zoom: number,
+    accentColor: string,
+  ) => {
+    const { start, end, throughPoint } = getLinePoints(line);
+    const handles: Array<{
+      key: "start" | "end" | "control";
+      x: number;
+      y: number;
+    }> = [
+      { key: "start", x: start.x, y: start.y },
+      { key: "end", x: end.x, y: end.y },
+      { key: "control", x: throughPoint.x, y: throughPoint.y },
+    ];
+
+    const baseRadius = Math.max(6 / zoom, HANDLE_SIZE / (2.6 * zoom));
+
+    for (const handle of handles) {
+      const isHovered = hoveredLineHandle === handle.key;
+      const isActive = activeLineHandle === handle.key;
+      const scale = isActive ? 1.3 : isHovered ? 1.15 : 1;
+      const radius = baseRadius * scale;
+
+      ctx.save();
+      ctx.fillStyle = toThemeColor("#F4F5F4");
+      ctx.strokeStyle = accentColor;
+      ctx.lineWidth = (isActive ? 2.25 : isHovered ? 1.8 : 1.5) / zoom;
+      ctx.beginPath();
+      ctx.arc(handle.x, handle.y, radius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      if (isActive || isHovered) {
+        ctx.globalAlpha = isActive ? 0.2 : 0.12;
+        ctx.strokeStyle = accentColor;
+        ctx.lineWidth = 5 / zoom;
+        ctx.beginPath();
+        ctx.arc(handle.x, handle.y, radius + 1.5 / zoom, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+
+      ctx.restore();
+    }
+  };
+
   const getSelectionBounds = (
     ids: string[],
     ctx?: CanvasRenderingContext2D,
@@ -642,7 +870,12 @@ export const CanvasView = ({
       return null;
     }
 
-    if (isDraggingElement || activeResizeHandle || activeRotatingHandle) {
+    if (
+      isDraggingElement ||
+      activeResizeHandle ||
+      activeRotatingHandle ||
+      activeLineHandle
+    ) {
       return null;
     }
 
@@ -704,6 +937,10 @@ export const CanvasView = ({
     const selectedElement = scene.elements.find(
       (element) => element.id === selectedElementId,
     );
+
+    if (selectedElement?.type === "line") {
+      return null;
+    }
 
     if (selectedElement?.type === "text") {
       ctx.font = getTextFont(selectedElement);
@@ -820,9 +1057,10 @@ export const CanvasView = ({
       >
         <path
           d={preview.path}
-          stroke="currentColor"
+          stroke={preview.strokeWidth ? "currentColor" : undefined}
           strokeWidth={preview.strokeWidth}
-          strokeLinecap="round"
+          strokeLinecap={preview.strokeWidth ? "round" : undefined}
+          fill={preview.fill}
         />
       </svg>
     );
@@ -1252,9 +1490,451 @@ export const CanvasView = ({
       return <></>;
     }
 
+    const selectedLineElements = scene.elements.filter(
+      (element): element is LineElement =>
+        selectedIds.includes(element.id) && element.type === "line",
+    );
+    const allSameLineStrokeColor =
+      selectedLineElements.length > 0 &&
+      selectedLineElements.every(
+        (element) => element.stroke === selectedLineElements[0].stroke,
+      );
+    const selectedLineStrokeColor = allSameLineStrokeColor
+      ? selectedLineElements[0].stroke
+      : "multi";
+    const selectedLineStrokePreviewColor =
+      selectedLineStrokeColor === "multi"
+        ? (selectedLineElements[0]?.stroke ?? "#2f3b52")
+        : selectedLineStrokeColor;
+    const lineStrokeColorSelectValue = STROKE_COLORS.some(
+      (color) =>
+        color !== "multi" &&
+        color.toLowerCase() === selectedLineStrokeColor.toLowerCase(),
+    )
+      ? selectedLineStrokeColor
+      : "multi";
+    const allSameLineStrokeWidth =
+      selectedLineElements.length > 0 &&
+      selectedLineElements.every(
+        (element) =>
+          element.strokeWidth === selectedLineElements[0].strokeWidth,
+      );
+    const selectedLineStrokeWidth = getClosestDrawStrokeOption(
+      allSameLineStrokeWidth
+        ? selectedLineElements[0].strokeWidth
+        : DRAW_STROKE_OPTIONS[1],
+    );
+
+    const renderLineStrokeColorSelector = () => (
+      <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
+        <div
+          ref={customDrawColorPickerWrapRef}
+          style={{ position: "relative", display: "inline-flex" }}
+        >
+          <Select
+            open={isCustomDrawColorPickerOpen || undefined}
+            value={String(lineStrokeColorSelectValue)}
+            onValueChange={(value) => {
+              if (value === "multi") {
+                openCustomDrawColorPicker(selectedLineStrokePreviewColor);
+                return;
+              }
+
+              setIsCustomDrawColorPickerOpen(false);
+              onDrawStrokeColorChange(
+                selectedLineElements.map((element) => element.id),
+                value,
+              );
+            }}
+          >
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <SelectTrigger
+                  onPointerDown={(event) => {
+                    if (lineStrokeColorSelectValue !== "multi") {
+                      return;
+                    }
+
+                    event.preventDefault();
+                    event.stopPropagation();
+                    openCustomDrawColorPicker(selectedLineStrokePreviewColor);
+                  }}
+                  style={{
+                    gap: "0px",
+                    width: "fit-content",
+                  }}
+                >
+                  <span style={{ width: "0px", overflow: "hidden" }}>
+                    <SelectValue
+                      placeholder={localeMessages.selectionBar.strokeColor}
+                    />
+                  </span>
+                  <div
+                    style={{
+                      width: "20px",
+                      borderRadius: "100%",
+                      border: "1px solid #ffffff20",
+                      height: "20px",
+                      background: uniColor(selectedLineStrokePreviewColor),
+                    }}
+                  />
+                </SelectTrigger>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>{localeMessages.selectionBar.strokeColor}</p>
+              </TooltipContent>
+            </Tooltip>
+            <SelectContent
+              position="popper"
+              className="drawo-colorselect-content"
+            >
+              {STROKE_COLORS.map((color) => (
+                <SelectItem
+                  key={color}
+                  value={color}
+                  className="drawo-colorselect-item"
+                  check={false}
+                  onPointerDown={
+                    color === "multi"
+                      ? (event) => {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          openCustomDrawColorPicker(
+                            selectedLineStrokePreviewColor,
+                          );
+                        }
+                      : undefined
+                  }
+                  onSelect={
+                    color === "multi"
+                      ? (event) => {
+                          event.preventDefault();
+                          openCustomDrawColorPicker(
+                            selectedLineStrokePreviewColor,
+                          );
+                        }
+                      : undefined
+                  }
+                >
+                  <div
+                    style={{
+                      border:
+                        lineStrokeColorSelectValue === color
+                          ? "2px solid var(--accent)"
+                          : "2px solid transparent",
+                      borderRadius: "100%",
+                      padding: "2px",
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: color === "multi" ? "22px" : "20px",
+                        borderRadius: "100%",
+                        border:
+                          color !== "multi" ? "1px solid #ffffff20" : "none",
+                        height: color === "multi" ? "22px" : "20px",
+                        background:
+                          color === "multi"
+                            ? `
+                        radial-gradient(circle at center,
+                          rgba(255,255,255,1) 0%,
+                          rgba(255,255,255,0.85) 10%,
+                          rgba(255,255,255,0.55) 22%,
+                          rgba(255,255,255,0.15) 40%,
+                          transparent 62%
+                        ),
+                        radial-gradient(circle at 36% 32%, rgba(255,255,255,0.35) 0%, transparent 35%),
+                        radial-gradient(circle at 68% 70%, rgba(0,0,0,0.38) 0%, transparent 52%),
+                        conic-gradient(
+                          from 0deg,
+                          hsl(0,   70%, 65%),
+                          hsl(30,  72%, 63%),
+                          hsl(55,  70%, 62%),
+                          hsl(80,  60%, 60%),
+                          hsl(120, 55%, 60%),
+                          hsl(160, 60%, 58%),
+                          hsl(185, 65%, 60%),
+                          hsl(210, 68%, 63%),
+                          hsl(240, 65%, 66%),
+                          hsl(270, 65%, 65%),
+                          hsl(300, 65%, 64%),
+                          hsl(330, 68%, 64%),
+                          hsl(360, 70%, 65%)`
+                            : uniColor(color),
+                      }}
+                    />
+                  </div>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <Tooltip open={isCustomDrawColorPickerOpen}>
+          <TooltipTrigger asChild>
+            <div className="selectionbar-separator" />
+          </TooltipTrigger>
+          <TooltipContent
+            className="drawo-content-color"
+            side="bottom"
+            style={{ background: "transparent" }}
+          >
+            <div
+              ref={customDrawColorPickerContentRef}
+              onPointerDown={(event) => event.stopPropagation()}
+            >
+              <Chrome
+                color={customDrawColorPickerColor}
+                onChange={(color) => {
+                  const next = color.hexa || color.hex;
+                  if (next) {
+                    setCustomDrawColorPickerColor(next);
+                    onDrawStrokeColorChange(
+                      selectedLineElements.map((element) => element.id),
+                      next,
+                    );
+                  }
+                }}
+              />
+            </div>
+          </TooltipContent>
+        </Tooltip>
+      </div>
+    );
+
+    const renderLineCapSelector = () => {
+      const allSameStartCap =
+        selectedLineElements.length > 0 &&
+        selectedLineElements.every(
+          (element) => element.startCap === selectedLineElements[0].startCap,
+        );
+      const allSameEndCap =
+        selectedLineElements.length > 0 &&
+        selectedLineElements.every(
+          (element) => element.endCap === selectedLineElements[0].endCap,
+        );
+
+      const selectedStartCap = allSameStartCap
+        ? selectedLineElements[0].startCap
+        : undefined;
+      const selectedEndCap = allSameEndCap
+        ? selectedLineElements[0].endCap
+        : undefined;
+
+      return (
+        <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
+          <Select
+            value={selectedStartCap || ""}
+            onValueChange={(value) => {
+              onLineStartCapChange(
+                selectedLineElements.map((element) => element.id),
+                value as LineCap,
+              );
+            }}
+          >
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <SelectTrigger>
+                  <SelectValue placeholder="Start cap" />
+                </SelectTrigger>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Line start cap</p>
+              </TooltipContent>
+            </Tooltip>
+            <SelectContent position="popper">
+              {LINE_STROKELINECAPS.map((name, i) => {
+                const prev = LINE_STROKELINECAPS_PREVIEWS[i];
+                return (
+                  <SelectItem
+                    key={`${name}-${i}-start`}
+                    className="arrowlinecap-selectitem"
+                    check={false}
+                    style={
+                      {
+                        cssText: `
+align-items: center!important;
+justify-content: center!important;
+width: fit-content!important
+display: flex;
+padding: 8px 0px!important;
+                      `,
+                      } as CSSProperties
+                    }
+                    value={name}
+                  >
+                    <svg
+                      width={prev.width / 2}
+                      viewBox={prev.viewBox}
+                      fill="none"
+                      style={
+                        {
+                          cssText: `
+                          scale: 0.8;
+                          transform: scaleX(-1)!important;
+                        `,
+                        } as CSSProperties
+                      }
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path
+                        d={prev.path}
+                        strokeWidth={prev.strokeWidth}
+                        strokeLinecap={prev.strokeLinecap}
+                        fill={prev.fill}
+                        stroke={prev.stroke}
+                      />
+                    </svg>
+                  </SelectItem>
+                );
+              })}
+            </SelectContent>
+          </Select>
+
+          <div className="selectionbar-separator" />
+
+          <Select
+            value={selectedEndCap || ""}
+            onValueChange={(value) => {
+              onLineEndCapChange(
+                selectedLineElements.map((element) => element.id),
+                value as LineCap,
+              );
+            }}
+          >
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <SelectTrigger>
+                  <SelectValue placeholder="End cap" />
+                </SelectTrigger>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Line end cap</p>
+              </TooltipContent>
+            </Tooltip>
+            <SelectContent position="popper">
+              {LINE_STROKELINECAPS.map((name, i) => {
+                const prev = LINE_STROKELINECAPS_PREVIEWS[i];
+                return (
+                  <SelectItem
+                    key={`${name}-${i}-end`}
+                    className="arrowlinecap-selectitem"
+                    check={false}
+                    style={
+                      {
+                        cssText: `
+align-items: center!important;
+justify-content: center!important;
+width: fit-content!important
+display: flex;
+padding: 8px 0px!important;
+                      `,
+                      } as CSSProperties
+                    }
+                    value={name}
+                  >
+                    <svg
+                      width={prev.width / 2}
+                      viewBox={prev.viewBox}
+                      fill="none"
+                      style={
+                        {
+                          cssText: `
+                          scale: 0.8;
+                        `,
+                        } as CSSProperties
+                      }
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path
+                        d={prev.path}
+                        strokeWidth={prev.strokeWidth}
+                        strokeLinecap={prev.strokeLinecap}
+                        fill={prev.fill}
+                        stroke={prev.stroke}
+                      />
+                    </svg>
+                  </SelectItem>
+                );
+              })}
+            </SelectContent>
+          </Select>
+        </div>
+      );
+    };
+
+    const renderLineStrokeWidthSelector = () => (
+      <Select
+        value={String(selectedLineStrokeWidth)}
+        onValueChange={(value) => {
+          onDrawStrokeWidthChange(
+            selectedLineElements.map((element) => element.id),
+            Number(value),
+          );
+        }}
+      >
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <SelectTrigger
+              className="draw-stroke-trigger"
+              style={{
+                gap: "0px",
+                width: "fit-content",
+              }}
+            >
+              <span style={{ width: "0px", overflow: "hidden" }}>
+                <SelectValue
+                  placeholder={localeMessages.selectionBar.strokeWidth}
+                />
+              </span>
+              <span className="draw-stroke-option-line-wrap">
+                {renderDrawStrokePreview(
+                  DRAW_STROKE_PREVIEWS,
+                  Math.max(
+                    0,
+                    DRAW_STROKE_OPTIONS.findIndex(
+                      (option) => option === selectedLineStrokeWidth,
+                    ),
+                  ),
+                )}
+              </span>
+            </SelectTrigger>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>{localeMessages.selectionBar.strokeWidth}</p>
+          </TooltipContent>
+        </Tooltip>
+        <SelectContent position="popper">
+          {DRAW_STROKE_OPTIONS.map((strokeWidth, index) => (
+            <SelectItem
+              key={strokeWidth}
+              check={false}
+              value={String(strokeWidth)}
+              className="draw-stroke-select-item"
+            >
+              <span className="draw-stroke-option-line-wrap">
+                {renderDrawStrokePreview(DRAW_STROKE_PREVIEWS, index)}
+              </span>
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    );
+
     if (selectedTextElements.length === 0) {
       if (selectedDrawElements.length > 0) {
         return renderDrawStrokeSelector();
+      }
+
+      if (selectedLineElements.length > 0) {
+        return (
+          <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
+            {renderLineStrokeColorSelector()}
+            {renderLineStrokeWidthSelector()}
+            <div className="selectionbar-separator" />
+            {renderLineCapSelector()}
+          </div>
+        );
       }
 
       if (drawingTool === "draw" || drawingTool === "marker") {
@@ -1644,6 +2324,32 @@ export const CanvasView = ({
       return "grab";
     }
 
+    if (selectedElementId) {
+      const selectedLine = scene.elements.find(
+        (element): element is LineElement =>
+          element.id === selectedElementId && element.type === "line",
+      );
+
+      if (selectedLine) {
+        const localPoint = toLineLocalPointer(selectedLine, pointX, pointY);
+        const hoveredHandle = getHoveredLineHandle(
+          selectedLine,
+          localPoint.x,
+          localPoint.y,
+          camera.zoom,
+        );
+        setHoveredLineHandle(hoveredHandle);
+
+        if (hoveredHandle) {
+          return "pointer";
+        }
+      } else {
+        setHoveredLineHandle(null);
+      }
+    } else {
+      setHoveredLineHandle(null);
+    }
+
     const cornerAction = getHoverCornerAction(pointX, pointY);
     if (cornerAction) {
       setHoveredResizeHandle(
@@ -1710,6 +2416,54 @@ export const CanvasView = ({
       y: Math.min(selection.startY, selection.currentY),
       width: Math.abs(dx),
       height: Math.abs(dy),
+    };
+  };
+
+  const snapLinePointer = (
+    startX: number,
+    startY: number,
+    pointerX: number,
+    pointerY: number,
+  ) => {
+    const dx = pointerX - startX;
+    const dy = pointerY - startY;
+
+    if (dx === 0 && dy === 0) {
+      return { x: pointerX, y: pointerY };
+    }
+
+    const angle = Math.atan2(dy, dx);
+    const snapAngle = Math.round(angle / (Math.PI / 4)) * (Math.PI / 4);
+    const distance = Math.hypot(dx, dy);
+
+    return {
+      x: startX + Math.cos(snapAngle) * distance,
+      y: startY + Math.sin(snapAngle) * distance,
+    };
+  };
+
+  const getLineDrawingSegment = (selection: DrawingSelection) => {
+    if (selection.lockAspect) {
+      const snapped = snapLinePointer(
+        selection.startX,
+        selection.startY,
+        selection.currentX,
+        selection.currentY,
+      );
+
+      return {
+        startX: selection.startX,
+        startY: selection.startY,
+        endX: snapped.x,
+        endY: snapped.y,
+      };
+    }
+
+    return {
+      startX: selection.startX,
+      startY: selection.startY,
+      endX: selection.currentX,
+      endY: selection.currentY,
     };
   };
 
@@ -1986,12 +2740,7 @@ export const CanvasView = ({
 
       if (element.type === "draw") {
         const drawMode = element.drawMode ?? "draw";
-        const bounds = {
-          x: element.x,
-          y: element.y,
-          width: element.width,
-          height: element.height,
-        };
+        const bounds = measureElementBounds(element);
         const center = getBoundsCenter(bounds);
 
         ctx.save();
@@ -2053,7 +2802,7 @@ export const CanvasView = ({
             ? accentSelectionColor
             : accentColor;
           ctx.lineWidth = 1 / camera.zoom;
-          ctx.strokeRect(element.x, element.y, element.width, element.height);
+          ctx.strokeRect(bounds.x, bounds.y, bounds.width, bounds.height);
 
           if (canTransformSelection) {
             drawResizeHandles(ctx, bounds, camera.zoom, accentColor);
@@ -2061,7 +2810,7 @@ export const CanvasView = ({
         } else if (isMarqueePreview) {
           ctx.strokeStyle = accentColor;
           ctx.lineWidth = 1 / camera.zoom;
-          ctx.strokeRect(element.x, element.y, element.width, element.height);
+          ctx.strokeRect(bounds.x, bounds.y, bounds.width, bounds.height);
         }
 
         ctx.restore();
@@ -2268,6 +3017,254 @@ export const CanvasView = ({
         continue;
       }
 
+      if (element.type === "line") {
+        const lineElement = element as LineElement;
+        const { start, end, throughPoint } = getLinePoints(lineElement);
+        const curveControl = getLineCurveControlPoint(start, end, throughPoint);
+        const hasControlPoint = Boolean(lineElement.controlPoint);
+        const capSize = Math.max(10, lineElement.strokeWidth * 1.9);
+        const selectionBounds = measureElementBounds(lineElement);
+        const centerX = start.x + lineElement.width / 2;
+        const centerY = start.y + lineElement.height / 2;
+
+        const drawArrowCap = (
+          ctx: CanvasRenderingContext2D,
+          x: number,
+          y: number,
+          angle: number,
+          isEnd: boolean,
+        ) => {
+          const capLength = capSize * 1.12;
+          const capHalfWidth = capSize * 0.66;
+          const outlineWidth = Math.max(1.1, lineElement.strokeWidth * 0.22);
+          ctx.save();
+          ctx.translate(x, y);
+          ctx.rotate(isEnd ? angle : angle + Math.PI);
+          ctx.fillStyle = toThemeColor(lineElement.stroke);
+          ctx.strokeStyle = toThemeColor(lineElement.stroke);
+          ctx.lineWidth = outlineWidth;
+          ctx.lineJoin = "round";
+          ctx.beginPath();
+          ctx.moveTo(capLength, 0);
+          ctx.lineTo(capLength * 0.04, -capHalfWidth);
+          ctx.lineTo(capLength * 0.04, capHalfWidth);
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+          ctx.restore();
+        };
+
+        const drawLineArrowCap = (
+          ctx: CanvasRenderingContext2D,
+          x: number,
+          y: number,
+          angle: number,
+          isEnd: boolean,
+        ) => {
+          const capLength = capSize * 0.92;
+          const capHalfWidth = capSize * 0.56;
+          ctx.save();
+          ctx.translate(x, y);
+          ctx.rotate(isEnd ? angle : angle + Math.PI);
+          ctx.strokeStyle = toThemeColor(lineElement.stroke);
+          ctx.lineWidth = Math.max(2, lineElement.strokeWidth);
+          ctx.lineCap = "round";
+          ctx.lineJoin = "round";
+          ctx.beginPath();
+          ctx.moveTo(-capLength, -capHalfWidth);
+          ctx.lineTo(0, 0);
+          ctx.lineTo(-capLength, capHalfWidth);
+          ctx.stroke();
+          ctx.restore();
+        };
+
+        const drawInvertedTriangleCap = (
+          ctx: CanvasRenderingContext2D,
+          x: number,
+          y: number,
+          angle: number,
+          isEnd: boolean,
+        ) => {
+          const capLength = capSize * 1.08;
+          const capHalfWidth = capSize * 0.64;
+          const outlineWidth = Math.max(1.1, lineElement.strokeWidth * 0.22);
+          ctx.save();
+          ctx.translate(x, y);
+          ctx.rotate(isEnd ? angle : angle + Math.PI);
+          ctx.fillStyle = toThemeColor(lineElement.stroke);
+          ctx.strokeStyle = toThemeColor(lineElement.stroke);
+          ctx.lineWidth = outlineWidth;
+          ctx.lineJoin = "round";
+          ctx.beginPath();
+          ctx.moveTo(0, 0);
+          ctx.lineTo(capLength, -capHalfWidth);
+          ctx.lineTo(capLength, capHalfWidth);
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+          ctx.restore();
+        };
+
+        const drawCircularArrowCap = (
+          ctx: CanvasRenderingContext2D,
+          x: number,
+          y: number,
+          angle: number,
+          isEnd: boolean,
+        ) => {
+          const radius = capSize * 0.62;
+          ctx.beginPath();
+          ctx.save();
+          ctx.translate(x, y);
+          ctx.rotate(isEnd ? angle : angle + Math.PI);
+          ctx.fillStyle = toThemeColor(lineElement.stroke);
+          ctx.arc(radius, 0, radius, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        };
+
+        const drawDiamondCap = (
+          ctx: CanvasRenderingContext2D,
+          x: number,
+          y: number,
+          angle: number,
+          isEnd: boolean,
+        ) => {
+          const capLength = capSize * 1.3;
+          const capHalfWidth = capSize * 0.6;
+          const outlineWidth = Math.max(1.1, lineElement.strokeWidth * 0.22);
+          ctx.save();
+          ctx.translate(x, y);
+          ctx.rotate(isEnd ? angle : angle + Math.PI);
+          ctx.fillStyle = toThemeColor(lineElement.stroke);
+          ctx.strokeStyle = toThemeColor(lineElement.stroke);
+          ctx.lineWidth = outlineWidth;
+          ctx.lineJoin = "round";
+          ctx.beginPath();
+          ctx.moveTo(0, 0);
+          ctx.lineTo(capLength * 0.5, -capHalfWidth);
+          ctx.lineTo(capLength, 0);
+          ctx.lineTo(capLength * 0.5, capHalfWidth);
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+          ctx.restore();
+        };
+
+        const startTangent = hasControlPoint
+          ? {
+              x: curveControl.x - start.x,
+              y: curveControl.y - start.y,
+            }
+          : {
+              x: end.x - start.x,
+              y: end.y - start.y,
+            };
+        const endTangent = hasControlPoint
+          ? {
+              x: end.x - curveControl.x,
+              y: end.y - curveControl.y,
+            }
+          : {
+              x: end.x - start.x,
+              y: end.y - start.y,
+            };
+        const startAngle = Math.atan2(startTangent.y, startTangent.x);
+        const endAngle = Math.atan2(endTangent.y, endTangent.x);
+
+        ctx.save();
+        if (lineElement.rotation !== 0) {
+          ctx.translate(centerX, centerY);
+          ctx.rotate((lineElement.rotation * Math.PI) / 180);
+          ctx.translate(-centerX, -centerY);
+        }
+
+        // Draw line
+        ctx.strokeStyle = toThemeColor(lineElement.stroke);
+        ctx.lineWidth = lineElement.strokeWidth;
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+        ctx.beginPath();
+        ctx.moveTo(start.x, start.y);
+        if (hasControlPoint) {
+          ctx.quadraticCurveTo(curveControl.x, curveControl.y, end.x, end.y);
+        } else {
+          ctx.lineTo(end.x, end.y);
+        }
+        ctx.stroke();
+
+        // Draw caps
+        const renderLineCap = (
+          cap: LineCap,
+          x: number,
+          y: number,
+          angle: number,
+          isEnd: boolean,
+        ) => {
+          if (cap === "none") {
+            return;
+          }
+
+          if (cap === "line arrow") {
+            drawLineArrowCap(ctx, x, y, angle, isEnd);
+            return;
+          }
+
+          if (cap === "triangle arrow") {
+            drawArrowCap(ctx, x, y, angle, isEnd);
+            return;
+          }
+
+          if (cap === "inverted triangle") {
+            drawInvertedTriangleCap(ctx, x, y, angle, isEnd);
+            return;
+          }
+
+          if (cap === "circular arrow") {
+            drawCircularArrowCap(ctx, x, y, angle, isEnd);
+            return;
+          }
+
+          drawDiamondCap(ctx, x, y, angle, isEnd);
+        };
+
+        renderLineCap(
+          lineElement.startCap,
+          start.x,
+          start.y,
+          startAngle,
+          false,
+        );
+        renderLineCap(lineElement.endCap, end.x, end.y, endAngle, true);
+
+        if (isSelected) {
+          if (isMultiSelection) {
+            ctx.strokeStyle = accentSelectionColor;
+            ctx.lineWidth = 1 / camera.zoom;
+            ctx.strokeRect(
+              selectionBounds.x,
+              selectionBounds.y,
+              selectionBounds.width,
+              selectionBounds.height,
+            );
+          } else if (canTransformSelection) {
+            drawLineEditHandles(ctx, lineElement, camera.zoom, accentColor);
+          }
+        } else if (isMarqueePreview) {
+          ctx.strokeStyle = accentColor;
+          ctx.lineWidth = 1 / camera.zoom;
+          ctx.strokeRect(
+            selectionBounds.x,
+            selectionBounds.y,
+            selectionBounds.width,
+            selectionBounds.height,
+          );
+        }
+
+        ctx.restore();
+        continue;
+      }
+
       if (editingText?.id === element.id) {
         continue;
       }
@@ -2425,6 +3422,17 @@ export const CanvasView = ({
           0,
           Math.PI * 2,
         );
+        ctx.stroke();
+      } else if (drawingSelection.type === "line") {
+        const segment = getLineDrawingSegment(drawingSelection);
+
+        ctx.strokeStyle = accentColor;
+        ctx.lineWidth = 2 / camera.zoom;
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+        ctx.beginPath();
+        ctx.moveTo(segment.startX, segment.startY);
+        ctx.lineTo(segment.endX, segment.endY);
         ctx.stroke();
       } else {
         const fontSize = Math.max(10, Math.round(drawingBounds.height));
@@ -2730,6 +3738,8 @@ export const CanvasView = ({
       e.preventDefault();
       isMiddleMousePanningRef.current = true;
       panStateRef.current = { screenX, screenY };
+      lineHandleDragRef.current = null;
+      setActiveLineHandle(null);
       setActiveRotatingHandle(null);
       setActiveResizeHandle(null);
       setMarqueeSelection(null);
@@ -2742,6 +3752,8 @@ export const CanvasView = ({
 
     if (interactionMode === "pan") {
       panStateRef.current = { screenX, screenY };
+      lineHandleDragRef.current = null;
+      setActiveLineHandle(null);
       setActiveRotatingHandle(null);
       setActiveResizeHandle(null);
       setMarqueeSelection(null);
@@ -2756,6 +3768,9 @@ export const CanvasView = ({
       if (editingText) {
         commitEditingText();
       }
+
+      lineHandleDragRef.current = null;
+      setActiveLineHandle(null);
 
       if (drawingTool === "laser") {
         const now = performance.now();
@@ -2780,6 +3795,16 @@ export const CanvasView = ({
           strokeWidth: drawStyle.strokeWidth,
           drawMode,
           isLine: e.shiftKey,
+        });
+      } else if (drawingTool === "line") {
+        setDrawingSelection({
+          type: "line",
+          startX: pointer.x,
+          startY: pointer.y,
+          currentX: pointer.x,
+          currentY: pointer.y,
+          fromCenter: false,
+          lockAspect: e.shiftKey,
         });
       } else {
         setDrawingSelection({
@@ -2872,11 +3897,55 @@ export const CanvasView = ({
           (element) => element.id === selectedElementId,
         );
 
-        if (selectedElement?.type === "text") {
+        if (selectedElement?.type === "line") {
+          const localPoint = toLineLocalPointer(
+            selectedElement,
+            pointer.x,
+            pointer.y,
+          );
+          const hoveredHandle = getHoveredLineHandle(
+            selectedElement,
+            localPoint.x,
+            localPoint.y,
+            camera.zoom,
+          );
+
+          if (hoveredHandle) {
+            onLineEditStart();
+            lineHandleDragRef.current = {
+              id: selectedElement.id,
+              handle: hoveredHandle,
+              startLine: {
+                x: selectedElement.x,
+                y: selectedElement.y,
+                width: selectedElement.width,
+                height: selectedElement.height,
+                controlPoint: selectedElement.controlPoint ?? null,
+              },
+            };
+            setActiveLineHandle(hoveredHandle);
+            setHoveredLineHandle(hoveredHandle);
+            setActiveRotatingHandle(null);
+            setActiveResizeHandle(null);
+            setIsDraggingElement(false);
+            setIsDuplicateDragging(false);
+            setMarqueeSelection(null);
+            setCanvasCursor("pointer");
+            canvas.setPointerCapture(e.pointerId);
+            return;
+          }
+        }
+
+        if (selectedElement?.type === "line") {
+          // Line transforms are handled by dedicated endpoint/control handles.
+        } else if (selectedElement?.type === "text") {
           ctx.font = getTextFont(selectedElement);
         }
 
-        const bounds = getElementBounds(selectedElementId, ctx, true);
+        const bounds =
+          selectedElement?.type === "line"
+            ? null
+            : getElementBounds(selectedElementId, ctx, true);
         if (bounds) {
           const selectedElement = scene.elements.find(
             (element) => element.id === selectedElementId,
@@ -3167,6 +4236,24 @@ export const CanvasView = ({
             return current;
           }
 
+          if (current.type === "line") {
+            const snappedPoint = e.shiftKey
+              ? snapLinePointer(
+                  current.startX,
+                  current.startY,
+                  pointer.x,
+                  pointer.y,
+                )
+              : pointer;
+
+            return {
+              ...current,
+              currentX: snappedPoint.x,
+              currentY: snappedPoint.y,
+              lockAspect: e.shiftKey,
+            };
+          }
+
           return {
             ...current,
             currentX: pointer.x,
@@ -3186,6 +4273,65 @@ export const CanvasView = ({
       } else {
         setCanvasCursor("crosshair");
       }
+      return;
+    }
+
+    const activeLineDrag = lineHandleDragRef.current;
+    if (activeLineDrag) {
+      const activeLine = scene.elements.find(
+        (element): element is LineElement =>
+          element.id === activeLineDrag.id && element.type === "line",
+      );
+
+      if (activeLine) {
+        const localPointer = toLineLocalPointer(
+          activeLine,
+          pointer.x,
+          pointer.y,
+        );
+        const startPoint = {
+          x: activeLineDrag.startLine.x,
+          y: activeLineDrag.startLine.y,
+        };
+        const endPoint = {
+          x: activeLineDrag.startLine.x + activeLineDrag.startLine.width,
+          y: activeLineDrag.startLine.y + activeLineDrag.startLine.height,
+        };
+
+        let nextStart = startPoint;
+        let nextEnd = endPoint;
+        let nextControl = activeLineDrag.startLine.controlPoint;
+
+        if (activeLineDrag.handle === "start") {
+          nextStart = localPointer;
+        } else if (activeLineDrag.handle === "end") {
+          nextEnd = localPointer;
+        } else {
+          nextControl = { x: localPointer.x, y: localPointer.y };
+        }
+
+        const snap = (value: number) =>
+          scene.settings.snapToGrid
+            ? Math.round(value / scene.settings.gridSize) *
+              scene.settings.gridSize
+            : value;
+
+        const snappedStart = { x: snap(nextStart.x), y: snap(nextStart.y) };
+        const snappedEnd = { x: snap(nextEnd.x), y: snap(nextEnd.y) };
+        const snappedControl = nextControl
+          ? { x: snap(nextControl.x), y: snap(nextControl.y) }
+          : null;
+
+        onLineGeometryChange(activeLineDrag.id, {
+          x: snappedStart.x,
+          y: snappedStart.y,
+          width: snappedEnd.x - snappedStart.x,
+          height: snappedEnd.y - snappedStart.y,
+          controlPoint: snappedControl,
+        });
+      }
+
+      setCanvasCursor("pointer");
       return;
     }
 
@@ -3211,7 +4357,7 @@ export const CanvasView = ({
         const offset = RADIUS_HANDLE_OFFSET_PX / camera.zoom;
         const right = element.x + element.width;
         const bottom = element.y + element.height;
-        let nextRadius = 0;
+        let nextRadius: number;
 
         if (activeRadiusHandle === "nw") {
           nextRadius = Math.min(
@@ -3322,7 +4468,7 @@ export const CanvasView = ({
       if (drawingTool === "laser") {
         activeLaserTrailIdRef.current = null;
       } else if (drawingTool === "draw" || drawingTool === "marker") {
-        if (drawSelection && drawSelection.points.length > 1) {
+        if (drawSelection && drawSelection.points.length >= 1) {
           onCreateDrawElement(drawSelection.points, {
             drawMode: drawSelection.drawMode,
             stroke: drawSelection.stroke,
@@ -3331,14 +4477,38 @@ export const CanvasView = ({
 
         setDrawSelection(null);
       } else if (drawingSelection) {
-        const drawingBounds = getDrawingBounds(drawingSelection);
-        onCreateElement(
-          drawingSelection.type,
-          drawingBounds.x,
-          drawingBounds.y,
-          localeMessages,
-          drawingBounds,
-        );
+        if (drawingSelection.type === "line") {
+          const segment = getLineDrawingSegment(drawingSelection);
+          const length = Math.hypot(
+            segment.endX - segment.startX,
+            segment.endY - segment.startY,
+          );
+
+          if (length >= 1) {
+            onCreateElement(
+              "line",
+              segment.startX,
+              segment.startY,
+              localeMessages,
+              {
+                x: segment.startX,
+                y: segment.startY,
+                width: segment.endX - segment.startX,
+                height: segment.endY - segment.startY,
+              },
+            );
+          }
+        } else {
+          const drawingBounds = getDrawingBounds(drawingSelection);
+          onCreateElement(
+            drawingSelection.type,
+            drawingBounds.x,
+            drawingBounds.y,
+            localeMessages,
+            drawingBounds,
+          );
+        }
+
         setDrawingSelection(null);
         onDrawingToolComplete();
       }
@@ -3353,6 +4523,24 @@ export const CanvasView = ({
         setCanvasCursor("marker");
       } else {
         setCanvasCursor("crosshair");
+      }
+      return;
+    }
+
+    if (lineHandleDragRef.current) {
+      onPointerUp();
+      lineHandleDragRef.current = null;
+      setActiveLineHandle(null);
+
+      const rect = canvas?.getBoundingClientRect();
+      if (rect) {
+        const screenX = e.clientX - rect.left;
+        const screenY = e.clientY - rect.top;
+        const pointer = screenToWorld(screenX, screenY);
+        lastPointerRef.current = pointer;
+        setCanvasCursor(resolveIdleCursor(pointer.x, pointer.y, e.altKey));
+      } else {
+        setCanvasCursor("default");
       }
       return;
     }
@@ -3401,6 +4589,9 @@ export const CanvasView = ({
     setActiveRotatingHandle(null);
     setActiveResizeHandle(null);
     setHoveredResizeHandle(null);
+    lineHandleDragRef.current = null;
+    setActiveLineHandle(null);
+    setHoveredLineHandle(null);
     setIsDraggingElement(false);
     setIsDuplicateDragging(false);
 
@@ -3443,6 +4634,11 @@ export const CanvasView = ({
       return;
     }
 
+    if (lineHandleDragRef.current || activeLineHandle) {
+      setCanvasCursor("pointer");
+      return;
+    }
+
     if (activeRadiusElementId) {
       setCanvasCursor("pointer");
       return;
@@ -3454,6 +4650,7 @@ export const CanvasView = ({
     }
 
     setHoveredResizeHandle(null);
+    setHoveredLineHandle(null);
 
     if (activeRotatingHandle) {
       setCanvasCursor(getRotateCursor(activeRotatingHandle));

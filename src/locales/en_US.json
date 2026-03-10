@@ -27,9 +27,7 @@
     "draw": "Draw",
     "laser": "Laser pointer",
     "marker": "Marker",
-    "pen": "Pen",
-    "penColor": "Pen color",
-    "markerColor": "Marker color"
+    "pen": "Pen"
   },
   "fontFamilies": {
     "simple": "Simple",
@@ -70,6 +68,6 @@
   },
   "canvas": {
     "newText": "New text",
-    "tagline": "OpenSource 1.0 - Coming soon..."
+    "tagline": "Where ideas take shape."
   }
 }

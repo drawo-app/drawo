@@ -57,6 +57,13 @@ export interface ResizeState {
         height: number;
       }
     | {
+        type: "line";
+        x: number;
+        y: number;
+        width: number;
+        height: number;
+      }
+    | {
         type: "text";
         x: number;
         y: number;

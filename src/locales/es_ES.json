@@ -27,9 +27,7 @@
     "draw": "Dibujar",
     "laser": "Puntero láser",
     "marker": "Subrayador",
-    "pen": "Lápiz",
-    "penColor": "Color del lápiz",
-    "markerColor": "Color del subrayador"
+    "pen": "Lápiz"
   },
   "fontFamilies": {
     "simple": "Simple",
@@ -70,6 +68,6 @@
   },
   "canvas": {
     "newText": "Nuevo texto",
-    "tagline": "Versión de código abierto 1.0\nDentro de poco..."
+    "tagline": "Donde las ideas toman forma."
   }
 }
