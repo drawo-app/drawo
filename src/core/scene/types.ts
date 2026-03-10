@@ -14,8 +14,10 @@ export interface SceneSettings {
   drawDefaults: {
     drawStroke: string;
     markerStroke: string;
+    quillStroke: string;
     drawStrokeWidth: number;
     markerStrokeWidth: number;
+    quillStrokeWidth: number;
   };
 }
 
@@ -35,7 +37,7 @@ export interface ElementCreationBounds {
 }
 
 export interface DrawElementStyle {
-  drawMode: "draw" | "marker";
+  drawMode: "draw" | "marker" | "quill";
   stroke: string;
   strokeWidth: number;
 }
@@ -44,6 +46,7 @@ export type NewElementType =
   | "rectangle"
   | "circle"
   | "text"
+  | "quill"
   | "draw"
   | "marker"
   | "line";
@@ -61,8 +64,10 @@ export const initScene = (): Scene => ({
     drawDefaults: {
       drawStroke: "#2f3b52",
       markerStroke: "#f1e66d",
+      quillStroke: "#2f3b52",
       drawStrokeWidth: 2,
       markerStrokeWidth: 18,
+      quillStrokeWidth: 2,
     },
   },
 });

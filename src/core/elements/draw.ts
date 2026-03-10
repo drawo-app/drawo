@@ -1,12 +1,13 @@
 export interface DrawPoint {
   x: number;
   y: number;
+  t?: number;
 }
 
 export interface DrawElement {
   id: string;
   type: "draw";
-  drawMode: "draw" | "marker";
+  drawMode: "draw" | "marker" | "quill";
   createdAt?: number;
   rotation: number;
   x: number;
@@ -91,7 +92,9 @@ export const hitTestDraw = (
   const tolerance =
     draw.drawMode === "marker"
       ? Math.max(8, draw.strokeWidth * 1.35)
-      : Math.max(6, draw.strokeWidth * 2);
+      : draw.drawMode === "quill"
+        ? Math.max(7, draw.strokeWidth * 2.2)
+        : Math.max(6, draw.strokeWidth * 2);
 
   for (let index = 1; index < draw.points.length; index++) {
     const start = draw.points[index - 1];

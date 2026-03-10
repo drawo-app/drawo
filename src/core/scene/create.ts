@@ -27,6 +27,12 @@ const smoothDrawPoints = (points: DrawPoint[]): DrawPoint[] => {
     return {
       x: previous.x * 0.25 + point.x * 0.5 + next.x * 0.25,
       y: previous.y * 0.25 + point.y * 0.5 + next.y * 0.25,
+      t:
+        typeof previous.t === "number" &&
+        typeof point.t === "number" &&
+        typeof next.t === "number"
+          ? previous.t * 0.25 + point.t * 0.5 + next.t * 0.25
+          : point.t,
     };
   });
 
@@ -174,7 +180,8 @@ export const addElementToScene = (
       controlPoint: null,
     };
   } else {
-    const drawMode = type === "marker" ? "marker" : "draw";
+    const drawMode =
+      type === "marker" ? "marker" : type === "quill" ? "quill" : "draw";
     newElement = {
       id: createElementId("draw"),
       type: "draw",
@@ -190,7 +197,12 @@ export const addElementToScene = (
           y: 0,
         },
       ],
-      stroke: drawMode === "marker" ? "#f1e66d" : "#2f3b52",
+      stroke:
+        drawMode === "marker"
+          ? "#f1e66d"
+          : drawMode === "quill"
+            ? "#2f3b52"
+            : "#2f3b52",
       strokeWidth: drawMode === "marker" ? 10 : 2,
     };
   }
@@ -220,14 +232,23 @@ export const addDrawElementToScene = (
       ? style.stroke
       : style?.drawMode === "marker"
         ? scene.settings.drawDefaults.markerStroke
-        : scene.settings.drawDefaults.drawStroke;
-  const drawMode = style?.drawMode === "marker" ? "marker" : "draw";
+        : style?.drawMode === "quill"
+          ? scene.settings.drawDefaults.quillStroke
+          : scene.settings.drawDefaults.drawStroke;
+  const drawMode =
+    style?.drawMode === "marker"
+      ? "marker"
+      : style?.drawMode === "quill"
+        ? "quill"
+        : "draw";
   const strokeWidth =
     typeof style?.strokeWidth === "number" && Number.isFinite(style.strokeWidth)
       ? Math.max(1, style.strokeWidth)
       : drawMode === "marker"
         ? scene.settings.drawDefaults.markerStrokeWidth
-        : scene.settings.drawDefaults.drawStrokeWidth;
+        : drawMode === "quill"
+          ? scene.settings.drawDefaults.quillStrokeWidth
+          : scene.settings.drawDefaults.drawStrokeWidth;
 
   const minX = Math.min(...nextPoints.map((point) => point.x));
   const minY = Math.min(...nextPoints.map((point) => point.y));
@@ -249,6 +270,7 @@ export const addDrawElementToScene = (
     points: nextPoints.map((point) => ({
       x: point.x - minX,
       y: point.y - minY,
+      t: typeof point.t === "number" ? point.t : undefined,
     })),
     stroke,
     strokeWidth,

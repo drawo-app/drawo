@@ -13,7 +13,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "../../components/tooltip";
-import { MarkerIcon, PenIcon } from "./Draw/icons";
+import { MarkerIcon, PenIcon, QuillIcon } from "./Draw/icons";
 import { invertLightnessPreservingHue } from "../../canvas/color";
 import Chrome from "@uiw/react-color-chrome";
 import {
@@ -40,15 +40,17 @@ interface ToolBarProps {
   drawDefaults: {
     drawStroke: string;
     markerStroke: string;
+    quillStroke: string;
     drawStrokeWidth: number;
     markerStrokeWidth: number;
+    quillStrokeWidth: number;
   };
   onDrawDefaultStrokeColorChange: (
-    drawMode: "draw" | "marker",
+    drawMode: "draw" | "marker" | "quill",
     strokeColor: string,
   ) => void;
   onDrawDefaultStrokeWidthChange: (
-    drawMode: "draw" | "marker",
+    drawMode: "draw" | "marker" | "quill",
     strokeWidth: number,
   ) => void;
 }
@@ -64,10 +66,19 @@ export const ToolBar = ({
   onDrawDefaultStrokeWidthChange,
 }: ToolBarProps) => {
   const [isColorPickerOpen, setIsColorPickerOpen] = useState(false);
+  const getActiveDrawMode = () =>
+    drawingTool === "marker"
+      ? "marker"
+      : drawingTool === "quill"
+        ? "quill"
+        : "draw";
+
   const [colorPickerColor, setColorPickerColor] = useState(
     drawingTool === "marker"
       ? drawDefaults.markerStroke
-      : drawDefaults.drawStroke,
+      : drawingTool === "quill"
+        ? drawDefaults.quillStroke
+        : drawDefaults.drawStroke,
   );
 
   const strokeOptions =
@@ -83,13 +94,15 @@ export const ToolBar = ({
   const currentColor =
     drawingTool === "marker"
       ? drawDefaults.markerStroke
-      : drawDefaults.drawStroke;
+      : drawingTool === "quill"
+        ? drawDefaults.quillStroke
+        : drawDefaults.drawStroke;
 
   const handleColorChange = (color: { hexa?: string; hex?: string }) => {
     const next = color.hexa || color.hex;
     if (next) {
       setColorPickerColor(next);
-      const drawMode = drawingTool === "marker" ? "marker" : "draw";
+      const drawMode = getActiveDrawMode();
       onDrawDefaultStrokeColorChange(drawMode, next);
     }
   };
@@ -122,7 +135,7 @@ export const ToolBar = ({
     );
   };
 
-  const drawTools = ["draw", "marker"];
+  const drawTools = ["draw", "marker", "quill"];
   return (
     <div className="tool-bar">
       {drawTools.includes(drawingTool) ? (
@@ -146,6 +159,27 @@ export const ToolBar = ({
             </TooltipTrigger>
             <TooltipContent>
               <p>{messages.toolNames.pen}</p>
+            </TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                className={`drawtool-elem tool-item${drawingTool === "quill" ? " active" : ""}`}
+                onClick={() => {
+                  setInteractionMode("select");
+                  setDrawingTool("quill");
+                  setIsColorPickerOpen(false);
+                }}
+              >
+                <QuillIcon
+                  color={uniColor(drawDefaults.quillStroke)}
+                  className="drawtool-icon "
+                />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>{messages.toolNames.quill}</p>
             </TooltipContent>
           </Tooltip>
           <Tooltip>
@@ -272,10 +306,12 @@ export const ToolBar = ({
             value={String(
               drawingTool === "marker"
                 ? drawDefaults.markerStrokeWidth
-                : drawDefaults.drawStrokeWidth,
+                : drawingTool === "quill"
+                  ? drawDefaults.quillStrokeWidth
+                  : drawDefaults.drawStrokeWidth,
             )}
             onValueChange={(value) => {
-              const drawMode = drawingTool === "marker" ? "marker" : "draw";
+              const drawMode = getActiveDrawMode();
               onDrawDefaultStrokeWidthChange(drawMode, Number(value));
             }}
           >
@@ -294,7 +330,9 @@ export const ToolBar = ({
                       const currentWidth =
                         drawingTool === "marker"
                           ? drawDefaults.markerStrokeWidth
-                          : drawDefaults.drawStrokeWidth;
+                          : drawingTool === "quill"
+                            ? drawDefaults.quillStrokeWidth
+                            : drawDefaults.drawStrokeWidth;
                       const index = Math.max(
                         0,
                         strokeOptions.findIndex(

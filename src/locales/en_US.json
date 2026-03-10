@@ -25,6 +25,7 @@
     "rectangle": "Rectangle",
     "ellipse": "Ellipse",
     "draw": "Draw",
+    "quill": "Quill",
     "laser": "Laser pointer",
     "marker": "Marker",
     "pen": "Pen"

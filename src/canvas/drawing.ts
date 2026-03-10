@@ -101,12 +101,12 @@ const drawMarkerRoundedRectCap = (
   offCtx.rotate(outwardAngle);
 
   offCtx.beginPath();
-  offCtx.moveTo(0, -half);                                         // inner top
-  offCtx.lineTo(extend - cornerR, -half);                          // outer top before corner
+  offCtx.moveTo(0, -half); // inner top
+  offCtx.lineTo(extend - cornerR, -half); // outer top before corner
   offCtx.quadraticCurveTo(extend, -half, extend, -half + cornerR); // top-outer corner
-  offCtx.lineTo(extend, half - cornerR);                           // outer bottom before corner
-  offCtx.quadraticCurveTo(extend, half, extend - cornerR, half);   // bottom-outer corner
-  offCtx.lineTo(0, half);                                          // inner bottom
+  offCtx.lineTo(extend, half - cornerR); // outer bottom before corner
+  offCtx.quadraticCurveTo(extend, half, extend - cornerR, half); // bottom-outer corner
+  offCtx.lineTo(0, half); // inner bottom
   offCtx.closePath();
   offCtx.fill();
 
@@ -192,6 +192,184 @@ export const drawMarkerStroke = (
   ctx.restore();
 };
 
+const clamp = (value: number, min: number, max: number): number => {
+  return Math.max(min, Math.min(max, value));
+};
+
+const lerp = (from: number, to: number, t: number): number => {
+  return from + (to - from) * t;
+};
+
+const getPointTime = (
+  point: { x: number; y: number; t?: number },
+  fallback: number,
+): number => {
+  return typeof point.t === "number" && Number.isFinite(point.t)
+    ? point.t
+    : fallback;
+};
+
+const smoothQuillPoints = (
+  points: Array<{ x: number; y: number; t?: number }>,
+): Array<{ x: number; y: number; t?: number }> => {
+  if (points.length <= 2) {
+    return points;
+  }
+
+  let current = points;
+
+  for (let iteration = 0; iteration < 2; iteration++) {
+    if (current.length <= 2) {
+      break;
+    }
+
+    const next: Array<{ x: number; y: number; t?: number }> = [current[0]];
+
+    for (let index = 0; index < current.length - 1; index++) {
+      const start = current[index];
+      const end = current[index + 1];
+
+      next.push({
+        x: start.x * 0.75 + end.x * 0.25,
+        y: start.y * 0.75 + end.y * 0.25,
+        t:
+          typeof start.t === "number" && typeof end.t === "number"
+            ? start.t * 0.75 + end.t * 0.25
+            : start.t,
+      });
+
+      next.push({
+        x: start.x * 0.25 + end.x * 0.75,
+        y: start.y * 0.25 + end.y * 0.75,
+        t:
+          typeof start.t === "number" && typeof end.t === "number"
+            ? start.t * 0.25 + end.t * 0.75
+            : end.t,
+      });
+    }
+
+    next.push(current[current.length - 1]);
+    current = next;
+  }
+
+  return current;
+};
+
+const getQuillWidths = (
+  points: Array<{ x: number; y: number; t?: number }>,
+  baseStrokeWidth: number,
+): number[] => {
+  if (points.length === 0) {
+    return [];
+  }
+
+  const safeBase = Math.max(1, baseStrokeWidth);
+  const minWidth = safeBase * 0.42;
+  const maxWidth = safeBase * 2.35;
+  const slowSpeed = 0.035;
+  const fastSpeed = 0.9;
+
+  let smoothedFactor = 1.3;
+  const widths: number[] = [
+    clamp(safeBase * smoothedFactor, minWidth, maxWidth),
+  ];
+  let smoothedSpeed = 0;
+
+  for (let index = 1; index < points.length; index++) {
+    const previous = points[index - 1];
+    const current = points[index];
+
+    const distance = Math.hypot(current.x - previous.x, current.y - previous.y);
+    const previousTime = getPointTime(previous, (index - 1) * 16);
+    const currentTime = getPointTime(current, index * 16);
+    const deltaTime = Math.max(1, currentTime - previousTime);
+    const speed = distance / deltaTime;
+    smoothedSpeed = lerp(smoothedSpeed, speed, 0.12);
+    const normalizedSpeed = clamp01(
+      (smoothedSpeed - slowSpeed) / (fastSpeed - slowSpeed),
+    );
+
+    const targetFactor = lerp(2.3, 0.42, normalizedSpeed);
+    smoothedFactor = lerp(smoothedFactor, targetFactor, 0.12);
+
+    widths.push(clamp(safeBase * smoothedFactor, minWidth, maxWidth));
+  }
+
+  for (let pass = 0; pass < 2; pass++) {
+    for (let index = 1; index < widths.length - 1; index++) {
+      widths[index] =
+        widths[index - 1] * 0.25 +
+        widths[index] * 0.5 +
+        widths[index + 1] * 0.25;
+    }
+  }
+
+  return widths;
+};
+
+export const drawQuillStroke = (
+  ctx: CanvasRenderingContext2D,
+  points: Array<{ x: number; y: number; t?: number }>,
+  strokeWidth: number,
+) => {
+  if (points.length === 0) {
+    return;
+  }
+
+  const smoothedPoints = smoothQuillPoints(points);
+
+  const widths = getQuillWidths(smoothedPoints, strokeWidth);
+  if (widths.length === 0) {
+    return;
+  }
+
+  const originalAlpha = ctx.globalAlpha;
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+
+  if (smoothedPoints.length === 1) {
+    ctx.beginPath();
+    ctx.arc(
+      smoothedPoints[0].x,
+      smoothedPoints[0].y,
+      widths[0] / 2,
+      0,
+      Math.PI * 2,
+    );
+    ctx.fill();
+    return;
+  }
+
+  for (let index = 1; index < smoothedPoints.length; index++) {
+    const start = smoothedPoints[index - 1];
+    const end = smoothedPoints[index];
+    const startWidth = widths[index - 1] ?? widths[0];
+    const endWidth = widths[index] ?? startWidth;
+    const segmentLength = Math.hypot(end.x - start.x, end.y - start.y);
+    const stepCount = Math.max(1, Math.ceil(segmentLength / 1.2));
+
+    for (let step = 1; step <= stepCount; step++) {
+      const t0 = (step - 1) / stepCount;
+      const t1 = step / stepCount;
+      const x0 = lerp(start.x, end.x, t0);
+      const y0 = lerp(start.y, end.y, t0);
+      const x1 = lerp(start.x, end.x, t1);
+      const y1 = lerp(start.y, end.y, t1);
+      const width = lerp(startWidth, endWidth, (t0 + t1) / 2);
+      const textureAlpha = 0.985 + 0.015 * Math.sin(index * 9.7 + step * 0.31);
+
+      ctx.globalAlpha = originalAlpha * textureAlpha;
+      ctx.lineWidth = Math.max(0.6, width);
+      ctx.beginPath();
+      ctx.moveTo(x0, y0);
+      ctx.lineTo(x1, y1);
+      ctx.stroke();
+    }
+  }
+
+  ctx.globalAlpha = originalAlpha;
+};
+
 export const getVisibleStrokeWidth = (strokeWidth: number): number => {
   const safeStrokeWidth =
     typeof strokeWidth === "number" && Number.isFinite(strokeWidth)
@@ -202,7 +380,7 @@ export const getVisibleStrokeWidth = (strokeWidth: number): number => {
 };
 
 export const getDrawRenderStyle = (
-  drawMode: "draw" | "marker",
+  drawMode: "draw" | "marker" | "quill",
   isDarkMode: boolean,
 ): { opacity: number; compositeOperation: GlobalCompositeOperation } => {
   if (drawMode === "marker") {
@@ -218,7 +396,9 @@ export const getDrawRenderStyle = (
   };
 };
 
-export const getDrawLineCap = (drawMode: "draw" | "marker"): CanvasLineCap => {
+export const getDrawLineCap = (
+  drawMode: "draw" | "marker" | "quill",
+): CanvasLineCap => {
   return "round";
 };
 

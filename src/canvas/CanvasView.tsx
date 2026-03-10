@@ -83,6 +83,7 @@ import {
 } from "./color";
 import {
   drawCatmullRomCurve,
+  drawQuillStroke,
   getDrawLineCap,
   getDrawRenderStyle,
   drawMarkerStroke,
@@ -230,7 +231,7 @@ export const CanvasView = ({
   const isDarkMode = scene.settings.theme === "dark";
 
   const getActiveDrawStyle = (
-    drawMode: "draw" | "marker",
+    drawMode: "draw" | "marker" | "quill",
   ): DrawElementStyle => {
     const selectedDrawElements = scene.elements.filter(
       (element): element is DrawElement =>
@@ -243,7 +244,9 @@ export const CanvasView = ({
       const defaultStroke =
         drawMode === "marker"
           ? scene.settings.drawDefaults.markerStroke
-          : scene.settings.drawDefaults.drawStroke;
+          : drawMode === "quill"
+            ? scene.settings.drawDefaults.quillStroke
+            : scene.settings.drawDefaults.drawStroke;
 
       return {
         drawMode,
@@ -251,7 +254,9 @@ export const CanvasView = ({
         strokeWidth:
           drawMode === "marker"
             ? scene.settings.drawDefaults.markerStrokeWidth
-            : scene.settings.drawDefaults.drawStrokeWidth,
+            : drawMode === "quill"
+              ? scene.settings.drawDefaults.quillStrokeWidth
+              : scene.settings.drawDefaults.drawStrokeWidth,
       };
     }
 
@@ -265,14 +270,18 @@ export const CanvasView = ({
           ? activeStroke
           : drawMode === "marker"
             ? scene.settings.drawDefaults.markerStroke
-            : scene.settings.drawDefaults.drawStroke,
+            : drawMode === "quill"
+              ? scene.settings.drawDefaults.quillStroke
+              : scene.settings.drawDefaults.drawStroke,
       strokeWidth:
         typeof activeStrokeWidth === "number" &&
         Number.isFinite(activeStrokeWidth)
           ? Math.max(1, activeStrokeWidth)
           : drawMode === "marker"
             ? scene.settings.drawDefaults.markerStrokeWidth
-            : scene.settings.drawDefaults.drawStrokeWidth,
+            : drawMode === "quill"
+              ? scene.settings.drawDefaults.quillStrokeWidth
+              : scene.settings.drawDefaults.drawStrokeWidth,
     };
   };
 
@@ -505,7 +514,9 @@ export const CanvasView = ({
     const padding =
       element.drawMode === "marker"
         ? Math.max(6, element.strokeWidth * 0.65)
-        : Math.max(3, element.strokeWidth / 2);
+        : element.drawMode === "quill"
+          ? Math.max(4, element.strokeWidth * 1.45)
+          : Math.max(3, element.strokeWidth / 2);
 
     return {
       x: element.x - padding,
@@ -1225,7 +1236,9 @@ export const CanvasView = ({
     const defaultDrawStrokeColor =
       selectedDrawMode === "marker"
         ? scene.settings.drawDefaults.markerStroke
-        : scene.settings.drawDefaults.drawStroke;
+        : selectedDrawMode === "quill"
+          ? scene.settings.drawDefaults.quillStroke
+          : scene.settings.drawDefaults.drawStroke;
     const selectedDrawStrokeColor =
       selectedDrawElements[0]?.stroke || defaultDrawStrokeColor;
     const drawStrokeColorSelectValue = STROKE_COLORS.some(
@@ -1937,7 +1950,11 @@ padding: 8px 0px!important;
         );
       }
 
-      if (drawingTool === "draw" || drawingTool === "marker") {
+      if (
+        drawingTool === "draw" ||
+        drawingTool === "marker" ||
+        drawingTool === "quill"
+      ) {
         return renderDrawStrokeSelector();
       }
 
@@ -2765,12 +2782,15 @@ padding: 8px 0px!important;
           const worldPoints = element.points.map((point) => ({
             x: element.x + point.x,
             y: element.y + point.y,
+            t: point.t,
           }));
           const visibleWorldPoints = worldPoints;
 
           if (visibleWorldPoints.length === 1) {
             if (drawMode === "marker") {
               drawMarkerStroke(ctx, visibleWorldPoints, visibleStrokeWidth);
+            } else if (drawMode === "quill") {
+              drawQuillStroke(ctx, visibleWorldPoints, visibleStrokeWidth);
             } else {
               ctx.beginPath();
               ctx.arc(
@@ -2786,6 +2806,8 @@ padding: 8px 0px!important;
           } else if (visibleWorldPoints.length > 1) {
             if (drawMode === "marker") {
               drawMarkerStroke(ctx, visibleWorldPoints, visibleStrokeWidth);
+            } else if (drawMode === "quill") {
+              drawQuillStroke(ctx, visibleWorldPoints, visibleStrokeWidth);
             } else {
               ctx.beginPath();
               drawSmoothStrokePath(ctx, visibleWorldPoints);
@@ -3486,6 +3508,8 @@ padding: 8px 0px!important;
       if (drawSelection.points.length === 1) {
         if (drawSelection.drawMode === "marker") {
           drawMarkerStroke(ctx, drawSelection.points, visibleStrokeWidth);
+        } else if (drawSelection.drawMode === "quill") {
+          drawQuillStroke(ctx, drawSelection.points, visibleStrokeWidth);
         } else {
           ctx.beginPath();
           ctx.arc(
@@ -3501,6 +3525,8 @@ padding: 8px 0px!important;
       } else {
         if (drawSelection.drawMode === "marker") {
           drawMarkerStroke(ctx, drawSelection.points, visibleStrokeWidth);
+        } else if (drawSelection.drawMode === "quill") {
+          drawQuillStroke(ctx, drawSelection.points, visibleStrokeWidth);
         } else {
           ctx.beginPath();
           drawSmoothStrokePath(ctx, drawSelection.points);
@@ -3785,12 +3811,17 @@ padding: 8px 0px!important;
           },
         ]);
         activeLaserTrailIdRef.current = trailId;
-      } else if (drawingTool === "draw" || drawingTool === "marker") {
+      } else if (
+        drawingTool === "draw" ||
+        drawingTool === "marker" ||
+        drawingTool === "quill"
+      ) {
+        const now = performance.now();
         const drawMode = drawingTool;
         const drawStyle = getActiveDrawStyle(drawMode);
 
         setDrawSelection({
-          points: [pointer],
+          points: [{ ...pointer, t: now }],
           stroke: drawStyle.stroke,
           strokeWidth: drawStyle.strokeWidth,
           drawMode,
@@ -3820,7 +3851,7 @@ padding: 8px 0px!important;
 
       if (drawingTool === "laser") {
         setCanvasCursor("laser");
-      } else if (drawingTool === "draw") {
+      } else if (drawingTool === "draw" || drawingTool === "quill") {
         setCanvasCursor("pencil");
       } else if (drawingTool === "marker") {
         setCanvasCursor("marker");
@@ -4166,14 +4197,22 @@ padding: 8px 0px!important;
             now,
           );
         });
-      } else if (drawingTool === "draw" || drawingTool === "marker") {
+      } else if (
+        drawingTool === "draw" ||
+        drawingTool === "marker" ||
+        drawingTool === "quill"
+      ) {
+        const now = performance.now();
         setDrawSelection((current) => {
           if (!current) {
             return current;
           }
 
           const isLineMode = e.shiftKey;
-          let constrainedPointer = pointer;
+          let constrainedPointer: { x: number; y: number; t?: number } = {
+            ...pointer,
+            t: now,
+          };
 
           // For line mode (shift key), constrain to horizontal or vertical
           if (isLineMode && current.points.length > 0) {
@@ -4184,10 +4223,10 @@ padding: 8px 0px!important;
             // Determine direction based on which delta is larger
             if (deltaX > deltaY) {
               // Horizontal ruler: lock Y to start point
-              constrainedPointer = { x: pointer.x, y: startPoint.y };
+              constrainedPointer = { x: pointer.x, y: startPoint.y, t: now };
             } else {
               // Vertical ruler: lock X to start point
-              constrainedPointer = { x: startPoint.x, y: pointer.y };
+              constrainedPointer = { x: startPoint.x, y: pointer.y, t: now };
             }
 
             const currentEndPoint =
@@ -4209,6 +4248,10 @@ padding: 8px 0px!important;
               isLine: true,
               points: [startPoint, constrainedPointer],
             };
+          }
+
+          if (typeof constrainedPointer.t !== "number") {
+            constrainedPointer = { ...constrainedPointer, t: now };
           }
 
           const previousPoint = current.points[current.points.length - 1];
@@ -4266,7 +4309,7 @@ padding: 8px 0px!important;
 
       if (drawingTool === "laser") {
         setCanvasCursor("laser");
-      } else if (drawingTool === "draw") {
+      } else if (drawingTool === "draw" || drawingTool === "quill") {
         setCanvasCursor("pencil");
       } else if (drawingTool === "marker") {
         setCanvasCursor("marker");
@@ -4467,7 +4510,11 @@ padding: 8px 0px!important;
     if (drawingTool) {
       if (drawingTool === "laser") {
         activeLaserTrailIdRef.current = null;
-      } else if (drawingTool === "draw" || drawingTool === "marker") {
+      } else if (
+        drawingTool === "draw" ||
+        drawingTool === "marker" ||
+        drawingTool === "quill"
+      ) {
         if (drawSelection && drawSelection.points.length >= 1) {
           onCreateDrawElement(drawSelection.points, {
             drawMode: drawSelection.drawMode,
@@ -4517,7 +4564,7 @@ padding: 8px 0px!important;
       setActiveRadiusHandle(null);
       if (drawingTool === "laser") {
         setCanvasCursor("laser");
-      } else if (drawingTool === "draw") {
+      } else if (drawingTool === "draw" || drawingTool === "quill") {
         setCanvasCursor("pencil");
       } else if (drawingTool === "marker") {
         setCanvasCursor("marker");
@@ -4624,7 +4671,7 @@ padding: 8px 0px!important;
       if (drawingTool === "laser") {
         activeLaserTrailIdRef.current = null;
         setCanvasCursor("laser");
-      } else if (drawingTool === "draw") {
+      } else if (drawingTool === "draw" || drawingTool === "quill") {
         setCanvasCursor("pencil");
       } else if (drawingTool === "marker") {
         setCanvasCursor("marker");

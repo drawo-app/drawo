@@ -13,7 +13,10 @@ import type {
 import type { LocaleMessages } from "../i18n";
 
 export type ResizeHandle = "nw" | "ne" | "se" | "sw";
-export type BoxDrawingType = Exclude<NewElementType, "draw" | "marker">;
+export type BoxDrawingType = Exclude<
+  NewElementType,
+  "draw" | "marker" | "quill"
+>;
 
 export interface DrawingSelection {
   type: BoxDrawingType;
@@ -26,10 +29,10 @@ export interface DrawingSelection {
 }
 
 export interface DrawSelection {
-  points: Array<{ x: number; y: number }>;
+  points: Array<{ x: number; y: number; t?: number }>;
   stroke: string;
   strokeWidth: number;
-  drawMode: "draw" | "marker";
+  drawMode: "draw" | "marker" | "quill";
   isLine?: boolean;
 }
 
@@ -79,7 +82,7 @@ export interface CanvasViewProps {
     bounds?: ElementCreationBounds,
   ) => void;
   onCreateDrawElement: (
-    points: Array<{ x: number; y: number }>,
+    points: Array<{ x: number; y: number; t?: number }>,
     style?: Partial<DrawElementStyle>,
   ) => void;
   onDrawingToolComplete: () => void;
@@ -95,11 +98,11 @@ export interface CanvasViewProps {
   onDrawStrokeWidthChange: (ids: string[], strokeWidth: number) => void;
   onDrawStrokeColorChange: (ids: string[], strokeColor: string) => void;
   onDrawDefaultStrokeColorChange: (
-    drawMode: "draw" | "marker",
+    drawMode: "draw" | "marker" | "quill",
     strokeColor: string,
   ) => void;
   onDrawDefaultStrokeWidthChange: (
-    drawMode: "draw" | "marker",
+    drawMode: "draw" | "marker" | "quill",
     strokeWidth: number,
   ) => void;
   onLineStartCapChange: (ids: string[], startCap: LineCap) => void;

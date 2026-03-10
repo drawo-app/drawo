@@ -1,13 +1,24 @@
-import { estimateTextHeight, estimateTextWidth, getTextStartX } from "../../core/elements";
+import {
+  estimateTextHeight,
+  estimateTextWidth,
+  getTextStartX,
+} from "../../core/elements";
 import type { Scene } from "../../core/scene";
 import type { SceneElement } from "../../core/elements";
 import { MIN_ELEMENT_SIZE } from "./constants";
 import type { Bounds } from "./types";
 import type { ResizeHandle } from "../types";
 
-const getDrawPadding = (strokeWidth: number, drawMode: "draw" | "marker"): number => {
+const getDrawPadding = (
+  strokeWidth: number,
+  drawMode: "draw" | "marker" | "quill",
+): number => {
   if (drawMode === "marker") {
     return Math.max(6, strokeWidth * 0.65);
+  }
+
+  if (drawMode === "quill") {
+    return Math.max(4, strokeWidth * 1.45);
   }
 
   return Math.max(3, strokeWidth / 2);
@@ -210,7 +221,10 @@ export const getElementBounds = (element: SceneElement): Bounds => {
   }
 
   if (element.type === "draw") {
-    const padding = getDrawPadding(element.strokeWidth, element.drawMode ?? "draw");
+    const padding = getDrawPadding(
+      element.strokeWidth,
+      element.drawMode ?? "draw",
+    );
     return {
       x: element.x - padding,
       y: element.y - padding,

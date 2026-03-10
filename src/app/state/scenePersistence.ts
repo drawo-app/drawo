@@ -39,7 +39,12 @@ const normalizeElement = (element: SceneElement): SceneElement => {
   if (element.type === "draw") {
     return {
       ...element,
-      drawMode: element.drawMode === "marker" ? "marker" : "draw",
+      drawMode:
+        element.drawMode === "marker"
+          ? "marker"
+          : element.drawMode === "quill"
+            ? "quill"
+            : "draw",
       createdAt:
         typeof element.createdAt === "number" &&
         Number.isFinite(element.createdAt)
@@ -56,10 +61,14 @@ const normalizeElement = (element: SceneElement): SceneElement => {
       points: Array.isArray(element.points)
         ? element.points
             .filter(
-              (point): point is { x: number; y: number } =>
+              (point): point is { x: number; y: number; t?: number } =>
                 typeof point?.x === "number" && typeof point?.y === "number",
             )
-            .map((point) => ({ x: point.x, y: point.y }))
+            .map((point) => ({
+              x: point.x,
+              y: point.y,
+              t: typeof point.t === "number" ? point.t : undefined,
+            }))
         : [],
       stroke: typeof element.stroke === "string" ? element.stroke : "#2f3b52",
       strokeWidth:
@@ -130,8 +139,13 @@ const isValidDrawDefaults = (
     drawDefaults.drawStroke.trim().length > 0 &&
     typeof drawDefaults.markerStroke === "string" &&
     drawDefaults.markerStroke.trim().length > 0 &&
+    ((typeof drawDefaults.quillStroke === "string" &&
+      drawDefaults.quillStroke.trim().length > 0) ||
+      typeof drawDefaults.quillStroke === "undefined") &&
     (typeof drawDefaults.drawStrokeWidth === "number" ||
       typeof drawDefaults.drawStrokeWidth === "undefined") &&
+    (typeof drawDefaults.quillStrokeWidth === "number" ||
+      typeof drawDefaults.quillStrokeWidth === "undefined") &&
     (typeof drawDefaults.markerStrokeWidth === "number" ||
       typeof drawDefaults.markerStrokeWidth === "undefined")
   );
@@ -168,9 +182,18 @@ export const loadInitialScene = (): Scene => {
         nextSettings.drawDefaults = {
           drawStroke: parsedSettings.drawDefaults.drawStroke,
           markerStroke: parsedSettings.drawDefaults.markerStroke,
+          quillStroke:
+            typeof parsedSettings.drawDefaults.quillStroke === "string" &&
+            parsedSettings.drawDefaults.quillStroke.trim().length > 0
+              ? parsedSettings.drawDefaults.quillStroke
+              : "#2f3b52",
           drawStrokeWidth:
             typeof parsedSettings.drawDefaults.drawStrokeWidth === "number"
               ? parsedSettings.drawDefaults.drawStrokeWidth
+              : 2,
+          quillStrokeWidth:
+            typeof parsedSettings.drawDefaults.quillStrokeWidth === "number"
+              ? parsedSettings.drawDefaults.quillStrokeWidth
               : 2,
           markerStrokeWidth:
             typeof parsedSettings.drawDefaults.markerStrokeWidth === "number"
@@ -238,9 +261,18 @@ export const loadInitialScene = (): Scene => {
       nextSettings.drawDefaults = {
         drawStroke: parsed.drawDefaults.drawStroke,
         markerStroke: parsed.drawDefaults.markerStroke,
+        quillStroke:
+          typeof parsed.drawDefaults.quillStroke === "string" &&
+          parsed.drawDefaults.quillStroke.trim().length > 0
+            ? parsed.drawDefaults.quillStroke
+            : "#2f3b52",
         drawStrokeWidth:
           typeof parsed.drawDefaults.drawStrokeWidth === "number"
             ? parsed.drawDefaults.drawStrokeWidth
+            : 2,
+        quillStrokeWidth:
+          typeof parsed.drawDefaults.quillStrokeWidth === "number"
+            ? parsed.drawDefaults.quillStrokeWidth
             : 2,
         markerStrokeWidth:
           typeof parsed.drawDefaults.markerStrokeWidth === "number"

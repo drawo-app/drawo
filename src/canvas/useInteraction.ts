@@ -1097,7 +1097,7 @@ export const useInteraction = ({
 
   const handleCreateDrawElement = useCallback(
     (
-      points: Array<{ x: number; y: number }>,
+      points: Array<{ x: number; y: number; t?: number }>,
       style?: Partial<DrawElementStyle>,
     ) => {
       setScene((currentScene) => {
@@ -1105,6 +1105,7 @@ export const useInteraction = ({
           ? points.map((point) => ({
               x: snapValue(point.x, currentScene.settings.gridSize),
               y: snapValue(point.y, currentScene.settings.gridSize),
+              t: point.t,
             }))
           : points;
 
@@ -1133,7 +1134,7 @@ export const useInteraction = ({
   );
 
   const handleDrawDefaultStrokeColorChange = useCallback(
-    (drawMode: "draw" | "marker", strokeColor: string) => {
+    (drawMode: "draw" | "marker" | "quill", strokeColor: string) => {
       setScene((currentScene) =>
         updateSceneSettings(currentScene, {
           drawDefaults:
@@ -1142,10 +1143,15 @@ export const useInteraction = ({
                   ...currentScene.settings.drawDefaults,
                   markerStroke: strokeColor,
                 }
-              : {
-                  ...currentScene.settings.drawDefaults,
-                  drawStroke: strokeColor,
-                },
+              : drawMode === "quill"
+                ? {
+                    ...currentScene.settings.drawDefaults,
+                    quillStroke: strokeColor,
+                  }
+                : {
+                    ...currentScene.settings.drawDefaults,
+                    drawStroke: strokeColor,
+                  },
         }),
       );
     },
@@ -1153,7 +1159,7 @@ export const useInteraction = ({
   );
 
   const handleDrawDefaultStrokeWidthChange = useCallback(
-    (drawMode: "draw" | "marker", strokeWidth: number) => {
+    (drawMode: "draw" | "marker" | "quill", strokeWidth: number) => {
       setScene((currentScene) =>
         updateSceneSettings(currentScene, {
           drawDefaults:
@@ -1162,10 +1168,15 @@ export const useInteraction = ({
                   ...currentScene.settings.drawDefaults,
                   markerStrokeWidth: strokeWidth,
                 }
-              : {
-                  ...currentScene.settings.drawDefaults,
-                  drawStrokeWidth: strokeWidth,
-                },
+              : drawMode === "quill"
+                ? {
+                    ...currentScene.settings.drawDefaults,
+                    quillStrokeWidth: strokeWidth,
+                  }
+                : {
+                    ...currentScene.settings.drawDefaults,
+                    drawStrokeWidth: strokeWidth,
+                  },
         }),
       );
     },

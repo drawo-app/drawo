@@ -33,6 +33,7 @@ export interface LocaleMessages {
     draw: string;
     laser: string;
     marker: string;
+    quill: string;
     pen: string;
   };
   fontFamilies: {
