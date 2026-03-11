@@ -1,20 +1,33 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import { DropdownMenu as DropdownMenuPrimitive } from "radix-ui"
-import { CheckIcon, ChevronRightIcon } from "lucide-react"
-import { Check } from "@gravity-ui/icons"
+import * as React from "react";
+import { DropdownMenu as DropdownMenuPrimitive } from "radix-ui";
+import { CheckIcon } from "lucide-react";
+import { Check, ChevronRight } from "@gravity-ui/icons";
 
-function DropdownMenu(props: React.ComponentProps<typeof DropdownMenuPrimitive.Root>) {
-  return <DropdownMenuPrimitive.Root data-slot="dropdown-menu" {...props} />
+function DropdownMenu(
+  props: React.ComponentProps<typeof DropdownMenuPrimitive.Root>,
+) {
+  return <DropdownMenuPrimitive.Root data-slot="dropdown-menu" {...props} />;
 }
 
-function DropdownMenuPortal(props: React.ComponentProps<typeof DropdownMenuPrimitive.Portal>) {
-  return <DropdownMenuPrimitive.Portal data-slot="dropdown-menu-portal" {...props} />
+function DropdownMenuPortal(
+  props: React.ComponentProps<typeof DropdownMenuPrimitive.Portal>,
+) {
+  return (
+    <DropdownMenuPrimitive.Portal data-slot="dropdown-menu-portal" {...props} />
+  );
 }
 
-function DropdownMenuTrigger(props: React.ComponentProps<typeof DropdownMenuPrimitive.Trigger>) {
-  return <DropdownMenuPrimitive.Trigger data-slot="dropdown-menu-trigger" {...props} />
+function DropdownMenuTrigger(
+  props: React.ComponentProps<typeof DropdownMenuPrimitive.Trigger>,
+) {
+  return (
+    <DropdownMenuPrimitive.Trigger
+      data-slot="dropdown-menu-trigger"
+      {...props}
+    />
+  );
 }
 
 function DropdownMenuContent({
@@ -29,35 +42,44 @@ function DropdownMenuContent({
         data-slot="dropdown-menu-content"
         sideOffset={sideOffset}
         align={align}
-        className={"drawo-dropdown-content" + (className ? " " + className : "")}
+        className={
+          "drawo-dropdown-content" + (className ? " " + className : "")
+        }
         {...props}
       />
     </DropdownMenuPrimitive.Portal>
-  )
+  );
 }
 
-function DropdownMenuGroup(props: React.ComponentProps<typeof DropdownMenuPrimitive.Group>) {
-  return <DropdownMenuPrimitive.Group data-slot="dropdown-menu-group" {...props} />
+function DropdownMenuGroup(
+  props: React.ComponentProps<typeof DropdownMenuPrimitive.Group>,
+) {
+  return (
+    <DropdownMenuPrimitive.Group data-slot="dropdown-menu-group" {...props} />
+  );
 }
 
 function DropdownMenuItem({
   className,
   inset,
   variant = "default",
+  disabled = false,
   ...props
 }: React.ComponentProps<typeof DropdownMenuPrimitive.Item> & {
-  inset?: boolean
-  variant?: "default" | "destructive"
+  inset?: boolean;
+  variant?: "default" | "destructive" | "accent";
+  disabled?: boolean;
 }) {
   return (
     <DropdownMenuPrimitive.Item
       data-slot="dropdown-menu-item"
       data-inset={inset}
       data-variant={variant}
+      data-disabled={disabled}
       className={"drawo-dropdown-item" + (className ? " " + className : "")}
       {...props}
     />
-  )
+  );
 }
 
 function DropdownMenuCheckboxItem({
@@ -67,13 +89,15 @@ function DropdownMenuCheckboxItem({
   inset,
   ...props
 }: React.ComponentProps<typeof DropdownMenuPrimitive.CheckboxItem> & {
-  inset?: boolean
+  inset?: boolean;
 }) {
   return (
     <DropdownMenuPrimitive.CheckboxItem
       data-slot="dropdown-menu-checkbox-item"
       data-inset={inset}
-      className={"drawo-dropdown-checkboxitem" + (className ? " " + className : "")}
+      className={
+        "drawo-dropdown-checkboxitem" + (className ? " " + className : "")
+      }
       checked={checked}
       {...props}
     >
@@ -84,11 +108,18 @@ function DropdownMenuCheckboxItem({
       </span>
       {children}
     </DropdownMenuPrimitive.CheckboxItem>
-  )
+  );
 }
 
-function DropdownMenuRadioGroup(props: React.ComponentProps<typeof DropdownMenuPrimitive.RadioGroup>) {
-  return <DropdownMenuPrimitive.RadioGroup data-slot="dropdown-menu-radio-group" {...props} />
+function DropdownMenuRadioGroup(
+  props: React.ComponentProps<typeof DropdownMenuPrimitive.RadioGroup>,
+) {
+  return (
+    <DropdownMenuPrimitive.RadioGroup
+      data-slot="dropdown-menu-radio-group"
+      {...props}
+    />
+  );
 }
 
 function DropdownMenuRadioItem({
@@ -97,13 +128,15 @@ function DropdownMenuRadioItem({
   inset,
   ...props
 }: React.ComponentProps<typeof DropdownMenuPrimitive.RadioItem> & {
-  inset?: boolean
+  inset?: boolean;
 }) {
   return (
     <DropdownMenuPrimitive.RadioItem
       data-slot="dropdown-menu-radio-item"
       data-inset={inset}
-      className={"drawo-dropdown-radioitem" + (className ? " " + className : "")}
+      className={
+        "drawo-dropdown-radioitem" + (className ? " " + className : "")
+      }
       {...props}
     >
       <span className="drawo-dropdown-indicator">
@@ -113,7 +146,7 @@ function DropdownMenuRadioItem({
       </span>
       {children}
     </DropdownMenuPrimitive.RadioItem>
-  )
+  );
 }
 
 function DropdownMenuLabel({
@@ -121,7 +154,7 @@ function DropdownMenuLabel({
   inset,
   ...props
 }: React.ComponentProps<typeof DropdownMenuPrimitive.Label> & {
-  inset?: boolean
+  inset?: boolean;
 }) {
   return (
     <DropdownMenuPrimitive.Label
@@ -130,7 +163,7 @@ function DropdownMenuLabel({
       className={"drawo-dropdown-label" + (className ? " " + className : "")}
       {...props}
     />
-  )
+  );
 }
 
 function DropdownMenuSeparator({
@@ -140,10 +173,12 @@ function DropdownMenuSeparator({
   return (
     <DropdownMenuPrimitive.Separator
       data-slot="dropdown-menu-separator"
-      className={"drawo-dropdown-separator" + (className ? " " + className : "")}
+      className={
+        "drawo-dropdown-separator" + (className ? " " + className : "")
+      }
       {...props}
     />
-  )
+  );
 }
 
 function DropdownMenuShortcut({
@@ -156,11 +191,13 @@ function DropdownMenuShortcut({
       className={"drawo-dropdown-shortcut" + (className ? " " + className : "")}
       {...props}
     />
-  )
+  );
 }
 
-function DropdownMenuSub(props: React.ComponentProps<typeof DropdownMenuPrimitive.Sub>) {
-  return <DropdownMenuPrimitive.Sub data-slot="dropdown-menu-sub" {...props} />
+function DropdownMenuSub(
+  props: React.ComponentProps<typeof DropdownMenuPrimitive.Sub>,
+) {
+  return <DropdownMenuPrimitive.Sub data-slot="dropdown-menu-sub" {...props} />;
 }
 
 function DropdownMenuSubTrigger({
@@ -169,19 +206,21 @@ function DropdownMenuSubTrigger({
   children,
   ...props
 }: React.ComponentProps<typeof DropdownMenuPrimitive.SubTrigger> & {
-  inset?: boolean
+  inset?: boolean;
 }) {
   return (
     <DropdownMenuPrimitive.SubTrigger
       data-slot="dropdown-menu-sub-trigger"
       data-inset={inset}
-      className={"drawo-dropdown-subtrigger" + (className ? " " + className : "")}
+      className={
+        "drawo-dropdown-subtrigger" + (className ? " " + className : "")
+      }
       {...props}
     >
       {children}
-      <ChevronRightIcon className="drawo-dropdown-chevron" />
+      <ChevronRight className="drawo-dropdown-chevron" />
     </DropdownMenuPrimitive.SubTrigger>
-  )
+  );
 }
 
 function DropdownMenuSubContent({
@@ -191,10 +230,12 @@ function DropdownMenuSubContent({
   return (
     <DropdownMenuPrimitive.SubContent
       data-slot="dropdown-menu-sub-content"
-      className={"drawo-dropdown-subcontent" + (className ? " " + className : "")}
+      className={
+        "drawo-dropdown-subcontent" + (className ? " " + className : "")
+      }
       {...props}
     />
-  )
+  );
 }
 
 export {
@@ -213,4 +254,4 @@ export {
   DropdownMenuSub,
   DropdownMenuSubTrigger,
   DropdownMenuSubContent,
-}
+};

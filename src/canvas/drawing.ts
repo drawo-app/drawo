@@ -6,6 +6,19 @@ import {
 } from "./constants";
 import type { LaserTrail } from "./types";
 
+type StrokePoint = { x: number; y: number; t?: number };
+
+const quillStrokeCache = new WeakMap<
+  ReadonlyArray<StrokePoint>,
+  {
+    strokeWidth: number;
+    smoothedPoints: StrokePoint[];
+    widths: number[];
+  }
+>();
+
+let markerOffscreenCanvas: HTMLCanvasElement | null = null;
+
 export const drawRoundedRect = (
   ctx: CanvasRenderingContext2D,
   x: number,
@@ -36,7 +49,7 @@ export const drawRoundedRect = (
 
 export const drawSmoothStrokePath = (
   ctx: CanvasRenderingContext2D,
-  points: Array<{ x: number; y: number }>,
+  points: ReadonlyArray<{ x: number; y: number }>,
 ) => {
   if (points.length === 0) {
     return;
@@ -115,7 +128,7 @@ const drawMarkerRoundedRectCap = (
 
 export const drawMarkerStroke = (
   ctx: CanvasRenderingContext2D,
-  points: Array<{ x: number; y: number }>,
+  points: ReadonlyArray<{ x: number; y: number }>,
   strokeWidth: number,
 ) => {
   if (points.length === 0) {
@@ -128,10 +141,24 @@ export const drawMarkerStroke = (
   // canvas.  Without this, drawing the cap on top of the already-blended
   // stroke body would produce a brighter/darker band at each end.
   const mainCanvas = ctx.canvas;
-  const offscreen = document.createElement("canvas");
-  offscreen.width = mainCanvas.width;
-  offscreen.height = mainCanvas.height;
-  const offCtx = offscreen.getContext("2d")!;
+  if (
+    !markerOffscreenCanvas ||
+    markerOffscreenCanvas.width !== mainCanvas.width ||
+    markerOffscreenCanvas.height !== mainCanvas.height
+  ) {
+    markerOffscreenCanvas = document.createElement("canvas");
+    markerOffscreenCanvas.width = mainCanvas.width;
+    markerOffscreenCanvas.height = mainCanvas.height;
+  }
+
+  const offscreen = markerOffscreenCanvas;
+  const offCtx = offscreen.getContext("2d");
+  if (!offCtx) {
+    return;
+  }
+
+  offCtx.setTransform(1, 0, 0, 1, 0, 0);
+  offCtx.clearRect(0, 0, offscreen.width, offscreen.height);
 
   // Replicate the full transform (camera zoom + element rotation).
   offCtx.setTransform(ctx.getTransform());
@@ -210,13 +237,13 @@ const getPointTime = (
 };
 
 const smoothQuillPoints = (
-  points: Array<{ x: number; y: number; t?: number }>,
-): Array<{ x: number; y: number; t?: number }> => {
+  points: ReadonlyArray<StrokePoint>,
+): StrokePoint[] => {
   if (points.length <= 2) {
-    return points;
+    return [...points];
   }
 
-  let current = points;
+  let current: StrokePoint[] = [...points];
 
   for (let iteration = 0; iteration < 2; iteration++) {
     if (current.length <= 2) {
@@ -256,7 +283,7 @@ const smoothQuillPoints = (
 };
 
 const getQuillWidths = (
-  points: Array<{ x: number; y: number; t?: number }>,
+  points: ReadonlyArray<StrokePoint>,
   baseStrokeWidth: number,
 ): number[] => {
   if (points.length === 0) {
@@ -309,16 +336,31 @@ const getQuillWidths = (
 
 export const drawQuillStroke = (
   ctx: CanvasRenderingContext2D,
-  points: Array<{ x: number; y: number; t?: number }>,
+  points: ReadonlyArray<StrokePoint>,
   strokeWidth: number,
 ) => {
   if (points.length === 0) {
     return;
   }
 
-  const smoothedPoints = smoothQuillPoints(points);
+  const safeStrokeWidth = Math.max(1, strokeWidth);
+  const cached = quillStrokeCache.get(points);
+  const smoothedPoints =
+    cached && cached.strokeWidth === safeStrokeWidth
+      ? cached.smoothedPoints
+      : smoothQuillPoints(points);
+  const widths =
+    cached && cached.strokeWidth === safeStrokeWidth
+      ? cached.widths
+      : getQuillWidths(smoothedPoints, safeStrokeWidth);
 
-  const widths = getQuillWidths(smoothedPoints, strokeWidth);
+  if (!cached || cached.strokeWidth !== safeStrokeWidth) {
+    quillStrokeCache.set(points, {
+      strokeWidth: safeStrokeWidth,
+      smoothedPoints,
+      widths,
+    });
+  }
   if (widths.length === 0) {
     return;
   }

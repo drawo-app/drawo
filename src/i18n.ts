@@ -9,7 +9,10 @@ export interface LocaleMessages {
     snapToGrid: string;
     theme: string;
     language: string;
+    quickActions: string;
     clearCanvas: string;
+    zenMode: string;
+    presentationMode: string;
   };
   dialogs: {
     clearCanvas: {
@@ -48,6 +51,7 @@ export interface LocaleMessages {
     large: string;
     extraLarge: string;
     huge: string;
+    placeholder: string;
   };
   selectionBar: {
     strokeWidth: string;
@@ -77,6 +81,30 @@ export interface LocaleMessages {
     newText: string;
     tagline: string;
   };
+  contextMenu: {
+    cut: string;
+    copy: string;
+    paste: string;
+    duplicate: string;
+    delete: string;
+
+    group: string;
+    ungroup: string;
+
+    layers: {
+      text: string;
+      bringToFront: string;
+      sendToBack: string;
+      sendBackward: string;
+      bringForward: string;
+    };
+    selectEverything: string;
+  };
+}
+
+export const LANG_NAMES = {
+  en_US: "English (US)",
+  es_ES: "Español (ES)",
 }
 
 export const LOCALES: Record<LocaleCode, LocaleMessages> = {

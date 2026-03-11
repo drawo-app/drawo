@@ -1,6 +1,8 @@
 import { createElementId, type SceneElement } from "../elements";
 import type { Scene } from "./types";
 
+const createGroupId = () => `group-${createElementId("draw")}`;
+
 const getSelectedIds = (scene: Scene): string[] => {
   return scene.selectedIds.length > 0
     ? scene.selectedIds
@@ -35,16 +37,33 @@ const getElementTop = (element: SceneElement): number => {
   return element.y;
 };
 
-const cloneSceneElement = (
-  element: SceneElement,
+const cloneSceneElements = (
+  elements: SceneElement[],
   offsetX: number,
   offsetY: number,
-): SceneElement => ({
-  ...element,
-  id: createElementId(element.type),
-  x: element.x + offsetX,
-  y: element.y + offsetY,
-});
+): SceneElement[] => {
+  const groupIdMap = new Map<string, string>();
+
+  return elements.map((element) => {
+    const nextGroupId =
+      typeof element.groupId === "string"
+        ? (groupIdMap.get(element.groupId) ??
+          (() => {
+            const groupId = createGroupId();
+            groupIdMap.set(element.groupId, groupId);
+            return groupId;
+          })())
+        : null;
+
+    return {
+      ...element,
+      id: createElementId(element.type),
+      groupId: nextGroupId,
+      x: element.x + offsetX,
+      y: element.y + offsetY,
+    };
+  });
+};
 
 export const selectElement = (scene: Scene, id: string | null): Scene => ({
   ...scene,
@@ -96,9 +115,7 @@ export const duplicateSelectedElements = (
     return scene;
   }
 
-  const duplicatedElements = sourceElements.map((element) =>
-    cloneSceneElement(element, offsetX, offsetY),
-  );
+  const duplicatedElements = cloneSceneElements(sourceElements, offsetX, offsetY);
 
   return {
     ...scene,
@@ -127,9 +144,7 @@ export const pasteElementsIntoScene = (
   const minY = Math.min(...elements.map(getElementTop));
   const translateX = typeof anchorX === "number" ? anchorX - minX : offsetX;
   const translateY = typeof anchorY === "number" ? anchorY - minY : offsetY;
-  const pastedElements = elements.map((element) =>
-    cloneSceneElement(element, translateX, translateY),
-  );
+  const pastedElements = cloneSceneElements(elements, translateX, translateY);
 
   return {
     ...scene,
@@ -194,5 +209,72 @@ export const reorderSelectedElements = (
   return {
     ...scene,
     elements,
+  };
+};
+
+export const getGroupElementIds = (scene: Scene, elementId: string): string[] => {
+  const element = scene.elements.find((item) => item.id === elementId);
+  if (!element) {
+    return [];
+  }
+
+  if (!element.groupId) {
+    return [element.id];
+  }
+
+  return scene.elements
+    .filter((item) => item.groupId === element.groupId)
+    .map((item) => item.id);
+};
+
+export const groupSelectedElements = (scene: Scene): Scene => {
+  const selectedIds = getSelectedIds(scene);
+  if (selectedIds.length < 2) {
+    return scene;
+  }
+
+  const targetIds = new Set(selectedIds);
+  const nextGroupId = createGroupId();
+
+  return {
+    ...scene,
+    elements: scene.elements.map((element) =>
+      targetIds.has(element.id)
+        ? {
+            ...element,
+            groupId: nextGroupId,
+          }
+        : element,
+    ),
+  };
+};
+
+export const ungroupSelectedElements = (scene: Scene): Scene => {
+  const selectedIds = getSelectedIds(scene);
+  if (selectedIds.length === 0) {
+    return scene;
+  }
+
+  const selectedIdSet = new Set(selectedIds);
+  const selectedGroupIds = new Set(
+    scene.elements
+      .filter((element) => selectedIdSet.has(element.id) && element.groupId)
+      .map((element) => element.groupId as string),
+  );
+
+  if (selectedGroupIds.size === 0) {
+    return scene;
+  }
+
+  return {
+    ...scene,
+    elements: scene.elements.map((element) =>
+      element.groupId && selectedGroupIds.has(element.groupId)
+        ? {
+            ...element,
+            groupId: null,
+          }
+        : element,
+    ),
   };
 };

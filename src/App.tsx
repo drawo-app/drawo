@@ -9,9 +9,13 @@ import {
 } from "react";
 import {
   duplicateSelectedElements,
+  getGroupElementIds,
+  groupSelectedElements,
   pasteElementsIntoScene,
   removeSelectedElement,
   reorderSelectedElements,
+  selectElements,
+  ungroupSelectedElements,
   type NewElementType,
   type Scene,
   updateRectangleElementsBorderRadius,
@@ -34,6 +38,13 @@ import {
 import { appReducer, createInitialAppState } from "./app/state/reducer";
 import "./App.css";
 import { Timer } from "./app/components/Timer/Timer";
+import { UndoBar } from "./app/components/UndoBar";
+import { ZoomBar } from "./app/components/ZoomBar";
+import {
+  MAX_CAMERA_ZOOM,
+  MIN_CAMERA_ZOOM,
+  ZOOM_SENSITIVITY,
+} from "./canvas/interaction/constants";
 
 export default function App() {
   const [openTopbarPanel, setOpenTopbarPanel] = useState<
@@ -66,10 +77,47 @@ export default function App() {
     createInitialAppState,
   );
   const scene = state.present;
+  const canUndo = state.past.length > 0;
+  const canRedo = state.future.length > 0;
   const messages = LOCALES[locale];
   const isDarkMode = scene.settings.theme === "dark";
+  const isPresentationMode = scene.settings.presentationMode;
+  const effectiveInteractionMode = isPresentationMode ? "pan" : interactionMode;
+  const effectiveDrawingTool = isPresentationMode ? null : drawingTool;
   const clipboardRef = useRef<SceneElement[] | null>(null);
   const pasteOffsetRef = useRef(0);
+
+  const setInteractionModeGuarded: Dispatch<SetStateAction<"select" | "pan">> =
+    useCallback(
+      (updater) => {
+        setInteractionMode((currentMode) => {
+          const nextMode =
+            typeof updater === "function" ? updater(currentMode) : updater;
+
+          if (isPresentationMode && nextMode !== "pan") {
+            return "pan";
+          }
+
+          return nextMode;
+        });
+      },
+      [isPresentationMode],
+    );
+
+  const setDrawingToolGuarded: Dispatch<
+    SetStateAction<NewElementType | "laser" | null>
+  > = useCallback(
+    (updater) => {
+      setDrawingTool((currentTool) => {
+        if (isPresentationMode) {
+          return null;
+        }
+
+        return typeof updater === "function" ? updater(currentTool) : updater;
+      });
+    },
+    [isPresentationMode],
+  );
 
   const setScene: Dispatch<SetStateAction<Scene>> = useCallback((updater) => {
     dispatch({ type: "setScene", updater });
@@ -170,8 +218,8 @@ export default function App() {
     dispatch,
     clipboardRef,
     pasteOffsetRef,
-    setInteractionMode,
-    setDrawingTool,
+    setInteractionMode: setInteractionModeGuarded,
+    setDrawingTool: setDrawingToolGuarded,
   });
 
   const {
@@ -274,13 +322,96 @@ export default function App() {
     [setScene],
   );
 
+  const handleGroupSelection = useCallback(() => {
+    setScene((currentScene) => groupSelectedElements(currentScene));
+  }, [setScene]);
+
+  const handleUngroupSelection = useCallback(() => {
+    setScene((currentScene) => ungroupSelectedElements(currentScene));
+  }, [setScene]);
+
+  const applyViewportZoom = useCallback(
+    (zoomUpdater: (currentZoom: number) => number) => {
+      dispatch({
+        type: "setScene",
+        trackHistory: false,
+        updater: (currentScene) => {
+          const currentZoom = currentScene.camera.zoom;
+          const nextZoomRaw = zoomUpdater(currentZoom);
+          const nextZoom = Math.min(
+            MAX_CAMERA_ZOOM,
+            Math.max(MIN_CAMERA_ZOOM, nextZoomRaw),
+          );
+
+          if (nextZoom === currentZoom) {
+            return currentScene;
+          }
+
+          const centerX = window.innerWidth / 2;
+          const centerY = window.innerHeight / 2;
+          const worldX = centerX / currentZoom + currentScene.camera.x;
+          const worldY = centerY / currentZoom + currentScene.camera.y;
+
+          return {
+            ...currentScene,
+            camera: {
+              x: worldX - centerX / nextZoom,
+              y: worldY - centerY / nextZoom,
+              zoom: nextZoom,
+            },
+          };
+        },
+      });
+    },
+    [dispatch],
+  );
+
+  const handleZoomIn = useCallback(() => {
+    applyViewportZoom(
+      (currentZoom) => currentZoom * Math.exp(100 * ZOOM_SENSITIVITY),
+    );
+  }, [applyViewportZoom]);
+
+  const handleZoomOut = useCallback(() => {
+    applyViewportZoom(
+      (currentZoom) => currentZoom * Math.exp(-100 * ZOOM_SENSITIVITY),
+    );
+  }, [applyViewportZoom]);
+
+  const handleZoomReset = useCallback(() => {
+    applyViewportZoom(() => 1);
+  }, [applyViewportZoom]);
+
+  const handleSelectGroupForElement = useCallback(
+    (id: string) => {
+      setScene((currentScene) =>
+        selectElements(currentScene, getGroupElementIds(currentScene, id)),
+      );
+    },
+    [setScene],
+  );
+
   useEffect(() => {
+    const rootElement = document.documentElement;
+
     if (isDarkMode) {
-      document.documentElement.classList.add("dark");
+      rootElement.classList.add("dark");
     } else {
-      document.documentElement.classList.remove("dark");
+      rootElement.classList.remove("dark");
     }
-  }, [isDarkMode]);
+
+    if (scene.settings.zenMode) {
+      rootElement.classList.add("drawo-zen-mode");
+    } else {
+      rootElement.classList.remove("drawo-zen-mode");
+    }
+
+    if (scene.settings.presentationMode) {
+      rootElement.classList.add("drawo-presentation-mode");
+    } else {
+      rootElement.classList.remove("drawo-presentation-mode");
+    }
+  }, [isDarkMode, scene.settings.presentationMode, scene.settings.zenMode]);
 
   return (
     <div className="app-root">
@@ -314,8 +445,8 @@ export default function App() {
         </div>
         <CanvasView
           scene={scene}
-          interactionMode={interactionMode}
-          drawingTool={drawingTool}
+          interactionMode={effectiveInteractionMode}
+          drawingTool={effectiveDrawingTool}
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
@@ -326,7 +457,7 @@ export default function App() {
           onWheelZoom={handleWheelZoom}
           onCreateElement={handleCreateElement}
           onCreateDrawElement={handleCreateDrawElement}
-          onDrawingToolComplete={() => setDrawingTool(null)}
+          onDrawingToolComplete={() => setDrawingToolGuarded(null)}
           onSelectElements={handleSelectElements}
           onGroupResizeStart={handleGroupResizeStart}
           onGroupRotateStart={handleGroupRotateStart}
@@ -349,16 +480,38 @@ export default function App() {
           onPasteAt={handlePasteAt}
           onDuplicateSelection={handleDuplicateSelection}
           onDeleteSelection={handleDeleteSelection}
+          onGroupSelection={handleGroupSelection}
+          onUngroupSelection={handleUngroupSelection}
+          onSelectGroupForElement={handleSelectGroupForElement}
           onReorderSelection={handleReorderSelection}
           localeMessages={messages}
         />
 
+        <div className="drawo-bottomleft-bar">
+          <UndoBar
+            canUndo={canUndo}
+            canRedo={canRedo}
+            onUndo={() => dispatch({ type: "undo" })}
+            onRedo={() => dispatch({ type: "redo" })}
+          />
+        </div>
+        <div className="drawo-bottomright-bar">
+          <ZoomBar
+            zoomPercent={Math.round(scene.camera.zoom * 100)}
+            canZoomOut={scene.camera.zoom > MIN_CAMERA_ZOOM}
+            canZoomIn={scene.camera.zoom < MAX_CAMERA_ZOOM}
+            onZoomOut={handleZoomOut}
+            onZoomIn={handleZoomIn}
+            onZoomReset={handleZoomReset}
+          />
+        </div>
         <ToolBar
-          interactionMode={interactionMode}
-          drawingTool={drawingTool}
+          interactionMode={effectiveInteractionMode}
+          drawingTool={effectiveDrawingTool}
+          isPresentationMode={isPresentationMode}
           messages={messages}
-          setInteractionMode={setInteractionMode}
-          setDrawingTool={setDrawingTool}
+          setInteractionMode={setInteractionModeGuarded}
+          setDrawingTool={setDrawingToolGuarded}
           drawDefaults={scene.settings.drawDefaults}
           onDrawDefaultStrokeColorChange={handleDrawDefaultStrokeColorChange}
           onDrawDefaultStrokeWidthChange={handleDrawDefaultStrokeWidthChange}

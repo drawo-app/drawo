@@ -6,6 +6,7 @@ export interface DrawPoint {
 
 export interface DrawElement {
   id: string;
+  groupId?: string | null;
   type: "draw";
   drawMode: "draw" | "marker" | "quill";
   createdAt?: number;

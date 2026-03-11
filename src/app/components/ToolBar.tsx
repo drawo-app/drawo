@@ -1,7 +1,7 @@
 import { useState, type Dispatch, type SetStateAction } from "react";
 import type { NewElementType } from "../../core/scene";
 import type { LocaleMessages } from "../../i18n";
-import { ArrowUp, MapArrowUp, Pen, Text } from "@solar-icons/react";
+import { ArrowRight, MapArrowUp, Pen, Text } from "@solar-icons/react";
 import {
   GrabHandLinear,
   LaserIcon,
@@ -33,6 +33,7 @@ import {
 interface ToolBarProps {
   interactionMode: "select" | "pan";
   drawingTool: NewElementType | "laser" | null;
+  isPresentationMode: boolean;
   messages: LocaleMessages;
   setInteractionMode: Dispatch<SetStateAction<"select" | "pan">>;
   setDrawingTool: Dispatch<SetStateAction<NewElementType | "laser" | null>>;
@@ -57,6 +58,7 @@ interface ToolBarProps {
 export const ToolBar = ({
   interactionMode,
   drawingTool,
+  isPresentationMode,
   messages,
   setInteractionMode,
   setDrawingTool,
@@ -65,6 +67,20 @@ export const ToolBar = ({
   onDrawDefaultStrokeWidthChange,
 }: ToolBarProps) => {
   const [isColorPickerOpen, setIsColorPickerOpen] = useState(false);
+  const setInteractionModeSafely = (mode: "select" | "pan") => {
+    if (isPresentationMode && mode !== "pan") {
+      return;
+    }
+
+    setInteractionMode(mode);
+  };
+  const setDrawingToolSafely = (tool: NewElementType | "laser" | null) => {
+    if (isPresentationMode) {
+      return;
+    }
+
+    setDrawingTool(tool);
+  };
   const getActiveDrawMode = () =>
     drawingTool === "marker"
       ? "marker"
@@ -148,8 +164,8 @@ export const ToolBar = ({
                 type="button"
                 className={`drawtool-elem tool-item${drawingTool === "draw" ? " active" : ""}`}
                 onClick={() => {
-                  setInteractionMode("select");
-                  setDrawingTool("draw");
+                  setInteractionModeSafely("select");
+                  setDrawingToolSafely("draw");
                   setIsColorPickerOpen(false);
                 }}
               >
@@ -169,8 +185,8 @@ export const ToolBar = ({
                 type="button"
                 className={`drawtool-elem tool-item${drawingTool === "quill" ? " active" : ""}`}
                 onClick={() => {
-                  setInteractionMode("select");
-                  setDrawingTool("quill");
+                  setInteractionModeSafely("select");
+                  setDrawingToolSafely("quill");
                   setIsColorPickerOpen(false);
                 }}
               >
@@ -190,8 +206,8 @@ export const ToolBar = ({
                 type="button"
                 className={`drawtool-elem tool-item${drawingTool === "marker" ? " active" : ""}`}
                 onClick={() => {
-                  setInteractionMode("select");
-                  setDrawingTool("marker");
+                  setInteractionModeSafely("select");
+                  setDrawingToolSafely("marker");
                   setIsColorPickerOpen(false);
                 }}
               >
@@ -360,8 +376,8 @@ export const ToolBar = ({
             type="button"
             className={`tool-item${interactionMode === "select" && !drawingTool ? " active" : ""}`}
             onClick={() => {
-              setInteractionMode("select");
-              setDrawingTool(null);
+              setInteractionModeSafely("select");
+              setDrawingToolSafely(null);
             }}
           >
             <MapArrowUp
@@ -383,8 +399,8 @@ export const ToolBar = ({
             type="button"
             className={`tool-item${interactionMode === "pan" ? " active" : ""}`}
             onClick={() => {
-              setInteractionMode("pan");
-              setDrawingTool(null);
+              setInteractionModeSafely("pan");
+              setDrawingToolSafely(null);
             }}
           >
             <GrabHandLinear />
@@ -403,8 +419,8 @@ export const ToolBar = ({
             type="button"
             className={`tool-item${drawingTool === "text" ? " active" : ""}`}
             onClick={() => {
-              setInteractionMode("select");
-              setDrawingTool("text");
+              setInteractionModeSafely("select");
+              setDrawingToolSafely("text");
             }}
           >
             <Text strokeWidth={0.1} />
@@ -421,8 +437,8 @@ export const ToolBar = ({
             type="button"
             className={`tool-item${drawingTool === "rectangle" ? " active" : ""}`}
             onClick={() => {
-              setInteractionMode("select");
-              setDrawingTool("rectangle");
+              setInteractionModeSafely("select");
+              setDrawingToolSafely("rectangle");
             }}
           >
             <SquareLinear />
@@ -439,8 +455,8 @@ export const ToolBar = ({
             type="button"
             className={`tool-item${drawingTool === "circle" ? " active" : ""}`}
             onClick={() => {
-              setInteractionMode("select");
-              setDrawingTool("circle");
+              setInteractionModeSafely("select");
+              setDrawingToolSafely("circle");
             }}
           >
             <Circle strokeWidth={1.5} />
@@ -457,11 +473,11 @@ export const ToolBar = ({
             type="button"
             className={`tool-item${drawingTool === "line" ? " active" : ""}`}
             onClick={() => {
-              setInteractionMode("select");
-              setDrawingTool("line");
+              setInteractionModeSafely("select");
+              setDrawingToolSafely("line");
             }}
           >
-            <ArrowUp style={{ scale: "1.2" }} strokeWidth={1.1} />
+            <ArrowRight style={{ scale: "1.2" }} strokeWidth={1.1} />
           </button>
         </TooltipTrigger>
         <TooltipContent>
@@ -475,8 +491,8 @@ export const ToolBar = ({
             type="button"
             className={`tool-item${drawTools.includes(drawingTool) ? " active" : ""}`}
             onClick={() => {
-              setInteractionMode("select");
-              setDrawingTool("draw");
+              setInteractionModeSafely("select");
+              setDrawingToolSafely("draw");
             }}
           >
             <Pen strokeWidth={1.5} />
@@ -495,8 +511,8 @@ export const ToolBar = ({
             type="button"
             className={`tool-item${drawingTool === "laser" ? " active" : ""}`}
             onClick={() => {
-              setInteractionMode("select");
-              setDrawingTool("laser");
+              setInteractionModeSafely("select");
+              setDrawingToolSafely("laser");
             }}
           >
             <LaserIcon strokeWidth={1.5} />

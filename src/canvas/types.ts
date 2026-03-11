@@ -64,6 +64,7 @@ export interface CanvasViewProps {
     y: number,
     altKey: boolean,
     shiftKey: boolean,
+    internalSelectKey: boolean,
   ) => void;
   onPointerMove: (
     x: number,
@@ -92,6 +93,9 @@ export interface CanvasViewProps {
   onPasteAt: (x: number, y: number) => void;
   onDuplicateSelection: () => void;
   onDeleteSelection: () => void;
+  onGroupSelection: () => void;
+  onUngroupSelection: () => void;
+  onSelectGroupForElement: (id: string) => void;
   onReorderSelection: (
     direction: "forward" | "backward" | "front" | "back",
   ) => void;

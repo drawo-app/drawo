@@ -5,7 +5,8 @@ interface RgbaColor {
   a: number;
 }
 
-export const clamp01 = (value: number): number => Math.min(1, Math.max(0, value));
+export const clamp01 = (value: number): number =>
+  Math.min(1, Math.max(0, value));
 
 const parseHexColor = (value: string): RgbaColor | null => {
   const hex = value.trim().slice(1);

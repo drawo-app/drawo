@@ -7,10 +7,15 @@ import {
 } from "../../core/scene";
 import { SCENE_STORAGE_KEY, SETTINGS_STORAGE_KEY } from "./constants";
 
+const normalizeGroupId = (value: unknown): string | null => {
+  return typeof value === "string" && value.trim().length > 0 ? value : null;
+};
+
 const normalizeElement = (element: SceneElement): SceneElement => {
   if (element.type === "rectangle" || element.type === "circle") {
     return {
       ...element,
+      groupId: normalizeGroupId(element.groupId),
       text: typeof element.text === "string" ? element.text : "",
       fontFamily:
         typeof element.fontFamily === "string"
@@ -39,6 +44,7 @@ const normalizeElement = (element: SceneElement): SceneElement => {
   if (element.type === "draw") {
     return {
       ...element,
+      groupId: normalizeGroupId(element.groupId),
       drawMode:
         element.drawMode === "marker"
           ? "marker"
@@ -99,6 +105,7 @@ const normalizeElement = (element: SceneElement): SceneElement => {
 
     return {
       ...element,
+      groupId: normalizeGroupId(element.groupId),
       stroke: typeof element.stroke === "string" ? element.stroke : "#2f3b52",
       strokeWidth:
         typeof element.strokeWidth === "number" &&
@@ -119,7 +126,10 @@ const normalizeElement = (element: SceneElement): SceneElement => {
     };
   }
 
-  return element;
+  return {
+    ...element,
+    groupId: normalizeGroupId(element.groupId),
+  };
 };
 
 const isValidTheme = (value: unknown): value is SceneSettings["theme"] => {

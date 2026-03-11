@@ -1,5 +1,6 @@
 export interface CircleElement {
   id: string;
+  groupId?: string | null;
   type: "circle";
   rotation: number;
   x: number;

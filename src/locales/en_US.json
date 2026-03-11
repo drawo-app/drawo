@@ -4,7 +4,10 @@
     "snapToGrid": "Snap to grid",
     "theme": "Theme",
     "language": "Language",
-    "clearCanvas": "Clear canvas"
+    "quickActions": "Quick actions",
+    "clearCanvas": "Clear canvas",
+    "zenMode": "Zen mode",
+    "presentationMode": "View mode"
   },
   "dialogs": {
     "clearCanvas": {
@@ -25,6 +28,7 @@
     "rectangle": "Rectangle",
     "ellipse": "Ellipse",
     "draw": "Draw",
+    "line": "Line",
     "quill": "Quill",
     "laser": "Laser pointer",
     "marker": "Marker",
@@ -41,7 +45,8 @@
     "medium": "Medium",
     "large": "Large",
     "extraLarge": "Extra Large",
-    "huge": "Huge"
+    "huge": "Huge",
+    "placeholder": "Custom font size"
   },
   "selectionBar": {
     "strokeWidth": "Stroke width",
@@ -70,5 +75,24 @@
   "canvas": {
     "newText": "New text",
     "tagline": "Where ideas take shape."
+  },
+  "contextMenu": {
+    "cut": "Cut",
+    "copy": "Copy",
+    "paste": "Paste",
+    "duplicate": "Duplicate",
+    "delete": "Delete",
+
+    "group": "Group",
+    "ungroup": "Ungroup",
+
+    "layers": {
+      "text": "Layers",
+      "bringToFront": "Bring to front",
+      "sendToBack": "Send to back",
+      "sendBackward": "Send backward",
+      "bringForward": "Bring forward"
+    },
+    "selectEverything": "Select everything"
   }
 }

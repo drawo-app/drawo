@@ -1,5 +1,6 @@
 export interface RectangleElement {
   id: string;
+  groupId?: string | null;
   type: "rectangle";
   rotation: number;
   x: number;

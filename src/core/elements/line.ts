@@ -8,6 +8,7 @@ export type LineCap =
 
 export interface LineElement {
   id: string;
+  groupId?: string | null;
   type: "line";
   rotation: number;
   x: number;

@@ -11,6 +11,8 @@ export interface SceneSettings {
   snapToGrid: boolean;
   gridSize: number;
   theme: "light" | "dark";
+  zenMode: boolean;
+  presentationMode: boolean;
   drawDefaults: {
     drawStroke: string;
     markerStroke: string;
@@ -61,6 +63,8 @@ export const initScene = (): Scene => ({
     snapToGrid: false,
     gridSize: 24,
     theme: "light",
+    zenMode: false,
+    presentationMode: false,
     drawDefaults: {
       drawStroke: "#2f3b52",
       markerStroke: "#f1e66d",

@@ -132,7 +132,7 @@ function SelectSeparator({
   return (
     <SelectPrimitive.Separator
       data-slot="select-separator"
-      className={className}
+      className={className + " select-separator"}
       {...props}
     />
   );

@@ -11,6 +11,7 @@ import {
   addElementToScene,
   type DrawElementStyle,
   type ElementCreationBounds,
+  getGroupElementIds,
   type NewElementType,
   selectElement,
   selectElements,
@@ -83,22 +84,37 @@ export const useInteraction = ({
   };
 
   const handlePointerDown = useCallback(
-    (x: number, y: number, altKey: boolean, shiftKey: boolean) => {
+    (
+      x: number,
+      y: number,
+      altKey: boolean,
+      shiftKey: boolean,
+      internalSelectKey: boolean,
+    ) => {
       setScene((currentScene) => {
         const hitId = findHitElement(currentScene.elements, x, y);
         const selectedIds = getSelectedIds(currentScene);
 
         if (hitId) {
+          const hitGroupIds = internalSelectKey
+            ? [hitId]
+            : getGroupElementIds(currentScene, hitId);
+          const isInternallySelectedElement =
+            selectedIds.length === 1 && selectedIds[0] === hitId;
+          const hasFullHitSelection = hitGroupIds.every((id) =>
+            selectedIds.includes(id),
+          );
           const baseDragIds =
-            selectedIds.length > 1 && selectedIds.includes(hitId)
+            isInternallySelectedElement
+              ? [hitId]
+              : selectedIds.length > 1 &&
+                  hitGroupIds.some((id) => selectedIds.includes(id))
               ? selectedIds
-              : [hitId];
+              : hitGroupIds;
 
-          // Multi-select only if shift is pressed AND the element is not already selected
-          // Otherwise shift is used for ruler constraint on drag
-          if (shiftKey && !altKey && !baseDragIds.includes(hitId)) {
+          if (shiftKey && !internalSelectKey && !hasFullHitSelection) {
             dragStateRef.current = null;
-            return selectElements(currentScene, [...selectedIds, hitId]);
+            return selectElements(currentScene, [...selectedIds, ...hitGroupIds]);
           }
 
           const dragElements = currentScene.elements.filter((element) =>
@@ -106,7 +122,10 @@ export const useInteraction = ({
           );
 
           if (dragElements.length > 0) {
-            if (altKey) {
+            const shouldDuplicateDrag =
+              altKey && dragElements.every((element) => !element.groupId);
+
+            if (shouldDuplicateDrag) {
               beginInteractionHistory();
               const clonedElements = dragElements.map((element) =>
                 createClonedElement(element),
@@ -153,7 +172,14 @@ export const useInteraction = ({
           dragStateRef.current = null;
         }
 
-        return selectElement(currentScene, hitId);
+        if (!hitId) {
+          return selectElement(currentScene, null);
+        }
+
+        return selectElements(
+          currentScene,
+          internalSelectKey ? [hitId] : getGroupElementIds(currentScene, hitId),
+        );
       });
     },
     [beginInteractionHistory, setScene],

@@ -1,5 +1,6 @@
 export interface TextElement {
   id: string;
+  groupId?: string | null;
   type: "text";
   rotation: number;
   x: number;

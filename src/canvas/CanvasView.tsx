@@ -1,11 +1,4 @@
-import {
-  useRef,
-  useEffect,
-  useMemo,
-  useState,
-  useCallback,
-  type CSSProperties,
-} from "react";
+import { useRef, useEffect, useMemo, useState, useCallback } from "react";
 import type { DrawElementStyle } from "../core/scene";
 import {
   createElementId,
@@ -27,21 +20,6 @@ import type {
   LineElement,
   SceneElement,
 } from "../core/elements";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "../components/select";
-import {
-  ElegantTypography,
-  HandwrittenTypography,
-  SimpleTypography,
-  TechnicalTypography,
-} from "../components/icons";
-import { Tooltip, TooltipContent, TooltipTrigger } from "../components/tooltip";
-import Chrome from "@uiw/react-color-chrome";
 import { createEditor, Editor, Transforms, type Descendant } from "slate";
 import {
   Editable,
@@ -52,36 +30,15 @@ import {
 } from "slate-react";
 import { withHistory } from "slate-history";
 import {
-  Bold,
-  Italic,
-  Strikethrough,
-  TextAlignCenter,
-  TextAlignLeft,
-  TextAlignRight,
-} from "@gravity-ui/icons";
-import {
-  DRAW_STROKE_OPTIONS,
-  DRAW_STROKE_PREVIEWS,
-  getClosestDrawStrokeOption,
-  getClosestMarkerStrokeOption,
   HANDLE_BORDER_RADIUS_PX,
   HANDLE_SIZE,
-  MARKER_STROKE_OPTIONS,
-  MARKER_STROKE_PREVIEWS,
   MIN_GRID_SCREEN_SPACING,
   RADIUS_HANDLE_OFFSET_PX,
   RADIUS_HANDLE_SIZE_PX,
-  STROKE_COLORS,
   TEXT_SELECTION_PADDING_PX,
   SHAPE_TEXT_HORIZONTAL_PADDING_PX,
-  LINE_STROKELINECAPS,
-  LINE_STROKELINECAPS_PREVIEWS,
 } from "./constants";
-import {
-  invertLightnessPreservingHue,
-  normalizeRgbTriplet,
-  parseColorForPicker,
-} from "./color";
+import { invertLightnessPreservingHue, normalizeRgbTriplet } from "./color";
 import {
   drawCatmullRomCurve,
   drawQuillStroke,
@@ -102,7 +59,6 @@ import {
   getResizeCursor,
   getRotateCursor,
   getShapeTextAnchorX,
-  getTextAlignSelectValue,
   rotatePointAroundCenter,
 } from "./geometry";
 import {
@@ -110,12 +66,13 @@ import {
   serializeRichTextDocument,
 } from "./richTextDocument";
 import { CanvasEmptyState } from "./CanvasEmptyState";
+import { SelectionStrokeControls } from "./SelectionStrokeControls";
+import { SelectionTextControls } from "./SelectionTextControls";
+import { SelectionToolbar } from "./SelectionToolbar";
 import {
   getSelectedDrawElements,
   getSelectedIds,
-  getSelectedLineElements,
   getSelectedTextElements,
-  getSharedValue,
 } from "./selectionState";
 import type {
   CanvasViewProps,
@@ -154,6 +111,9 @@ export const CanvasView = ({
   onPasteAt,
   onDuplicateSelection,
   onDeleteSelection,
+  onGroupSelection,
+  onUngroupSelection,
+  onSelectGroupForElement,
   onReorderSelection,
   onTextFontFamilyChange,
   onTextFontSizeChange,
@@ -241,6 +201,33 @@ export const CanvasView = ({
   const hasSelection = selectedIds.length > 0;
   const canTransformSelection = selectedIds.length === 1;
   const selectedElementId = canTransformSelection ? selectedIds[0] : null;
+  const selectedElements = scene.elements.filter((element) =>
+    selectedIds.includes(element.id),
+  );
+  const canUngroupSelection = selectedElements.some(
+    (element) => element.groupId,
+  );
+  const selectedGroupId =
+    selectedElements.length > 0
+      ? selectedElements.every(
+          (element) =>
+            element.groupId && element.groupId === selectedElements[0]?.groupId,
+        )
+        ? (selectedElements[0]?.groupId ?? null)
+        : null
+      : null;
+  const selectedGroupElementIds = selectedGroupId
+    ? scene.elements
+        .filter((element) => element.groupId === selectedGroupId)
+        .map((element) => element.id)
+    : [];
+  const isWholeGroupSelected =
+    Boolean(selectedGroupId) &&
+    selectedGroupElementIds.length > 1 &&
+    selectedGroupElementIds.length === selectedIds.length &&
+    selectedGroupElementIds.every((id) => selectedIds.includes(id));
+  const isSingleElementWithinGroupSelected =
+    selectedIds.length === 1 && Boolean(selectedElements[0]?.groupId);
   const camera = scene.camera;
   const isDarkMode = scene.settings.theme === "dark";
 
@@ -1056,1198 +1043,51 @@ export const CanvasView = ({
     return null;
   };
 
-  const renderDrawStrokePreview = (
-    previews: typeof DRAW_STROKE_PREVIEWS,
-    index: number,
-  ) => {
-    const preview = previews[index] ?? previews[0];
-    if (!preview) {
-      return null;
-    }
-
-    return (
-      <svg
-        width={preview.width}
-        height={preview.height}
-        viewBox={preview.viewBox}
-        fill="none"
-        xmlns="http://www.w3.org/2000/svg"
-      >
-        <path
-          d={preview.path}
-          stroke={preview.strokeWidth ? "currentColor" : undefined}
-          strokeWidth={preview.strokeWidth}
-          strokeLinecap={preview.strokeWidth ? "round" : undefined}
-          fill={preview.fill}
-        />
-      </svg>
-    );
-  };
-
   const renderSelectionBarContents = () => {
     const selectedTextElements = getSelectedTextElements(
       scene.elements,
       selectedIds,
     );
-    const selectedTextAlign = getSharedValue(
-      selectedTextElements,
-      (element) => element.textAlign,
-    );
-    const selectedTextAlignValue = getTextAlignSelectValue(selectedTextAlign);
-    const selectedFontFamily = getSharedValue(
-      selectedTextElements,
-      (element) => element.fontFamily,
-    );
-    const selectedFontSize = getSharedValue(
-      selectedTextElements,
-      (element) => element.fontSize,
-    );
-    const selectedFontWeight = getSharedValue(
-      selectedTextElements,
-      (element) => element.fontWeight,
-    );
-    const selectedFontStyle = getSharedValue(
-      selectedTextElements,
-      (element) => element.fontStyle,
-    );
-    const isBoldActive =
-      selectedFontWeight === "bold" ||
-      selectedFontWeight === "700" ||
-      selectedFontWeight === "800" ||
-      selectedFontWeight === "900";
-    const isItalicActive = selectedFontStyle === "italic";
-    const activeEditorMarks = editingText
-      ? ((Editor.marks(editor) as Record<string, unknown> | null) ?? null)
-      : null;
-
-    const isEditingBaseBold =
-      editingText &&
-      (editingText.style.fontWeight === "bold" ||
-        editingText.style.fontWeight === "700" ||
-        editingText.style.fontWeight === "800" ||
-        editingText.style.fontWeight === "900");
-    const isEditingBaseItalic = editingText?.style.fontStyle === "italic";
-
-    const isEditorBoldActive =
-      activeEditorMarks?.bold === true ||
-      (activeEditorMarks?.bold !== false && isEditingBaseBold);
-    const isEditorItalicActive =
-      activeEditorMarks?.italic === true ||
-      (activeEditorMarks?.italic !== false && isEditingBaseItalic);
-
-    const isElementFullyStrikethrough = (element: EditableElement): boolean => {
-      const document = deserializeRichTextDocument(element.text);
-
-      return document.every((paragraph) =>
-        paragraph.children.every((leaf) => leaf.strikethrough === true),
-      );
-    };
-
-    const areAllSelectedElementsStrikethrough =
-      selectedTextElements.length > 0 &&
-      selectedTextElements.every((element) =>
-        isElementFullyStrikethrough(element),
-      );
-
-    const isBoldControlActive = editingText ? isEditorBoldActive : isBoldActive;
-    const isItalicControlActive = editingText
-      ? isEditorItalicActive
-      : isItalicActive;
-    const isStrikethroughControlActive = editingText
-      ? activeEditorMarks?.strikethrough === true
-      : areAllSelectedElementsStrikethrough;
-
-    const toggleStrikethroughForSelectedElements = () => {
-      const nextValue = !areAllSelectedElementsStrikethrough;
-
-      for (const element of selectedTextElements) {
-        const document = deserializeRichTextDocument(element.text);
-        const nextDocument: RichTextDocument = document.map((paragraph) => ({
-          ...paragraph,
-          children: paragraph.children.map((leaf) => ({
-            ...leaf,
-            strikethrough: nextValue,
-          })),
-        }));
-
-        onTextCommit(element.id, serializeRichTextDocument(nextDocument));
-      }
-    };
-    const selectedDrawElements = getSelectedDrawElements(
-      scene.elements,
-      selectedIds,
-    );
-    const selectedDrawMode =
-      getSharedValue(
-        selectedDrawElements,
-        (element) => element.drawMode ?? "draw",
-      ) ?? "draw";
-    const strokeOptions =
-      selectedDrawMode === "marker"
-        ? MARKER_STROKE_OPTIONS
-        : DRAW_STROKE_OPTIONS;
-    const strokePreviews =
-      selectedDrawMode === "marker"
-        ? MARKER_STROKE_PREVIEWS
-        : DRAW_STROKE_PREVIEWS;
-
-    const selectedDrawStrokeWidth =
-      selectedDrawMode === "marker"
-        ? getClosestMarkerStrokeOption(
-            getSharedValue(
-              selectedDrawElements,
-              (element) => element.strokeWidth,
-            ) ?? MARKER_STROKE_OPTIONS[0],
-          )
-        : getClosestDrawStrokeOption(
-            getSharedValue(
-              selectedDrawElements,
-              (element) => element.strokeWidth,
-            ) ?? DRAW_STROKE_OPTIONS[1],
-          );
-    const defaultDrawStrokeColor =
-      selectedDrawMode === "marker"
-        ? scene.settings.drawDefaults.markerStroke
-        : selectedDrawMode === "quill"
-          ? scene.settings.drawDefaults.quillStroke
-          : scene.settings.drawDefaults.drawStroke;
-    const selectedDrawStrokeColor =
-      selectedDrawElements[0]?.stroke || defaultDrawStrokeColor;
-    const drawStrokeColorSelectValue = STROKE_COLORS.some(
-      (color) =>
-        color !== "multi" &&
-        color.toLowerCase() === selectedDrawStrokeColor.toLowerCase(),
-    )
-      ? selectedDrawStrokeColor
-      : "multi";
-    const openCustomDrawColorPicker = (initialColor: string) => {
-      setCustomDrawColorPickerColor(parseColorForPicker(initialColor));
-      setIsCustomDrawColorPickerOpen(true);
-    };
-
-    const renderDrawStrokeSelector = () => (
-      <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
-        <div
-          ref={customDrawColorPickerWrapRef}
-          style={{ position: "relative", display: "inline-flex" }}
-        >
-          <Select
-            open={isCustomDrawColorPickerOpen || undefined}
-            value={String(drawStrokeColorSelectValue)}
-            onValueChange={(value) => {
-              if (value === "multi") {
-                openCustomDrawColorPicker(selectedDrawStrokeColor);
-                return;
-              }
-
-              setIsCustomDrawColorPickerOpen(false);
-
-              if (selectedDrawElements.length === 0) {
-                onDrawDefaultStrokeColorChange(selectedDrawMode, value);
-                return;
-              }
-
-              onDrawStrokeColorChange(
-                selectedDrawElements.map((element) => element.id),
-                value,
-              );
-            }}
-          >
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <SelectTrigger
-                  onPointerDown={(event) => {
-                    if (drawStrokeColorSelectValue !== "multi") {
-                      return;
-                    }
-
-                    event.preventDefault();
-                    event.stopPropagation();
-                    openCustomDrawColorPicker(selectedDrawStrokeColor);
-                  }}
-                  style={{
-                    gap: "0px",
-                    width: "fit-content",
-                  }}
-                >
-                  <span style={{ width: "0px", overflow: "hidden" }}>
-                    <SelectValue
-                      placeholder={localeMessages.selectionBar.strokeColor}
-                    />
-                  </span>
-                  <div
-                    style={{
-                      width: "20px",
-                      borderRadius: "100%",
-                      border: "1px solid #ffffff20",
-                      height: "20px",
-                      background: uniColor(
-                        selectedDrawStrokeColor || defaultDrawStrokeColor,
-                      ),
-                    }}
-                  />
-                </SelectTrigger>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>{localeMessages.selectionBar.strokeColor}</p>
-              </TooltipContent>
-            </Tooltip>
-            <SelectContent
-              position="popper"
-              className="drawo-colorselect-content"
-            >
-              {STROKE_COLORS.map((color) => (
-                <SelectItem
-                  key={color}
-                  value={color}
-                  className="drawo-colorselect-item"
-                  check={false}
-                  onPointerDown={
-                    color === "multi"
-                      ? (event) => {
-                          event.preventDefault();
-                          event.stopPropagation();
-                          openCustomDrawColorPicker(selectedDrawStrokeColor);
-                        }
-                      : undefined
-                  }
-                  onSelect={
-                    color === "multi"
-                      ? (event) => {
-                          event.preventDefault();
-                          openCustomDrawColorPicker(selectedDrawStrokeColor);
-                        }
-                      : undefined
-                  }
-                >
-                  <div
-                    style={{
-                      border:
-                        drawStrokeColorSelectValue === color
-                          ? "2px solid var(--accent)"
-                          : "2px solid transparent",
-                      borderRadius: "100%",
-                      padding: "2px",
-                    }}
-                  >
-                    <div
-                      style={{
-                        width: color === "multi" ? "22px" : "20px",
-                        borderRadius: "100%",
-                        border:
-                          color !== "multi" ? "1px solid #ffffff20" : "none",
-                        height: color === "multi" ? "22px" : "20px",
-                        background:
-                          color === "multi"
-                            ? `
-                        radial-gradient(circle at center,
-                          rgba(255,255,255,1) 0%,
-                          rgba(255,255,255,0.85) 10%,
-                          rgba(255,255,255,0.55) 22%,
-                          rgba(255,255,255,0.15) 40%,
-                          transparent 62%
-                        ),
-                        radial-gradient(circle at 36% 32%, rgba(255,255,255,0.35) 0%, transparent 35%),
-                        radial-gradient(circle at 68% 70%, rgba(0,0,0,0.38) 0%, transparent 52%),
-                        conic-gradient(
-                          from 0deg,
-                          hsl(0,   70%, 65%),
-                          hsl(30,  72%, 63%),
-                          hsl(55,  70%, 62%),
-                          hsl(80,  60%, 60%),
-                          hsl(120, 55%, 60%),
-                          hsl(160, 60%, 58%),
-                          hsl(185, 65%, 60%),
-                          hsl(210, 68%, 63%),
-                          hsl(240, 65%, 66%),
-                          hsl(270, 65%, 65%),
-                          hsl(300, 65%, 64%),
-                          hsl(330, 68%, 64%),
-                          hsl(360, 70%, 65%)`
-                            : uniColor(color),
-                      }}
-                    />
-                  </div>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <Tooltip open={isCustomDrawColorPickerOpen}>
-          <TooltipTrigger asChild>
-            <div className="selectionbar-separator" />
-          </TooltipTrigger>
-          <TooltipContent
-            className="drawo-content-color"
-            side="bottom"
-            style={{ background: "transparent" }}
-          >
-            <div
-              ref={customDrawColorPickerContentRef}
-              onPointerDown={(event) => event.stopPropagation()}
-            >
-              <Chrome
-                color={customDrawColorPickerColor}
-                onChange={(color) => {
-                  const next = color.hexa || color.hex;
-                  if (next) {
-                    setCustomDrawColorPickerColor(next);
-
-                    if (selectedDrawElements.length === 0) {
-                      onDrawDefaultStrokeColorChange(selectedDrawMode, next);
-                      return;
-                    }
-
-                    onDrawStrokeColorChange(
-                      selectedDrawElements.map((element) => element.id),
-                      next,
-                    );
-                  }
-                }}
-              />
-            </div>
-          </TooltipContent>
-        </Tooltip>
-        <Select
-          value={String(selectedDrawStrokeWidth)}
-          onValueChange={(value) => {
-            onDrawStrokeWidthChange(
-              selectedDrawElements.map((element) => element.id),
-              Number(value),
-            );
-          }}
-        >
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <SelectTrigger
-                className="draw-stroke-trigger"
-                style={{
-                  gap: "0px",
-                  width: "fit-content",
-                }}
-              >
-                <span style={{ width: "0px", overflow: "hidden" }}>
-                  <SelectValue
-                    placeholder={localeMessages.selectionBar.strokeWidth}
-                  />
-                </span>
-                <span className="draw-stroke-option-line-wrap">
-                  {renderDrawStrokePreview(
-                    strokePreviews,
-                    Math.max(
-                      0,
-                      strokeOptions.findIndex(
-                        (option) => option === selectedDrawStrokeWidth,
-                      ),
-                    ),
-                  )}
-                </span>
-              </SelectTrigger>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>{localeMessages.selectionBar.strokeWidth}</p>
-            </TooltipContent>
-          </Tooltip>
-          <SelectContent position="popper">
-            {strokeOptions.map((strokeWidth, index) => (
-              <SelectItem
-                key={strokeWidth}
-                check={false}
-                value={String(strokeWidth)}
-                className="draw-stroke-select-item"
-              >
-                <span className="draw-stroke-option-line-wrap">
-                  {renderDrawStrokePreview(strokePreviews, index)}
-                </span>
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-    );
-
-    if (selectedIds.length > 1) {
-      if (selectedDrawElements.length === selectedIds.length) {
-        return renderDrawStrokeSelector();
-      }
-
-      return <></>;
-    }
-
-    const selectedLineElements = getSelectedLineElements(
-      scene.elements,
-      selectedIds,
-    );
-    const selectedLineStrokeColor =
-      getSharedValue(selectedLineElements, (element) => element.stroke) ??
-      "multi";
-    const selectedLineStrokePreviewColor =
-      selectedLineStrokeColor === "multi"
-        ? (selectedLineElements[0]?.stroke ?? "#2f3b52")
-        : selectedLineStrokeColor;
-    const lineStrokeColorSelectValue = STROKE_COLORS.some(
-      (color) =>
-        color !== "multi" &&
-        color.toLowerCase() === selectedLineStrokeColor.toLowerCase(),
-    )
-      ? selectedLineStrokeColor
-      : "multi";
-    const selectedLineStrokeWidth = getClosestDrawStrokeOption(
-      getSharedValue(selectedLineElements, (element) => element.strokeWidth) ??
-        DRAW_STROKE_OPTIONS[1],
-    );
-
-    const renderLineStrokeColorSelector = () => (
-      <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
-        <div
-          ref={customDrawColorPickerWrapRef}
-          style={{ position: "relative", display: "inline-flex" }}
-        >
-          <Select
-            open={isCustomDrawColorPickerOpen || undefined}
-            value={String(lineStrokeColorSelectValue)}
-            onValueChange={(value) => {
-              if (value === "multi") {
-                openCustomDrawColorPicker(selectedLineStrokePreviewColor);
-                return;
-              }
-
-              setIsCustomDrawColorPickerOpen(false);
-              onDrawStrokeColorChange(
-                selectedLineElements.map((element) => element.id),
-                value,
-              );
-            }}
-          >
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <SelectTrigger
-                  onPointerDown={(event) => {
-                    if (lineStrokeColorSelectValue !== "multi") {
-                      return;
-                    }
-
-                    event.preventDefault();
-                    event.stopPropagation();
-                    openCustomDrawColorPicker(selectedLineStrokePreviewColor);
-                  }}
-                  style={{
-                    gap: "0px",
-                    width: "fit-content",
-                  }}
-                >
-                  <span style={{ width: "0px", overflow: "hidden" }}>
-                    <SelectValue
-                      placeholder={localeMessages.selectionBar.strokeColor}
-                    />
-                  </span>
-                  <div
-                    style={{
-                      width: "20px",
-                      borderRadius: "100%",
-                      border: "1px solid #ffffff20",
-                      height: "20px",
-                      background: uniColor(selectedLineStrokePreviewColor),
-                    }}
-                  />
-                </SelectTrigger>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>{localeMessages.selectionBar.strokeColor}</p>
-              </TooltipContent>
-            </Tooltip>
-            <SelectContent
-              position="popper"
-              className="drawo-colorselect-content"
-            >
-              {STROKE_COLORS.map((color) => (
-                <SelectItem
-                  key={color}
-                  value={color}
-                  className="drawo-colorselect-item"
-                  check={false}
-                  onPointerDown={
-                    color === "multi"
-                      ? (event) => {
-                          event.preventDefault();
-                          event.stopPropagation();
-                          openCustomDrawColorPicker(
-                            selectedLineStrokePreviewColor,
-                          );
-                        }
-                      : undefined
-                  }
-                  onSelect={
-                    color === "multi"
-                      ? (event) => {
-                          event.preventDefault();
-                          openCustomDrawColorPicker(
-                            selectedLineStrokePreviewColor,
-                          );
-                        }
-                      : undefined
-                  }
-                >
-                  <div
-                    style={{
-                      border:
-                        lineStrokeColorSelectValue === color
-                          ? "2px solid var(--accent)"
-                          : "2px solid transparent",
-                      borderRadius: "100%",
-                      padding: "2px",
-                    }}
-                  >
-                    <div
-                      style={{
-                        width: color === "multi" ? "22px" : "20px",
-                        borderRadius: "100%",
-                        border:
-                          color !== "multi" ? "1px solid #ffffff20" : "none",
-                        height: color === "multi" ? "22px" : "20px",
-                        background:
-                          color === "multi"
-                            ? `
-                        radial-gradient(circle at center,
-                          rgba(255,255,255,1) 0%,
-                          rgba(255,255,255,0.85) 10%,
-                          rgba(255,255,255,0.55) 22%,
-                          rgba(255,255,255,0.15) 40%,
-                          transparent 62%
-                        ),
-                        radial-gradient(circle at 36% 32%, rgba(255,255,255,0.35) 0%, transparent 35%),
-                        radial-gradient(circle at 68% 70%, rgba(0,0,0,0.38) 0%, transparent 52%),
-                        conic-gradient(
-                          from 0deg,
-                          hsl(0,   70%, 65%),
-                          hsl(30,  72%, 63%),
-                          hsl(55,  70%, 62%),
-                          hsl(80,  60%, 60%),
-                          hsl(120, 55%, 60%),
-                          hsl(160, 60%, 58%),
-                          hsl(185, 65%, 60%),
-                          hsl(210, 68%, 63%),
-                          hsl(240, 65%, 66%),
-                          hsl(270, 65%, 65%),
-                          hsl(300, 65%, 64%),
-                          hsl(330, 68%, 64%),
-                          hsl(360, 70%, 65%)`
-                            : uniColor(color),
-                      }}
-                    />
-                  </div>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <Tooltip open={isCustomDrawColorPickerOpen}>
-          <TooltipTrigger asChild>
-            <div className="selectionbar-separator" />
-          </TooltipTrigger>
-          <TooltipContent
-            className="drawo-content-color"
-            side="bottom"
-            style={{ background: "transparent" }}
-          >
-            <div
-              ref={customDrawColorPickerContentRef}
-              onPointerDown={(event) => event.stopPropagation()}
-            >
-              <Chrome
-                color={customDrawColorPickerColor}
-                onChange={(color) => {
-                  const next = color.hexa || color.hex;
-                  if (next) {
-                    setCustomDrawColorPickerColor(next);
-                    onDrawStrokeColorChange(
-                      selectedLineElements.map((element) => element.id),
-                      next,
-                    );
-                  }
-                }}
-              />
-            </div>
-          </TooltipContent>
-        </Tooltip>
-      </div>
-    );
-
-    const renderLineCapSelector = () => {
-      const selectedStartCap = getSharedValue(
-        selectedLineElements,
-        (element) => element.startCap,
-      );
-      const selectedEndCap = getSharedValue(
-        selectedLineElements,
-        (element) => element.endCap,
-      );
-
-      return (
-        <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
-          <Select
-            value={selectedStartCap || ""}
-            onValueChange={(value) => {
-              onLineStartCapChange(
-                selectedLineElements.map((element) => element.id),
-                value as LineCap,
-              );
-            }}
-          >
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <SelectTrigger>
-                  <SelectValue placeholder="Start cap" />
-                </SelectTrigger>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Line start cap</p>
-              </TooltipContent>
-            </Tooltip>
-            <SelectContent position="popper">
-              {LINE_STROKELINECAPS.map((name, i) => {
-                const prev = LINE_STROKELINECAPS_PREVIEWS[i];
-                return (
-                  <SelectItem
-                    key={`${name}-${i}-start`}
-                    className="arrowlinecap-selectitem"
-                    check={false}
-                    style={
-                      {
-                        cssText: `
-align-items: center!important;
-justify-content: center!important;
-width: fit-content!important
-display: flex;
-padding: 8px 0px!important;
-                      `,
-                      } as CSSProperties
-                    }
-                    value={name}
-                  >
-                    <svg
-                      width={prev.width / 2}
-                      viewBox={prev.viewBox}
-                      fill="none"
-                      style={
-                        {
-                          cssText: `
-                          scale: 0.8;
-                          transform: scaleX(-1)!important;
-                        `,
-                        } as CSSProperties
-                      }
-                      xmlns="http://www.w3.org/2000/svg"
-                    >
-                      <path
-                        d={prev.path}
-                        strokeWidth={prev.strokeWidth}
-                        strokeLinecap={prev.strokeLinecap}
-                        fill={prev.fill}
-                        stroke={prev.stroke}
-                      />
-                    </svg>
-                  </SelectItem>
-                );
-              })}
-            </SelectContent>
-          </Select>
-
-          <div className="selectionbar-separator" />
-
-          <Select
-            value={selectedEndCap || ""}
-            onValueChange={(value) => {
-              onLineEndCapChange(
-                selectedLineElements.map((element) => element.id),
-                value as LineCap,
-              );
-            }}
-          >
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <SelectTrigger>
-                  <SelectValue placeholder="End cap" />
-                </SelectTrigger>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Line end cap</p>
-              </TooltipContent>
-            </Tooltip>
-            <SelectContent position="popper">
-              {LINE_STROKELINECAPS.map((name, i) => {
-                const prev = LINE_STROKELINECAPS_PREVIEWS[i];
-                return (
-                  <SelectItem
-                    key={`${name}-${i}-end`}
-                    className="arrowlinecap-selectitem"
-                    check={false}
-                    style={
-                      {
-                        cssText: `
-align-items: center!important;
-justify-content: center!important;
-width: fit-content!important
-display: flex;
-padding: 8px 0px!important;
-                      `,
-                      } as CSSProperties
-                    }
-                    value={name}
-                  >
-                    <svg
-                      width={prev.width / 2}
-                      viewBox={prev.viewBox}
-                      fill="none"
-                      style={
-                        {
-                          cssText: `
-                          scale: 0.8;
-                        `,
-                        } as CSSProperties
-                      }
-                      xmlns="http://www.w3.org/2000/svg"
-                    >
-                      <path
-                        d={prev.path}
-                        strokeWidth={prev.strokeWidth}
-                        strokeLinecap={prev.strokeLinecap}
-                        fill={prev.fill}
-                        stroke={prev.stroke}
-                      />
-                    </svg>
-                  </SelectItem>
-                );
-              })}
-            </SelectContent>
-          </Select>
-        </div>
-      );
-    };
-
-    const renderLineStrokeWidthSelector = () => (
-      <Select
-        value={String(selectedLineStrokeWidth)}
-        onValueChange={(value) => {
-          onDrawStrokeWidthChange(
-            selectedLineElements.map((element) => element.id),
-            Number(value),
-          );
-        }}
-      >
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <SelectTrigger
-              className="draw-stroke-trigger"
-              style={{
-                gap: "0px",
-                width: "fit-content",
-              }}
-            >
-              <span style={{ width: "0px", overflow: "hidden" }}>
-                <SelectValue
-                  placeholder={localeMessages.selectionBar.strokeWidth}
-                />
-              </span>
-              <span className="draw-stroke-option-line-wrap">
-                {renderDrawStrokePreview(
-                  DRAW_STROKE_PREVIEWS,
-                  Math.max(
-                    0,
-                    DRAW_STROKE_OPTIONS.findIndex(
-                      (option) => option === selectedLineStrokeWidth,
-                    ),
-                  ),
-                )}
-              </span>
-            </SelectTrigger>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>{localeMessages.selectionBar.strokeWidth}</p>
-          </TooltipContent>
-        </Tooltip>
-        <SelectContent position="popper">
-          {DRAW_STROKE_OPTIONS.map((strokeWidth, index) => (
-            <SelectItem
-              key={strokeWidth}
-              check={false}
-              value={String(strokeWidth)}
-              className="draw-stroke-select-item"
-            >
-              <span className="draw-stroke-option-line-wrap">
-                {renderDrawStrokePreview(DRAW_STROKE_PREVIEWS, index)}
-              </span>
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    );
-
     if (selectedTextElements.length === 0) {
-      if (selectedDrawElements.length > 0) {
-        return renderDrawStrokeSelector();
-      }
-
-      if (selectedLineElements.length > 0) {
-        return (
-          <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
-            {renderLineStrokeColorSelector()}
-            {renderLineStrokeWidthSelector()}
-            <div className="selectionbar-separator" />
-            {renderLineCapSelector()}
-          </div>
-        );
-      }
-
-      if (
-        drawingTool === "draw" ||
-        drawingTool === "marker" ||
-        drawingTool === "quill"
-      ) {
-        return renderDrawStrokeSelector();
-      }
-
-      return <></>;
+      return (
+        <SelectionStrokeControls
+          scene={scene}
+          selectedIds={selectedIds}
+          drawingTool={drawingTool}
+          localeMessages={localeMessages}
+          customDrawColorPickerWrapRef={customDrawColorPickerWrapRef}
+          customDrawColorPickerContentRef={customDrawColorPickerContentRef}
+          isCustomDrawColorPickerOpen={isCustomDrawColorPickerOpen}
+          setIsCustomDrawColorPickerOpen={setIsCustomDrawColorPickerOpen}
+          customDrawColorPickerColor={customDrawColorPickerColor}
+          setCustomDrawColorPickerColor={setCustomDrawColorPickerColor}
+          onDrawStrokeWidthChange={onDrawStrokeWidthChange}
+          onDrawStrokeColorChange={onDrawStrokeColorChange}
+          onDrawDefaultStrokeColorChange={onDrawDefaultStrokeColorChange}
+          onLineStartCapChange={onLineStartCapChange}
+          onLineEndCapChange={onLineEndCapChange}
+          uniColor={uniColor}
+        />
+      );
     }
 
     return (
-      <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
-        <Select
-          value={selectedFontFamily}
-          onValueChange={(value) => {
-            onTextFontFamilyChange(
-              selectedTextElements.map((element) => element.id),
-              value,
-            );
-          }}
-        >
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <SelectTrigger style={{ gap: "0px" }}>
-                <span style={{ width: "0px", overflow: "hidden" }}>
-                  <SelectValue
-                    placeholder={localeMessages.selectionBar.fontFamily}
-                  />
-                </span>
-                {selectedFontFamily === "Shantell Sans" ? (
-                  <HandwrittenTypography />
-                ) : selectedFontFamily === "Cascadia Code" ? (
-                  <TechnicalTypography />
-                ) : selectedFontFamily === "Imbue" ? (
-                  <ElegantTypography />
-                ) : (
-                  <SimpleTypography />
-                )}
-              </SelectTrigger>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>{localeMessages.selectionBar.fontFamily}</p>
-            </TooltipContent>
-          </Tooltip>
-          <SelectContent position="popper">
-            <SelectItem check={false} value="Rubik">
-              {localeMessages.fontFamilies.simple}
-            </SelectItem>
-            <SelectItem check={false} value="Shantell Sans">
-              {localeMessages.fontFamilies.handwritten}
-            </SelectItem>
-            <SelectItem check={false} value="Imbue">
-              {localeMessages.fontFamilies.elegant}
-            </SelectItem>
-            <SelectItem check={false} value="Cascadia Code">
-              {localeMessages.fontFamilies.technical}
-            </SelectItem>
-          </SelectContent>
-        </Select>
-        <div className="selectionbar-separator" />
-        <Select
-          value={selectedFontSize + ""}
-          onValueChange={(value) => {
-            onTextFontSizeChange(
-              selectedTextElements.map((element) => element.id),
-              parseInt(value),
-            );
-          }}
-        >
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <SelectTrigger style={{ gap: "0px" }}>
-                <span style={{ width: "0px", overflow: "hidden" }}>
-                  <SelectValue placeholder="" />
-                </span>
-                {selectedFontSize ?? ""}
-              </SelectTrigger>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>{localeMessages.selectionBar.fontSize}</p>
-            </TooltipContent>
-          </Tooltip>
-          <SelectContent position="popper">
-            <SelectItem check={false} className="fontSize-item" value="16">
-              {localeMessages.fontSizes.small}{" "}
-              <span
-                style={{ opacity: 0.5, marginLeft: "auto", display: "flex" }}
-              >
-                16
-              </span>
-            </SelectItem>
-            <SelectItem check={false} className="fontSize-item" value="24">
-              {localeMessages.fontSizes.medium}{" "}
-              <span
-                style={{ opacity: 0.5, marginLeft: "auto", display: "flex" }}
-              >
-                24
-              </span>
-            </SelectItem>
-            <SelectItem check={false} className="fontSize-item" value="40">
-              {localeMessages.fontSizes.large}{" "}
-              <span
-                style={{ opacity: 0.5, marginLeft: "auto", display: "flex" }}
-              >
-                40
-              </span>
-            </SelectItem>
-            <SelectItem check={false} className="fontSize-item" value="64">
-              {localeMessages.fontSizes.extraLarge}{" "}
-              <span
-                style={{ opacity: 0.5, marginLeft: "auto", display: "flex" }}
-              >
-                64
-              </span>
-            </SelectItem>
-            <SelectItem check={false} className="fontSize-item" value="96">
-              {localeMessages.fontSizes.huge}{" "}
-              <span
-                style={{ opacity: 0.5, marginLeft: "auto", display: "flex" }}
-              >
-                96
-              </span>
-            </SelectItem>
-          </SelectContent>
-        </Select>
-        <div className="selectionbar-separator" />
-        <div style={{ display: "flex" }}>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                type="button"
-                onPointerDown={(event) => {
-                  event.preventDefault();
-                  event.stopPropagation();
-                }}
-                onClick={() => {
-                  if (editingText) {
-                    toggleEditorMark("bold");
-                    ReactEditor.focus(editor);
-                    return;
-                  }
-
-                  onTextFontWeightChange(
-                    selectedTextElements.map((element) => element.id),
-                    isBoldControlActive ? "200" : "700",
-                  );
-                }}
-                className={
-                  "toggle-selectionbar-button" +
-                  (isBoldControlActive ? " active" : "")
-                }
-              >
-                <Bold />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>{localeMessages.selectionBar.bold}</p>
-            </TooltipContent>
-          </Tooltip>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                type="button"
-                onPointerDown={(event) => {
-                  event.preventDefault();
-                  event.stopPropagation();
-                }}
-                onClick={() => {
-                  if (editingText) {
-                    toggleEditorMark("italic");
-                    ReactEditor.focus(editor);
-                    return;
-                  }
-
-                  onTextFontStyleChange(
-                    selectedTextElements.map((element) => element.id),
-                    isItalicControlActive ? "normal" : "italic",
-                  );
-                }}
-                className={
-                  "toggle-selectionbar-button" +
-                  (isItalicControlActive ? " active" : "")
-                }
-              >
-                <Italic />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>{localeMessages.selectionBar.italic}</p>
-            </TooltipContent>
-          </Tooltip>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                type="button"
-                onPointerDown={(event) => {
-                  event.preventDefault();
-                  event.stopPropagation();
-                }}
-                onClick={() => {
-                  if (editingText) {
-                    toggleEditorMark("strikethrough");
-                    ReactEditor.focus(editor);
-                    return;
-                  }
-
-                  toggleStrikethroughForSelectedElements();
-                }}
-                className={
-                  "toggle-selectionbar-button" +
-                  (isStrikethroughControlActive ? " active" : "")
-                }
-              >
-                <Strikethrough />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>
-                {localeMessages.selectionBar.strikethrough ||
-                  "Strikethrough (Ctrl+S)"}
-              </p>
-            </TooltipContent>
-          </Tooltip>
-          <div className="selectionbar-separator" />
-          <Select
-            value={selectedTextAlignValue}
-            onValueChange={(value) => {
-              const nextTextAlign: CanvasTextAlign =
-                value === "center"
-                  ? "center"
-                  : value === "end"
-                    ? "end"
-                    : "left";
-              const targetIds = selectedTextElements.map(
-                (element) => element.id,
-              );
-
-              onTextAlignChange(targetIds, nextTextAlign);
-
-              if (!editingText || !targetIds.includes(editingText.id)) {
-                return;
-              }
-
-              const editingElement = scene.elements.find(
-                (element) => element.id === editingText.id,
-              );
-
-              setEditingText((current) => {
-                if (!current) {
-                  return current;
-                }
-
-                const nextAnchorX =
-                  editingElement &&
-                  (editingElement.type === "rectangle" ||
-                    editingElement.type === "circle")
-                    ? getShapeTextAnchorX(editingElement, nextTextAlign)
-                    : current.anchorX;
-                const nextStartX = getAlignedStartX(
-                  nextAnchorX,
-                  current.width / camera.zoom,
-                  nextTextAlign,
-                );
-                const nextScreen = worldToScreen(nextStartX, current.anchorY);
-
-                return {
-                  ...current,
-                  anchorX: nextAnchorX,
-                  left: nextScreen.x,
-                  style: {
-                    ...current.style,
-                    textAlign: nextTextAlign,
-                  },
-                };
-              });
-            }}
-          >
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <SelectTrigger style={{ gap: "0px" }}>
-                  <span style={{ width: "0px", overflow: "hidden" }}>
-                    <SelectValue placeholder="" />
-                  </span>
-                  {selectedTextAlignValue === "left" ? (
-                    <TextAlignLeft />
-                  ) : selectedTextAlignValue === "center" ? (
-                    <TextAlignCenter />
-                  ) : (
-                    <TextAlignRight />
-                  )}
-                </SelectTrigger>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>{localeMessages.selectionBar.textAlign}</p>
-              </TooltipContent>
-            </Tooltip>
-            <SelectContent
-              position="popper"
-              className="drawo-colorselect-content"
-            >
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <SelectItem
-                    check={false}
-                    className="drawo-textAlign-item"
-                    value="left"
-                  >
-                    <TextAlignLeft />
-                  </SelectItem>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>{localeMessages.selectionBar.textAlignDirection.left}</p>
-                </TooltipContent>
-              </Tooltip>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <SelectItem
-                    check={false}
-                    className="drawo-textAlign-item"
-                    value="center"
-                  >
-                    <TextAlignCenter />
-                  </SelectItem>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>{localeMessages.selectionBar.textAlignDirection.center}</p>
-                </TooltipContent>
-              </Tooltip>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <SelectItem
-                    check={false}
-                    className="drawo-textAlign-item"
-                    value="end"
-                  >
-                    <TextAlignRight />
-                  </SelectItem>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>{localeMessages.selectionBar.textAlignDirection.right}</p>
-                </TooltipContent>
-              </Tooltip>
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
+      <SelectionTextControls
+        scene={scene}
+        selectedIds={selectedIds}
+        localeMessages={localeMessages}
+        editor={editor}
+        editingText={editingText}
+        setEditingText={setEditingText}
+        worldToScreen={worldToScreen}
+        toggleEditorMark={toggleEditorMark}
+        onTextCommit={onTextCommit}
+        onTextFontFamilyChange={onTextFontFamilyChange}
+        onTextFontSizeChange={onTextFontSizeChange}
+        onTextFontWeightChange={onTextFontWeightChange}
+        onTextFontStyleChange={onTextFontStyleChange}
+        onTextAlignChange={onTextAlignChange}
+      />
     );
   };
   const resolveIdleCursor = (
@@ -2448,21 +1288,31 @@ padding: 8px 0px!important;
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext("2d");
     const marqueeBounds = getMarqueeBounds(selection);
+    const selectedIds = new Set<string>();
 
-    return scene.elements
-      .filter((element) => {
-        if (element.type === "text" && ctx) {
-          ctx.font = getTextFont(element);
+    for (const element of scene.elements) {
+      if (element.type === "text" && ctx) {
+        ctx.font = getTextFont(element);
+      }
+
+      const elementBounds = getElementBounds(element.id, ctx, true);
+      if (!elementBounds || !intersectsBounds(marqueeBounds, elementBounds)) {
+        continue;
+      }
+
+      if (!element.groupId) {
+        selectedIds.add(element.id);
+        continue;
+      }
+
+      for (const groupedElement of scene.elements) {
+        if (groupedElement.groupId === element.groupId) {
+          selectedIds.add(groupedElement.id);
         }
+      }
+    }
 
-        const elementBounds = getElementBounds(element.id, ctx, true);
-        if (!elementBounds) {
-          return false;
-        }
-
-        return intersectsBounds(marqueeBounds, elementBounds);
-      })
-      .map((element) => element.id);
+    return [...selectedIds];
   };
 
   /* eslint-disable react-hooks/preserve-manual-memoization */
@@ -2700,6 +1550,8 @@ padding: 8px 0px!important;
 
     for (const element of scene.elements) {
       const isSelected = selectedIds.includes(element.id);
+      const shouldShowElementSelection =
+        isSelected && (!isWholeGroupSelected || selectedIds.length === 1);
       const isMarqueePreview =
         marqueeSelection !== null &&
         marqueePreviewIds.includes(element.id) &&
@@ -2710,12 +1562,19 @@ padding: 8px 0px!important;
       if (element.type === "draw") {
         const drawMode = element.drawMode ?? "draw";
         const bounds = measureElementBounds(element);
+        const localSelectionBounds = {
+          x: bounds.x - element.x,
+          y: bounds.y - element.y,
+          width: bounds.width,
+          height: bounds.height,
+        };
         const center = getBoundsCenter(bounds);
 
         ctx.save();
         ctx.translate(center.x, center.y);
         ctx.rotate(rotationRadians);
         ctx.translate(-center.x, -center.y);
+        ctx.translate(element.x, element.y);
 
         if (element.points.length > 0) {
           const renderStyle = getDrawRenderStyle(drawMode, isDarkMode);
@@ -2731,23 +1590,18 @@ padding: 8px 0px!important;
           ctx.lineJoin = "round";
           ctx.lineCap = getDrawLineCap();
 
-          const worldPoints = element.points.map((point) => ({
-            x: element.x + point.x,
-            y: element.y + point.y,
-            t: point.t,
-          }));
-          const visibleWorldPoints = worldPoints;
+          const visibleLocalPoints = element.points;
 
-          if (visibleWorldPoints.length === 1) {
+          if (visibleLocalPoints.length === 1) {
             if (drawMode === "marker") {
-              drawMarkerStroke(ctx, visibleWorldPoints, visibleStrokeWidth);
+              drawMarkerStroke(ctx, visibleLocalPoints, visibleStrokeWidth);
             } else if (drawMode === "quill") {
-              drawQuillStroke(ctx, visibleWorldPoints, visibleStrokeWidth);
+              drawQuillStroke(ctx, visibleLocalPoints, visibleStrokeWidth);
             } else {
               ctx.beginPath();
               ctx.arc(
-                visibleWorldPoints[0].x,
-                visibleWorldPoints[0].y,
+                visibleLocalPoints[0].x,
+                visibleLocalPoints[0].y,
                 ctx.lineWidth / 2,
                 0,
                 Math.PI * 2,
@@ -2755,14 +1609,14 @@ padding: 8px 0px!important;
               ctx.fillStyle = toThemeColor(element.stroke);
               ctx.fill();
             }
-          } else if (visibleWorldPoints.length > 1) {
+          } else if (visibleLocalPoints.length > 1) {
             if (drawMode === "marker") {
-              drawMarkerStroke(ctx, visibleWorldPoints, visibleStrokeWidth);
+              drawMarkerStroke(ctx, visibleLocalPoints, visibleStrokeWidth);
             } else if (drawMode === "quill") {
-              drawQuillStroke(ctx, visibleWorldPoints, visibleStrokeWidth);
+              drawQuillStroke(ctx, visibleLocalPoints, visibleStrokeWidth);
             } else {
               ctx.beginPath();
-              drawSmoothStrokePath(ctx, visibleWorldPoints);
+              drawSmoothStrokePath(ctx, visibleLocalPoints);
               ctx.stroke();
             }
           }
@@ -2771,20 +1625,35 @@ padding: 8px 0px!important;
           ctx.globalAlpha = previousAlpha;
         }
 
-        if (isSelected) {
+        if (shouldShowElementSelection) {
           ctx.strokeStyle = isMultiSelection
             ? accentSelectionColor
             : accentColor;
           ctx.lineWidth = 1 / camera.zoom;
-          ctx.strokeRect(bounds.x, bounds.y, bounds.width, bounds.height);
+          ctx.strokeRect(
+            localSelectionBounds.x,
+            localSelectionBounds.y,
+            localSelectionBounds.width,
+            localSelectionBounds.height,
+          );
 
           if (canTransformSelection) {
-            drawResizeHandles(ctx, bounds, camera.zoom, accentColor);
+            drawResizeHandles(
+              ctx,
+              localSelectionBounds,
+              camera.zoom,
+              accentColor,
+            );
           }
         } else if (isMarqueePreview) {
           ctx.strokeStyle = accentColor;
           ctx.lineWidth = 1 / camera.zoom;
-          ctx.strokeRect(bounds.x, bounds.y, bounds.width, bounds.height);
+          ctx.strokeRect(
+            localSelectionBounds.x,
+            localSelectionBounds.y,
+            localSelectionBounds.width,
+            localSelectionBounds.height,
+          );
         }
 
         ctx.restore();
@@ -2927,7 +1796,7 @@ padding: 8px 0px!important;
           ctx.restore();
         }
 
-        if (isSelected) {
+        if (shouldShowElementSelection) {
           ctx.strokeStyle = isMultiSelection
             ? accentSelectionColor
             : accentColor;
@@ -2939,7 +1808,7 @@ padding: 8px 0px!important;
           ctx.strokeRect(element.x, element.y, element.width, element.height);
         }
 
-        if (isSelected && canTransformSelection) {
+        if (shouldShowElementSelection && canTransformSelection) {
           drawResizeHandles(ctx, bounds, camera.zoom, accentColor);
 
           if (element.type === "rectangle") {
@@ -3209,7 +2078,7 @@ padding: 8px 0px!important;
         );
         renderLineCap(lineElement.endCap, end.x, end.y, endAngle, true);
 
-        if (isSelected) {
+        if (shouldShowElementSelection) {
           if (isMultiSelection) {
             ctx.strokeStyle = accentSelectionColor;
             ctx.lineWidth = 1 / camera.zoom;
@@ -3272,7 +2141,7 @@ padding: 8px 0px!important;
         textAlign: element.textAlign,
       });
 
-      if (isSelected) {
+      if (shouldShowElementSelection) {
         const textBounds = getElementBounds(element.id, ctx, true);
         if (!textBounds) {
           ctx.restore();
@@ -3324,6 +2193,28 @@ padding: 8px 0px!important;
         );
         ctx.setLineDash([]);
         drawResizeHandles(ctx, groupBounds, camera.zoom, accentColor);
+        ctx.restore();
+      }
+    }
+
+    if (isSingleElementWithinGroupSelected) {
+      const parentGroupBounds = getSelectionBounds(
+        selectedGroupElementIds,
+        ctx,
+        true,
+      );
+      if (parentGroupBounds) {
+        ctx.save();
+        ctx.strokeStyle = accentSelectionColor;
+        ctx.lineWidth = 1 / camera.zoom;
+        ctx.setLineDash([6 / camera.zoom, 4 / camera.zoom]);
+        ctx.strokeRect(
+          parentGroupBounds.x,
+          parentGroupBounds.y,
+          parentGroupBounds.width,
+          parentGroupBounds.height,
+        );
+        ctx.setLineDash([]);
         ctx.restore();
       }
     }
@@ -4040,7 +2931,8 @@ padding: 8px 0px!important;
     }
 
     const dragging = Boolean(hitId);
-    const duplicateDragging = dragging && e.altKey;
+    const hitElement = scene.elements.find((element) => element.id === hitId);
+    const duplicateDragging = dragging && e.altKey && !hitElement?.groupId;
     setActiveRotatingHandle(null);
     setActiveResizeHandle(null);
     setMarqueeSelection(null);
@@ -4050,7 +2942,13 @@ padding: 8px 0px!important;
       dragging ? (duplicateDragging ? "clone" : "grabbing") : "default",
     );
 
-    onPointerDown(pointer.x, pointer.y, e.altKey, e.shiftKey);
+    onPointerDown(
+      pointer.x,
+      pointer.y,
+      e.altKey,
+      e.shiftKey,
+      e.ctrlKey || e.metaKey,
+    );
     canvas.setPointerCapture(e.pointerId);
   };
 
@@ -4680,6 +3578,15 @@ padding: 8px 0px!important;
 
     const element = scene.elements.find((item) => item.id === hitId);
     if (
+      element?.groupId &&
+      selectedIds.length > 1 &&
+      selectedIds.includes(element.id)
+    ) {
+      onSelectElements([element.id]);
+      return;
+    }
+
+    if (
       !element ||
       (element.type !== "text" &&
         element.type !== "rectangle" &&
@@ -4861,7 +3768,9 @@ padding: 8px 0px!important;
   const uniColor = (color: string) =>
     isDarkMode ? invertLightnessPreservingHue(color) : color;
 
-  const handleCanvasContextMenu = (event: React.MouseEvent<HTMLCanvasElement>) => {
+  const handleCanvasContextMenu = (
+    event: React.MouseEvent<HTMLCanvasElement>,
+  ) => {
     const canvas = canvasRef.current;
     if (!canvas) {
       return;
@@ -4880,7 +3789,19 @@ padding: 8px 0px!important;
       return;
     }
 
-    if (!selectedIds.includes(hitId)) {
+    const hitElement = scene.elements.find((element) => element.id === hitId);
+    if (!hitElement) {
+      return;
+    }
+
+    const internalSelectKey = event.ctrlKey || event.metaKey;
+
+    if (hitElement.groupId && !internalSelectKey) {
+      onSelectGroupForElement(hitElement.id);
+      return;
+    }
+
+    if (!selectedIds.includes(hitId) || internalSelectKey) {
       onSelectElements([hitId]);
     }
   };
@@ -4904,12 +3825,17 @@ padding: 8px 0px!important;
     >
       <CanvasContextMenu
         hasSelection={hasSelection}
+        hasMultipleSelection={selectedIds.length > 1}
         hasElements={scene.elements.length > 0}
+        canUngroupSelection={canUngroupSelection}
         onCut={onCutSelection}
+        localeMessages={localeMessages}
         onCopy={onCopySelection}
         onPaste={handleContextMenuPaste}
         onDuplicate={onDuplicateSelection}
         onDelete={onDeleteSelection}
+        onGroup={onGroupSelection}
+        onUngroup={onUngroupSelection}
         onSelectAll={() => {
           if (scene.elements.length === 0) {
             return;
@@ -4922,42 +3848,42 @@ padding: 8px 0px!important;
         onSendToBack={() => onReorderSelection("back")}
         onMoveBackward={() => onReorderSelection("backward")}
       >
-          <canvas
-            ref={canvasRef}
-            width={canvasSize.width}
-            height={canvasSize.height}
-            onPointerDown={handlePointerDown}
-            onPointerMove={handlePointerMove}
-            onPointerUp={handlePointerUp}
-            onPointerCancel={handlePointerUp}
-            onPointerLeave={handlePointerLeave}
-            onDoubleClick={handleDoubleClick}
-            onContextMenu={handleCanvasContextMenu}
-            onMouseDown={(event) => {
-              if (event.button === 1) {
-                event.preventDefault();
-              }
-            }}
-            onAuxClick={(event) => {
-              if (event.button === 1) {
-                event.preventDefault();
-              }
-            }}
-            style={{
-              display: "block",
-              cursor:
-                'url("/cursors/' +
-                canvasCursor +
-                '.svg")' +
-                (["default", "pointer", "clone", "laser"].includes(canvasCursor)
-                  ? ""
-                  : ["marker", "pencil"].includes(canvasCursor)
-                    ? " -4 26"
-                    : " 12 12") +
-                ', url("/cursors/default.svg"), auto',
-              touchAction: "none",
-            }}
-          />
+        <canvas
+          ref={canvasRef}
+          width={canvasSize.width}
+          height={canvasSize.height}
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          onPointerCancel={handlePointerUp}
+          onPointerLeave={handlePointerLeave}
+          onDoubleClick={handleDoubleClick}
+          onContextMenu={handleCanvasContextMenu}
+          onMouseDown={(event) => {
+            if (event.button === 1) {
+              event.preventDefault();
+            }
+          }}
+          onAuxClick={(event) => {
+            if (event.button === 1) {
+              event.preventDefault();
+            }
+          }}
+          style={{
+            display: "block",
+            cursor:
+              'url("/cursors/' +
+              canvasCursor +
+              '.svg")' +
+              (["default", "pointer", "clone", "laser"].includes(canvasCursor)
+                ? ""
+                : ["marker", "pencil"].includes(canvasCursor)
+                  ? " -4 26"
+                  : " 12 12") +
+              ', url("/cursors/default.svg"), auto',
+            touchAction: "none",
+          }}
+        />
       </CanvasContextMenu>
       {scene.elements.length === 0 && !drawingSelection && !drawSelection && (
         <CanvasEmptyState tagline={localeMessages.canvas.tagline} />
@@ -5017,22 +3943,14 @@ padding: 8px 0px!important;
       )}
 
       {selectionToolbarOverlay && (
-        <div
-          key={selectionToolbarOverlay.key}
-          className="selection-toolbar"
-          onPointerDown={(event) => {
-            event.stopPropagation();
-          }}
-          onMouseDown={(event) => {
-            event.stopPropagation();
-          }}
-          style={{
-            left: selectionToolbarOverlay.left,
-            top: selectionToolbarOverlay.top,
-          }}
+        <SelectionToolbar
+          toolbarKey={selectionToolbarOverlay.key}
+          left={selectionToolbarOverlay.left}
+          top={selectionToolbarOverlay.top}
+          viewportWidth={canvasSize.width}
         >
           {renderSelectionBarContents()}
-        </div>
+        </SelectionToolbar>
       )}
     </div>
   );

@@ -6,10 +6,14 @@ import {
 } from "react";
 import type { SceneElement } from "../../core/elements";
 import {
+  duplicateSelectedElements,
+  groupSelectedElements,
   type NewElementType,
   type Scene,
   removeSelectedElement,
   selectElements,
+  ungroupSelectedElements,
+  updateSceneSettings,
 } from "../../core/scene";
 import { createElementId } from "../state/ids";
 import type { AppAction } from "../state/types";
@@ -69,6 +73,32 @@ export const useAppKeyboardShortcuts = ({
 
       const key = event.key.toLowerCase();
       const hasShortcutModifier = event.ctrlKey || event.metaKey;
+
+      if (event.altKey && !hasShortcutModifier && !event.shiftKey) {
+        if (key === "z") {
+          event.preventDefault();
+          dispatch({
+            type: "setScene",
+            updater: (currentScene) =>
+              updateSceneSettings(currentScene, {
+                zenMode: !currentScene.settings.zenMode,
+              }),
+          });
+          return;
+        }
+
+        if (key === "r") {
+          event.preventDefault();
+          dispatch({
+            type: "setScene",
+            updater: (currentScene) =>
+              updateSceneSettings(currentScene, {
+                presentationMode: !currentScene.settings.presentationMode,
+              }),
+          });
+          return;
+        }
+      }
 
       if (hasShortcutModifier && !event.altKey && key === "z") {
         event.preventDefault();
@@ -165,6 +195,54 @@ export const useAppKeyboardShortcuts = ({
               selectedIds: pastedElements.map((element) => element.id),
             };
           },
+        });
+        return;
+      }
+
+      if (hasShortcutModifier && !event.altKey && key === "d") {
+        const selectedIds = getSelectedIds(scene);
+        if (selectedIds.length === 0) {
+          return;
+        }
+
+        event.preventDefault();
+        dispatch({
+          type: "setScene",
+          updater: (currentScene) => duplicateSelectedElements(currentScene),
+        });
+        return;
+      }
+
+      if (hasShortcutModifier && !event.altKey && key === "g") {
+        const selectedIds = getSelectedIds(scene);
+        const selectedElements = scene.elements.filter((element) =>
+          selectedIds.includes(element.id),
+        );
+
+        if (event.shiftKey) {
+          const canUngroupSelection = selectedElements.some((element) =>
+            Boolean(element.groupId),
+          );
+          if (!canUngroupSelection) {
+            return;
+          }
+
+          event.preventDefault();
+          dispatch({
+            type: "setScene",
+            updater: (currentScene) => ungroupSelectedElements(currentScene),
+          });
+          return;
+        }
+
+        if (selectedIds.length <= 1) {
+          return;
+        }
+
+        event.preventDefault();
+        dispatch({
+          type: "setScene",
+          updater: (currentScene) => groupSelectedElements(currentScene),
         });
         return;
       }
@@ -287,6 +365,16 @@ export const useAppKeyboardShortcuts = ({
       }
 
       if (!hasShortcutModifier && !event.altKey) {
+        if (scene.settings.presentationMode) {
+          if (key === "h") {
+            event.preventDefault();
+            setInteractionMode("pan");
+            setDrawingTool(null);
+          }
+
+          return;
+        }
+
         if (key === "v") {
           event.preventDefault();
           setInteractionMode("select");
