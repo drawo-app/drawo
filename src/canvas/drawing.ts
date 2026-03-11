@@ -14,6 +14,12 @@ const quillStrokeCache = new WeakMap<
     strokeWidth: number;
     smoothedPoints: StrokePoint[];
     widths: number[];
+    rasterStrokeStyle: string | null;
+    rasterCanvas: HTMLCanvasElement | null;
+    rasterX: number;
+    rasterY: number;
+    rasterWidth: number;
+    rasterHeight: number;
   }
 >();
 
@@ -334,6 +340,83 @@ const getQuillWidths = (
   return widths;
 };
 
+const drawQuillStrokeSegments = (
+  ctx: CanvasRenderingContext2D,
+  smoothedPoints: ReadonlyArray<StrokePoint>,
+  widths: ReadonlyArray<number>,
+  baseAlpha: number,
+) => {
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+
+  if (smoothedPoints.length === 1) {
+    ctx.globalAlpha = baseAlpha;
+    ctx.beginPath();
+    ctx.arc(
+      smoothedPoints[0].x,
+      smoothedPoints[0].y,
+      widths[0] / 2,
+      0,
+      Math.PI * 2,
+    );
+    ctx.fill();
+    return;
+  }
+
+  for (let index = 1; index < smoothedPoints.length; index++) {
+    const start = smoothedPoints[index - 1];
+    const end = smoothedPoints[index];
+    const startWidth = widths[index - 1] ?? widths[0];
+    const endWidth = widths[index] ?? startWidth;
+    const segmentLength = Math.hypot(end.x - start.x, end.y - start.y);
+    const stepCount = Math.max(1, Math.ceil(segmentLength / 2.4));
+
+    for (let step = 1; step <= stepCount; step++) {
+      const t0 = (step - 1) / stepCount;
+      const t1 = step / stepCount;
+      const x0 = lerp(start.x, end.x, t0);
+      const y0 = lerp(start.y, end.y, t0);
+      const x1 = lerp(start.x, end.x, t1);
+      const y1 = lerp(start.y, end.y, t1);
+      const width = lerp(startWidth, endWidth, (t0 + t1) / 2);
+      const textureAlpha = 0.985 + 0.015 * Math.sin(index * 9.7 + step * 0.31);
+
+      ctx.globalAlpha = baseAlpha * textureAlpha;
+      ctx.lineWidth = Math.max(0.6, width);
+      ctx.beginPath();
+      ctx.moveTo(x0, y0);
+      ctx.lineTo(x1, y1);
+      ctx.stroke();
+    }
+  }
+};
+
+const getQuillRasterBounds = (
+  smoothedPoints: ReadonlyArray<StrokePoint>,
+  widths: ReadonlyArray<number>,
+) => {
+  let minX = Number.POSITIVE_INFINITY;
+  let minY = Number.POSITIVE_INFINITY;
+  let maxX = Number.NEGATIVE_INFINITY;
+  let maxY = Number.NEGATIVE_INFINITY;
+
+  for (let index = 0; index < smoothedPoints.length; index++) {
+    const point = smoothedPoints[index];
+    const halfWidth = (widths[index] ?? widths[0] ?? 1) / 2 + 2;
+    minX = Math.min(minX, point.x - halfWidth);
+    minY = Math.min(minY, point.y - halfWidth);
+    maxX = Math.max(maxX, point.x + halfWidth);
+    maxY = Math.max(maxY, point.y + halfWidth);
+  }
+
+  return {
+    x: minX,
+    y: minY,
+    width: Math.max(1, maxX - minX),
+    height: Math.max(1, maxY - minY),
+  };
+};
+
 export const drawQuillStroke = (
   ctx: CanvasRenderingContext2D,
   points: ReadonlyArray<StrokePoint>,
@@ -359,56 +442,78 @@ export const drawQuillStroke = (
       strokeWidth: safeStrokeWidth,
       smoothedPoints,
       widths,
+      rasterStrokeStyle: null,
+      rasterCanvas: null,
+      rasterX: 0,
+      rasterY: 0,
+      rasterWidth: 0,
+      rasterHeight: 0,
     });
   }
   if (widths.length === 0) {
     return;
   }
 
+  const cacheEntry = quillStrokeCache.get(points);
   const originalAlpha = ctx.globalAlpha;
-  ctx.lineCap = "round";
-  ctx.lineJoin = "round";
+  const strokeStyle =
+    typeof ctx.strokeStyle === "string" ? ctx.strokeStyle : null;
 
-  if (smoothedPoints.length === 1) {
-    ctx.beginPath();
-    ctx.arc(
-      smoothedPoints[0].x,
-      smoothedPoints[0].y,
-      widths[0] / 2,
-      0,
-      Math.PI * 2,
+  if (
+    cacheEntry &&
+    strokeStyle &&
+    cacheEntry.rasterCanvas &&
+    cacheEntry.rasterStrokeStyle === strokeStyle
+  ) {
+    ctx.drawImage(
+      cacheEntry.rasterCanvas,
+      cacheEntry.rasterX,
+      cacheEntry.rasterY,
+      cacheEntry.rasterWidth,
+      cacheEntry.rasterHeight,
     );
-    ctx.fill();
+    ctx.globalAlpha = originalAlpha;
     return;
   }
 
-  for (let index = 1; index < smoothedPoints.length; index++) {
-    const start = smoothedPoints[index - 1];
-    const end = smoothedPoints[index];
-    const startWidth = widths[index - 1] ?? widths[0];
-    const endWidth = widths[index] ?? startWidth;
-    const segmentLength = Math.hypot(end.x - start.x, end.y - start.y);
-    const stepCount = Math.max(1, Math.ceil(segmentLength / 1.2));
+  if (cacheEntry && strokeStyle) {
+    const rasterBounds = getQuillRasterBounds(smoothedPoints, widths);
+    const rasterScale = 2;
+    const rasterCanvas = document.createElement("canvas");
+    rasterCanvas.width = Math.max(1, Math.ceil(rasterBounds.width * rasterScale));
+    rasterCanvas.height = Math.max(
+      1,
+      Math.ceil(rasterBounds.height * rasterScale),
+    );
 
-    for (let step = 1; step <= stepCount; step++) {
-      const t0 = (step - 1) / stepCount;
-      const t1 = step / stepCount;
-      const x0 = lerp(start.x, end.x, t0);
-      const y0 = lerp(start.y, end.y, t0);
-      const x1 = lerp(start.x, end.x, t1);
-      const y1 = lerp(start.y, end.y, t1);
-      const width = lerp(startWidth, endWidth, (t0 + t1) / 2);
-      const textureAlpha = 0.985 + 0.015 * Math.sin(index * 9.7 + step * 0.31);
+    const rasterCtx = rasterCanvas.getContext("2d");
+    if (rasterCtx) {
+      rasterCtx.setTransform(rasterScale, 0, 0, rasterScale, 0, 0);
+      rasterCtx.translate(-rasterBounds.x, -rasterBounds.y);
+      rasterCtx.strokeStyle = strokeStyle;
+      rasterCtx.fillStyle = strokeStyle;
+      drawQuillStrokeSegments(rasterCtx, smoothedPoints, widths, 1);
 
-      ctx.globalAlpha = originalAlpha * textureAlpha;
-      ctx.lineWidth = Math.max(0.6, width);
-      ctx.beginPath();
-      ctx.moveTo(x0, y0);
-      ctx.lineTo(x1, y1);
-      ctx.stroke();
+      cacheEntry.rasterStrokeStyle = strokeStyle;
+      cacheEntry.rasterCanvas = rasterCanvas;
+      cacheEntry.rasterX = rasterBounds.x;
+      cacheEntry.rasterY = rasterBounds.y;
+      cacheEntry.rasterWidth = rasterBounds.width;
+      cacheEntry.rasterHeight = rasterBounds.height;
+
+      ctx.drawImage(
+        rasterCanvas,
+        rasterBounds.x,
+        rasterBounds.y,
+        rasterBounds.width,
+        rasterBounds.height,
+      );
+      ctx.globalAlpha = originalAlpha;
+      return;
     }
   }
 
+  drawQuillStrokeSegments(ctx, smoothedPoints, widths, originalAlpha);
   ctx.globalAlpha = originalAlpha;
 };
 

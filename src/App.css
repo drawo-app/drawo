@@ -1268,16 +1268,16 @@ html.dark .selection-toolbar {
   background: rgba(var(--background-rgb), 0.5);
 }
 .drawo-numberinput-container svg {
-  width: 18px;
-  height: 18px;
+  width: 12px!important;
+  height: 12px!important;
 }
 .drawo-numberinput-container svg * {
-  stroke-width: 1;
+  stroke-width: 2;
 }
 .drawo-numberinput-container input {
   height: 100%;
   font-family: Inter, sans-serif;
-  font-size: 14px;
+  font-size: 12px;
   font-size: 500;
   border-top: 0px;
   padding-left: 12px;
@@ -1290,7 +1290,7 @@ html.dark .selection-toolbar {
 }
 .drawo-numberinput-container *,
 .drawo-numberinput-container {
-  --size: 38px;
+  --size: 32px;
 }
 .drawo-numberinput-container {
   display: flex;
