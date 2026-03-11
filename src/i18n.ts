@@ -4,7 +4,7 @@ import esES from "./locales/es_ES.json";
 export type LocaleCode = "en_US" | "es_ES";
 
 export interface LocaleMessages {
-  settings: {
+  menu: {
     showGrid: string;
     gridStyle: string;
     gridStyleDots: string;
@@ -17,6 +17,15 @@ export interface LocaleMessages {
     clearCanvas: string;
     zenMode: string;
     presentationMode: string;
+    colorProfile: string;
+
+    file: string;
+    edit: string;
+    view: string;
+    object: string;
+    text: string;
+    organize: string;
+    settings: string;
   };
   dialogs: {
     clearCanvas: {

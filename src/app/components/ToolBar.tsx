@@ -7,7 +7,7 @@ import {
   LaserIcon,
   SquareLinear,
 } from "../../components/icons";
-import { Circle, ImageIcon } from "lucide-react";
+import { Circle } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
@@ -461,7 +461,6 @@ export const ToolBar = ({
           <p>{messages.toolNames.line}</p>
         </TooltipContent>
       </Tooltip>
-
 
       <Tooltip>
         <TooltipTrigger asChild>

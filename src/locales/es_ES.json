@@ -1,5 +1,5 @@
 {
-  "settings": {
+  "menu": {
     "showGrid": "Mostrar cuadrícula",
     "gridStyle": "Estilo de la cuadrícula",
     "gridStyleDots": "De puntos",
@@ -11,7 +11,16 @@
     "quickActions": "Acciones rápidas",
     "clearCanvas": "Vaciar canvas",
     "zenMode": "Modo zen",
-    "presentationMode": "Modo presentación"
+    "presentationMode": "Modo presentación",
+    "colorProfile": "Perfil de color",
+
+    "file": "Archivo",
+    "edit": "Editar",
+    "view": "Ver",
+    "object": "Objeto",
+    "text": "Texto",
+    "organize": "Organizar",
+    "settings": "Preferencias"
   },
   "dialogs": {
     "clearCanvas": {

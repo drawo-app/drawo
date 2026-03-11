@@ -1,5 +1,5 @@
 {
-  "settings": {
+  "menu": {
     "showGrid": "Show grid",
     "gridStyle": "Grid style",
     "gridStyleDots": "Dotted",
@@ -11,7 +11,16 @@
     "quickActions": "Quick actions",
     "clearCanvas": "Clear canvas",
     "zenMode": "Zen mode",
-    "presentationMode": "View mode"
+    "presentationMode": "View mode",
+    "colorProfile": "Color profile",
+
+    "file": "File",
+    "edit": "Edit",
+    "view": "View",
+    "object": "Object",
+    "text": "Text",
+    "organize": "Organize",
+    "settings": "Settings"
   },
   "dialogs": {
     "clearCanvas": {

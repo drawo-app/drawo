@@ -98,34 +98,34 @@ export const MenuBar = ({
         </DropdownMenuTrigger>
         <DropdownMenuContent>
           <DropdownMenuItem disabled variant="accent">
-            <Thunderbolt /> {messages.settings.quickActions}
+            <Thunderbolt /> {messages.menu.quickActions}
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuSub>
             <DropdownMenuSubTrigger>
               <File />
-              Archivo
+              {messages.menu.file}
             </DropdownMenuSubTrigger>
             <DropdownMenuSubContent>
               <DropdownMenuItem
                 onClick={() => setIsClearDialogOpen(true)}
                 disabled={!hasElements}
               >
-                <BroomMotion /> {messages.settings.clearCanvas}
+                <BroomMotion /> {messages.menu.clearCanvas}
               </DropdownMenuItem>
             </DropdownMenuSubContent>
           </DropdownMenuSub>
           <DropdownMenuSub>
             <DropdownMenuSubTrigger>
               <PencilToSquare />
-              Editar
+              {messages.menu.edit}
             </DropdownMenuSubTrigger>
             <DropdownMenuSubContent></DropdownMenuSubContent>
           </DropdownMenuSub>
           <DropdownMenuSub>
             <DropdownMenuSubTrigger>
               <Eye />
-              Ver
+              {messages.menu.view}
             </DropdownMenuSubTrigger>
             <DropdownMenuSubContent>
               <DropdownMenuCheckboxItem
@@ -138,13 +138,13 @@ export const MenuBar = ({
                   );
                 }}
               >
-                <LayoutCells /> {messages.settings.showGrid}{" "}
+                <LayoutCells /> {messages.menu.showGrid}{" "}
               </DropdownMenuCheckboxItem>
 
               <DropdownMenuSub>
                 <DropdownMenuSubTrigger>
                   <LayoutHeaderCursor />
-                  {messages.settings.gridStyle}
+                  {messages.menu.gridStyle}
                 </DropdownMenuSubTrigger>
                 <DropdownMenuSubContent>
                   <DropdownMenuRadioGroup
@@ -163,11 +163,11 @@ export const MenuBar = ({
                   >
                     <DropdownMenuRadioItem value="dots">
                       <Dots9 />
-                      {messages.settings.gridStyleDots}
+                      {messages.menu.gridStyleDots}
                     </DropdownMenuRadioItem>
                     <DropdownMenuRadioItem value="squares">
                       <Rectangles4 />
-                      {messages.settings.gridStyleSquares}
+                      {messages.menu.gridStyleSquares}
                     </DropdownMenuRadioItem>
                   </DropdownMenuRadioGroup>
                 </DropdownMenuSubContent>
@@ -182,7 +182,7 @@ export const MenuBar = ({
                   );
                 }}
               >
-                <SquareDashedCircle /> {messages.settings.snapToGrid}
+                <SquareDashedCircle /> {messages.menu.snapToGrid}
               </DropdownMenuCheckboxItem>
               <DropdownMenuSeparator />
 
@@ -196,7 +196,7 @@ export const MenuBar = ({
                   );
                 }}
               >
-                <Cup /> {messages.settings.zenMode}
+                <Cup /> {messages.menu.zenMode}
                 <div className="drawo-keybind">
                   <span>{Alt()}</span>+ <span>Z</span>
                 </div>
@@ -211,7 +211,7 @@ export const MenuBar = ({
                   );
                 }}
               >
-                <ChevronsExpandUpRight /> {messages.settings.presentationMode}
+                <ChevronsExpandUpRight /> {messages.menu.presentationMode}
                 <div className="drawo-keybind">
                   <span>{Alt()}</span>+ <span>R</span>
                 </div>
@@ -228,28 +228,28 @@ export const MenuBar = ({
                   );
                 }}
               >
-                <Molecule /> {messages.settings.quillDrawOptimizations}
+                <Molecule /> {messages.menu.quillDrawOptimizations}
               </DropdownMenuCheckboxItem>
             </DropdownMenuSubContent>
           </DropdownMenuSub>
           <DropdownMenuSub>
             <DropdownMenuSubTrigger>
               <VectorSquare />
-              Objeto
+              {messages.menu.object}
             </DropdownMenuSubTrigger>
             <DropdownMenuSubContent></DropdownMenuSubContent>
           </DropdownMenuSub>
           <DropdownMenuSub>
             <DropdownMenuSubTrigger>
               <Text />
-              Texto
+              {messages.menu.text}
             </DropdownMenuSubTrigger>
             <DropdownMenuSubContent></DropdownMenuSubContent>
           </DropdownMenuSub>
           <DropdownMenuSub>
             <DropdownMenuSubTrigger>
               <ObjectsAlignBottom />
-              Organizar
+              {messages.menu.organize}
             </DropdownMenuSubTrigger>
             <DropdownMenuSubContent></DropdownMenuSubContent>
           </DropdownMenuSub>
@@ -257,12 +257,14 @@ export const MenuBar = ({
           <DropdownMenuSub>
             <DropdownMenuSubTrigger>
               <Gear />
-              Preferencias
+              {messages.menu.settings}
             </DropdownMenuSubTrigger>
             <DropdownMenuSubContent>
               <div className="custom-element">
                 <span>
-                  <BucketPaint /> Perfil de color
+                  <BucketPaint /> 
+                  {messages.menu.colorProfile}
+                  
                 </span>
                 <div className="theme-selector">
                   <div
@@ -300,7 +302,7 @@ export const MenuBar = ({
               <DropdownMenuSub>
                 <DropdownMenuSubTrigger>
                   <Globe />
-                  {messages.settings.language}
+                  {messages.menu.language}
                 </DropdownMenuSubTrigger>
                 <DropdownMenuSubContent>
                   <DropdownMenuRadioGroup
@@ -319,26 +321,6 @@ export const MenuBar = ({
                       );
                     })}
                   </DropdownMenuRadioGroup>
-
-                  {/*
-          <div className="custom-element">
-            <Select
-              value={locale}
-              onValueChange={(value) => {
-                if (isLocaleCode(value)) {
-                  setLocale(value);
-                }
-              }}
-            >
-              <SelectTrigger className="custom-select-trigger">
-                <SelectValue placeholder="Select language" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="en_US">English</SelectItem>
-                <SelectItem value="es_ES">Español</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>*/}
                 </DropdownMenuSubContent>
               </DropdownMenuSub>
             </DropdownMenuSubContent>
