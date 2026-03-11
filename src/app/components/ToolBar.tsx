@@ -1,13 +1,13 @@
-import { useState, type Dispatch, type SetStateAction } from "react";
+import { useRef, useState, type Dispatch, type SetStateAction } from "react";
 import type { NewElementType } from "../../core/scene";
 import type { LocaleMessages } from "../../i18n";
-import { ArrowRight, MapArrowUp, Pen, Text } from "@solar-icons/react";
+import { ArrowRight, Gallery, MapArrowUp, Pen, Text } from "@solar-icons/react";
 import {
   GrabHandLinear,
   LaserIcon,
   SquareLinear,
 } from "../../components/icons";
-import { Circle } from "lucide-react";
+import { Circle, ImageIcon } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
@@ -54,6 +54,7 @@ interface ToolBarProps {
     drawMode: "draw" | "marker" | "quill",
     strokeWidth: number,
   ) => void;
+  onSelectImageFiles: (files: File[]) => void;
 }
 
 export const ToolBar = ({
@@ -66,8 +67,10 @@ export const ToolBar = ({
   drawDefaults,
   onDrawDefaultStrokeColorChange,
   onDrawDefaultStrokeWidthChange,
+  onSelectImageFiles,
 }: ToolBarProps) => {
   const [isColorPickerOpen, setIsColorPickerOpen] = useState(false);
+  const imageInputRef = useRef<HTMLInputElement>(null);
   const setInteractionModeSafely = (mode: "select" | "pan") => {
     if (isPresentationMode && mode !== "pan") {
       return;
@@ -154,6 +157,24 @@ export const ToolBar = ({
   const drawTools = ["draw", "marker", "quill"];
   return (
     <div className="tool-bar">
+      <input
+        ref={imageInputRef}
+        type="file"
+        accept="image/*"
+        multiple
+        hidden
+        onChange={(event) => {
+          const files = Array.from(event.target.files ?? []).filter((file) =>
+            file.type.startsWith("image/"),
+          );
+
+          if (files.length > 0) {
+            onSelectImageFiles(files);
+          }
+
+          event.currentTarget.value = "";
+        }}
+      />
       {drawTools.includes(drawingTool) ? (
         <div className="top-toolbar">
           <Tooltip>
@@ -441,6 +462,7 @@ export const ToolBar = ({
         </TooltipContent>
       </Tooltip>
 
+
       <Tooltip>
         <TooltipTrigger asChild>
           <button
@@ -456,6 +478,24 @@ export const ToolBar = ({
         </TooltipTrigger>
         <TooltipContent>
           <p>{messages.toolNames.draw}</p>
+        </TooltipContent>
+      </Tooltip>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button
+            type="button"
+            className="tool-item"
+            onClick={() => {
+              setInteractionModeSafely("select");
+              setDrawingToolSafely(null);
+              imageInputRef.current?.click();
+            }}
+          >
+            <Gallery strokeWidth={2} />
+          </button>
+        </TooltipTrigger>
+        <TooltipContent>
+          <p>{messages.toolNames.image}</p>
         </TooltipContent>
       </Tooltip>
 

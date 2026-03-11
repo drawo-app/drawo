@@ -34,7 +34,11 @@ export const updateRectangleElementBounds = (
       return element;
     }
 
-    if (element.type === "rectangle" || element.type === "circle") {
+    if (
+      element.type === "rectangle" ||
+      element.type === "circle" ||
+      element.type === "image"
+    ) {
       return {
         ...element,
         x,

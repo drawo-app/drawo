@@ -238,12 +238,7 @@ export const useInteraction = ({
         const dx = x - resizeState.startPointerX;
         const dy = y - resizeState.startPointerY;
 
-        if (
-          resizeState.startElement.type === "rectangle" ||
-          resizeState.startElement.type === "circle" ||
-          resizeState.startElement.type === "draw" ||
-          resizeState.startElement.type === "line"
-        ) {
+        if (resizeState.startElement.type !== "text") {
           const startBounds = {
             x: resizeState.startElement.x,
             y: resizeState.startElement.y,
@@ -300,6 +295,7 @@ export const useInteraction = ({
               altKey,
             );
             const minSize =
+              resizeState.startElement.type === "image" ||
               resizeState.startElement.type === "draw" ||
               resizeState.startElement.type === "line"
                 ? 1
@@ -323,6 +319,7 @@ export const useInteraction = ({
                 ? snapValue(nextBounds.y, currentScene.settings.gridSize)
                 : nextBounds.y,
               Math.max(
+                resizeState.startElement.type === "image" ||
                 resizeState.startElement.type === "draw" ||
                   resizeState.startElement.type === "line"
                   ? 1
@@ -332,6 +329,7 @@ export const useInteraction = ({
                   : nextBounds.width,
               ),
               Math.max(
+                resizeState.startElement.type === "image" ||
                 resizeState.startElement.type === "draw" ||
                   resizeState.startElement.type === "line"
                   ? 1
@@ -583,6 +581,16 @@ export const useInteraction = ({
                 };
               }
 
+              if (element.type === "image") {
+                return {
+                  ...element,
+                  x: appliedX,
+                  y: appliedY,
+                  width: appliedWidth,
+                  height: appliedHeight,
+                };
+              }
+
               const scale = Math.max(widthRatio, heightRatio);
               const startFontSize = startElement.fontSize ?? element.fontSize;
               const nextFontSize = Math.max(
@@ -800,7 +808,11 @@ export const useInteraction = ({
       groupResizeStateRef.current = null;
       beginInteractionHistory();
 
-      if (element.type === "rectangle" || element.type === "circle") {
+      if (
+        element.type === "rectangle" ||
+        element.type === "circle" ||
+        element.type === "image"
+      ) {
         resizeStateRef.current = {
           id,
           handle,
@@ -887,6 +899,7 @@ export const useInteraction = ({
           if (
             element.type === "rectangle" ||
             element.type === "circle" ||
+            element.type === "image" ||
             element.type === "draw"
           ) {
             return {

@@ -211,7 +211,11 @@ export const getSelectedIds = (scene: Scene): string[] => {
 };
 
 export const getElementBounds = (element: SceneElement): Bounds => {
-  if (element.type === "rectangle" || element.type === "circle") {
+  if (
+    element.type === "rectangle" ||
+    element.type === "circle" ||
+    element.type === "image"
+  ) {
     return {
       x: element.x,
       y: element.y,

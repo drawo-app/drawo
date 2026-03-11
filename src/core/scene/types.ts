@@ -8,6 +8,7 @@ export interface Camera {
 
 export interface SceneSettings {
   showGrid: boolean;
+  gridStyle: "dots" | "squares";
   snapToGrid: boolean;
   quillDrawOptimizations: boolean;
   gridSize: number;
@@ -49,6 +50,7 @@ export type NewElementType =
   | "rectangle"
   | "circle"
   | "text"
+  | "image"
   | "quill"
   | "draw"
   | "marker"
@@ -61,6 +63,7 @@ export const initScene = (): Scene => ({
   camera: { x: 0, y: 0, zoom: 1 },
   settings: {
     showGrid: true,
+    gridStyle: "dots",
     snapToGrid: false,
     quillDrawOptimizations: true,
     gridSize: 24,

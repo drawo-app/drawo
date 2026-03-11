@@ -12,6 +12,24 @@ const normalizeGroupId = (value: unknown): string | null => {
 };
 
 const normalizeElement = (element: SceneElement): SceneElement => {
+  if (element.type === "image") {
+    return {
+      ...element,
+      groupId: normalizeGroupId(element.groupId),
+      src: typeof element.src === "string" ? element.src : "",
+      naturalWidth:
+        typeof element.naturalWidth === "number" &&
+        Number.isFinite(element.naturalWidth)
+          ? Math.max(1, element.naturalWidth)
+          : Math.max(1, element.width),
+      naturalHeight:
+        typeof element.naturalHeight === "number" &&
+        Number.isFinite(element.naturalHeight)
+          ? Math.max(1, element.naturalHeight)
+          : Math.max(1, element.height),
+    };
+  }
+
   if (element.type === "rectangle" || element.type === "circle") {
     return {
       ...element,
@@ -136,6 +154,12 @@ const isValidTheme = (value: unknown): value is SceneSettings["theme"] => {
   return value === "light" || value === "dark";
 };
 
+const isValidGridStyle = (
+  value: unknown,
+): value is SceneSettings["gridStyle"] => {
+  return value === "dots" || value === "squares";
+};
+
 const isValidDrawDefaults = (
   value: unknown,
 ): value is SceneSettings["drawDefaults"] => {
@@ -174,6 +198,9 @@ export const loadInitialScene = (): Scene => {
 
       if (parsedSettings && typeof parsedSettings.showGrid === "boolean") {
         nextSettings.showGrid = parsedSettings.showGrid;
+      }
+      if (parsedSettings && isValidGridStyle(parsedSettings.gridStyle)) {
+        nextSettings.gridStyle = parsedSettings.gridStyle;
       }
       if (parsedSettings && typeof parsedSettings.snapToGrid === "boolean") {
         nextSettings.snapToGrid = parsedSettings.snapToGrid;
@@ -261,6 +288,9 @@ export const loadInitialScene = (): Scene => {
 
     if (typeof parsed.showGrid === "boolean") {
       nextSettings.showGrid = parsed.showGrid;
+    }
+    if (isValidGridStyle(parsed.gridStyle)) {
+      nextSettings.gridStyle = parsed.gridStyle;
     }
     if (typeof parsed.snapToGrid === "boolean") {
       nextSettings.snapToGrid = parsed.snapToGrid;

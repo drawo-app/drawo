@@ -1,4 +1,9 @@
-import type { DrawElement, LineElement, SceneElement } from "../core/elements";
+import type {
+  DrawElement,
+  ImageElement,
+  LineElement,
+  SceneElement,
+} from "../core/elements";
 import type { Scene } from "../core/scene";
 import type { EditableElement } from "./types";
 
@@ -31,6 +36,16 @@ export const getSelectedShapeElements = (
     (element): element is EditableElement =>
       selectedIds.includes(element.id) &&
       (element.type === "rectangle" || element.type === "circle"),
+  );
+};
+
+export const getSelectedImageElements = (
+  elements: SceneElement[],
+  selectedIds: string[],
+): ImageElement[] => {
+  return elements.filter(
+    (element): element is ImageElement =>
+      selectedIds.includes(element.id) && element.type === "image",
   );
 };
 

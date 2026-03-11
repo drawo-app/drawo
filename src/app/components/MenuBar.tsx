@@ -27,14 +27,17 @@ import {
   BucketPaint,
   ChevronsExpandUpRight,
   Cup,
+  Dots9,
   Eye,
   File,
   Gear,
   Globe,
-  Layers3Diagonal,
   LayoutCells,
+  LayoutHeaderCursor,
+  Molecule,
   ObjectsAlignBottom,
   PencilToSquare,
+  Rectangles4,
   SquareDashedCircle,
   Text,
   Thunderbolt,
@@ -137,6 +140,38 @@ export const MenuBar = ({
               >
                 <LayoutCells /> {messages.settings.showGrid}{" "}
               </DropdownMenuCheckboxItem>
+
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger>
+                  <LayoutHeaderCursor />
+                  {messages.settings.gridStyle}
+                </DropdownMenuSubTrigger>
+                <DropdownMenuSubContent>
+                  <DropdownMenuRadioGroup
+                    value={scene.settings.gridStyle}
+                    onValueChange={(value) => {
+                      if (value !== "dots" && value !== "squares") {
+                        return;
+                      }
+
+                      setScene((currentScene) =>
+                        updateSceneSettings(currentScene, {
+                          gridStyle: value,
+                        }),
+                      );
+                    }}
+                  >
+                    <DropdownMenuRadioItem value="dots">
+                      <Dots9 />
+                      {messages.settings.gridStyleDots}
+                    </DropdownMenuRadioItem>
+                    <DropdownMenuRadioItem value="squares">
+                      <Rectangles4 />
+                      {messages.settings.gridStyleSquares}
+                    </DropdownMenuRadioItem>
+                  </DropdownMenuRadioGroup>
+                </DropdownMenuSubContent>
+              </DropdownMenuSub>
               <DropdownMenuCheckboxItem
                 checked={scene.settings.snapToGrid}
                 onClick={() => {
@@ -193,7 +228,7 @@ export const MenuBar = ({
                   );
                 }}
               >
-                <Layers3Diagonal /> {messages.settings.quillDrawOptimizations}
+                <Molecule /> {messages.settings.quillDrawOptimizations}
               </DropdownMenuCheckboxItem>
             </DropdownMenuSubContent>
           </DropdownMenuSub>

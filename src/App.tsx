@@ -8,6 +8,7 @@ import {
   type SetStateAction,
 } from "react";
 import {
+  addImageElementToScene,
   duplicateSelectedElements,
   getGroupElementIds,
   groupSelectedElements,
@@ -45,6 +46,64 @@ import {
   MIN_CAMERA_ZOOM,
   ZOOM_SENSITIVITY,
 } from "./canvas/interaction/constants";
+
+type LoadedImageFile = {
+  src: string;
+  naturalWidth: number;
+  naturalHeight: number;
+};
+
+const readFileAsDataUrl = (file: File): Promise<string> =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === "string") {
+        resolve(reader.result);
+        return;
+      }
+
+      reject(new Error("Unable to read image file"));
+    };
+    reader.onerror = () => reject(reader.error ?? new Error("File read error"));
+    reader.readAsDataURL(file);
+  });
+
+const loadImageDimensions = (
+  src: string,
+): Promise<Pick<LoadedImageFile, "naturalWidth" | "naturalHeight">> =>
+  new Promise((resolve, reject) => {
+    const image = new window.Image();
+    image.onload = () => {
+      resolve({
+        naturalWidth: image.naturalWidth,
+        naturalHeight: image.naturalHeight,
+      });
+    };
+    image.onerror = () => reject(new Error("Image load error"));
+    image.src = src;
+  });
+
+const loadImageFiles = async (files: File[]): Promise<LoadedImageFile[]> => {
+  const loaded = await Promise.all(
+    files
+      .filter((file) => file.type.startsWith("image/"))
+      .map(async (file) => {
+        const src = await readFileAsDataUrl(file);
+        const { naturalWidth, naturalHeight } = await loadImageDimensions(src);
+
+        return {
+          src,
+          naturalWidth,
+          naturalHeight,
+        };
+      }),
+  );
+
+  return loaded.filter(
+    (image): image is LoadedImageFile =>
+      image.naturalWidth > 0 && image.naturalHeight > 0,
+  );
+};
 
 export default function App() {
   const [openTopbarPanel, setOpenTopbarPanel] = useState<
@@ -391,6 +450,36 @@ export default function App() {
     [setScene],
   );
 
+  const handleInsertImageFiles = useCallback(
+    async (files: File[], anchor?: { x: number; y: number }) => {
+      const images = await loadImageFiles(files);
+      if (images.length === 0) {
+        return;
+      }
+
+      setScene((currentScene) => {
+        const baseX =
+          anchor?.x ??
+          currentScene.camera.x +
+            window.innerWidth / (2 * currentScene.camera.zoom);
+        const baseY =
+          anchor?.y ??
+          currentScene.camera.y +
+            window.innerHeight / (2 * currentScene.camera.zoom);
+
+        return images.reduce((nextScene, image, index) => {
+          return addImageElementToScene(
+            nextScene,
+            image,
+            baseX + index * 28,
+            baseY + index * 28,
+          );
+        }, currentScene);
+      });
+    },
+    [setScene],
+  );
+
   useEffect(() => {
     const rootElement = document.documentElement;
 
@@ -458,6 +547,9 @@ export default function App() {
           onCreateElement={handleCreateElement}
           onCreateDrawElement={handleCreateDrawElement}
           onDrawingToolComplete={() => setDrawingToolGuarded(null)}
+          onDropImageFiles={(files, x, y) =>
+            void handleInsertImageFiles(files, { x, y })
+          }
           onSelectElements={handleSelectElements}
           onGroupResizeStart={handleGroupResizeStart}
           onGroupRotateStart={handleGroupRotateStart}
@@ -515,6 +607,7 @@ export default function App() {
           drawDefaults={scene.settings.drawDefaults}
           onDrawDefaultStrokeColorChange={handleDrawDefaultStrokeColorChange}
           onDrawDefaultStrokeWidthChange={handleDrawDefaultStrokeWidthChange}
+          onSelectImageFiles={(files) => void handleInsertImageFiles(files)}
         />
       </TooltipProvider>
     </div>

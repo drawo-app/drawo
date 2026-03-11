@@ -1,6 +1,9 @@
 {
   "settings": {
     "showGrid": "Show grid",
+    "gridStyle": "Grid style",
+    "gridStyleDots": "Dotted",
+    "gridStyleSquares": "Squared",
     "snapToGrid": "Snap to grid",
     "quillDrawOptimizations": "Quill stroke optimization",
     "theme": "Theme",
@@ -28,6 +31,7 @@
     "text": "Text",
     "rectangle": "Rectangle",
     "ellipse": "Ellipse",
+    "image": "Image",
     "draw": "Draw",
     "line": "Line",
     "quill": "Quill",

@@ -13,16 +13,14 @@ import {
 } from "../core/elements";
 import { findHitElement } from "../core/hitTest";
 import type {
+  ImageElement,
   RectangleElement,
   TextElement,
   LineElement,
   SceneElement,
 } from "../core/elements";
 import { createEditor, Editor, Transforms, type Descendant } from "slate";
-import {
-  ReactEditor,
-  withReact,
-} from "slate-react";
+import { ReactEditor, withReact } from "slate-react";
 import { withHistory } from "slate-history";
 import {
   HANDLE_BORDER_RADIUS_PX,
@@ -68,6 +66,7 @@ import {
   serializeRichTextDocument,
 } from "./richTextDocument";
 import { CanvasEmptyState } from "./CanvasEmptyState";
+import { SelectionImageControls } from "./SelectionImageControls";
 import { SelectionShapeControls } from "./SelectionShapeControls";
 import { SelectionStrokeControls } from "./SelectionStrokeControls";
 import { SelectionTextControls } from "./SelectionTextControls";
@@ -75,6 +74,7 @@ import { SelectionToolbar } from "./SelectionToolbar";
 import { TextEditorOverlay } from "./TextEditorOverlay";
 import {
   getSelectedDrawElements,
+  getSelectedImageElements,
   getSelectedIds,
   getSelectedShapeElements,
   getSelectedTextElements,
@@ -109,6 +109,7 @@ export const CanvasView = ({
   onCreateElement,
   onCreateDrawElement,
   onDrawingToolComplete,
+  onDropImageFiles,
   onSelectElements,
   onCopySelection,
   onCutSelection,
@@ -145,6 +146,7 @@ export const CanvasView = ({
   const [editingDocument, setEditingDocument] =
     useState<RichTextDocument | null>(null);
   const editor = useMemo(() => withHistory(withReact(createEditor())), []);
+  const imageCacheRef = useRef<Map<string, HTMLImageElement>>(new Map());
   const [canvasSize, setCanvasSize] = useState(() => ({
     width: window.innerWidth,
     height: window.innerHeight,
@@ -166,6 +168,8 @@ export const CanvasView = ({
   const [drawSelection, setDrawSelection] = useState<DrawSelection | null>(
     null,
   );
+  const fontsLoadedRef = useRef(false);
+  const [, setRenderTrigger] = useState(0);
   const [laserTrails, setLaserTrails] = useState<LaserTrail[]>([]);
   const [laserNow, setLaserNow] = useState(() => performance.now());
   const activeLaserTrailIdRef = useRef<string | null>(null);
@@ -186,6 +190,24 @@ export const CanvasView = ({
   const [activeLineHandle, setActiveLineHandle] = useState<
     "start" | "end" | "control" | null
   >(null);
+  const getCachedImage = (src: string) => {
+    const cachedImage = imageCacheRef.current.get(src);
+    if (cachedImage) {
+      return cachedImage;
+    }
+
+    const image = new window.Image();
+    image.decoding = "async";
+    image.onload = () => {
+      setRenderTrigger((prev) => prev + 1);
+    };
+    image.onerror = () => {
+      setRenderTrigger((prev) => prev + 1);
+    };
+    image.src = src;
+    imageCacheRef.current.set(src, image);
+    return image;
+  };
   const lineHandleDragRef = useRef<{
     id: string;
     handle: "start" | "end" | "control";
@@ -528,7 +550,11 @@ export const CanvasView = ({
     ctx?: CanvasRenderingContext2D,
     includeTextPadding: boolean = true,
   ): ElementBounds => {
-    if (element.type === "rectangle" || element.type === "circle") {
+    if (
+      element.type === "rectangle" ||
+      element.type === "circle" ||
+      element.type === "image"
+    ) {
       return {
         x: element.x,
         y: element.y,
@@ -893,7 +919,15 @@ export const CanvasView = ({
   };
 
   const renderSelectionBarContents = () => {
-    if (editingText) {
+    const selectedTextElements = getSelectedTextElements(
+      scene.elements,
+      selectedIds,
+    );
+    const hasStandaloneTextSelection = selectedTextElements.some(
+      (element) => element.type === "text",
+    );
+
+    if (hasStandaloneTextSelection || editingText) {
       return (
         <SelectionTextControls
           scene={scene}
@@ -912,6 +946,14 @@ export const CanvasView = ({
           onTextAlignChange={onTextAlignChange}
         />
       );
+    }
+
+    const selectedImageElements = getSelectedImageElements(
+      scene.elements,
+      selectedIds,
+    );
+    if (selectedImageElements.length > 0) {
+      return <SelectionImageControls />;
     }
 
     const selectedShapeElements = getSelectedShapeElements(
@@ -949,7 +991,7 @@ export const CanvasView = ({
     pointY: number,
     altKey: boolean,
   ): string => {
-    if (drawingTool) {
+    if (drawingTool && drawingTool !== "image") {
       return "crosshair";
     }
 
@@ -1379,8 +1421,6 @@ export const CanvasView = ({
 
     if (scene.settings.showGrid) {
       const gridSize = Math.max(4, scene.settings.gridSize);
-      const dotSize = 2 / camera.zoom;
-      const dotOffset = dotSize / 2;
       const visualStepMultiplier = Math.max(
         1,
         Math.ceil(MIN_GRID_SCREEN_SPACING / (gridSize * camera.zoom)),
@@ -1392,12 +1432,33 @@ export const CanvasView = ({
       const worldBottom = camera.y + canvas.height / camera.zoom;
       const startX = Math.floor(worldLeft / renderGridStep) * renderGridStep;
       const startY = Math.floor(worldTop / renderGridStep) * renderGridStep;
+      const gridColor = isDarkMode ? "#ffffff10" : "#B3B2B370";
 
-      ctx.fillStyle = isDarkMode ? "#ffffff10" : "#B3B2B370";
+      if (scene.settings.gridStyle === "squares") {
+        ctx.strokeStyle = gridColor;
+        ctx.lineWidth = 1 / camera.zoom;
+        ctx.beginPath();
 
-      for (let x = startX; x <= worldRight; x += renderGridStep) {
+        for (let x = startX; x <= worldRight; x += renderGridStep) {
+          ctx.moveTo(x, worldTop);
+          ctx.lineTo(x, worldBottom);
+        }
+
         for (let y = startY; y <= worldBottom; y += renderGridStep) {
-          ctx.fillRect(x - dotOffset, y - dotOffset, dotSize, dotSize);
+          ctx.moveTo(worldLeft, y);
+          ctx.lineTo(worldRight, y);
+        }
+
+        ctx.stroke();
+      } else {
+        const dotSize = 2 / camera.zoom;
+        const dotOffset = dotSize / 2;
+        ctx.fillStyle = gridColor;
+
+        for (let x = startX; x <= worldRight; x += renderGridStep) {
+          for (let y = startY; y <= worldBottom; y += renderGridStep) {
+            ctx.fillRect(x - dotOffset, y - dotOffset, dotSize, dotSize);
+          }
         }
       }
     }
@@ -1518,6 +1579,113 @@ export const CanvasView = ({
             localSelectionBounds.width,
             localSelectionBounds.height,
           );
+        }
+
+        ctx.restore();
+        continue;
+      }
+
+      if (element.type === "image") {
+        const imageElement = element as ImageElement;
+        const bounds = {
+          x: imageElement.x,
+          y: imageElement.y,
+          width: imageElement.width,
+          height: imageElement.height,
+        };
+        const center = getBoundsCenter(bounds);
+        const image = getCachedImage(imageElement.src);
+        const cornerRadius = Math.min(
+          16 / camera.zoom,
+          Math.min(imageElement.width, imageElement.height) / 6,
+        );
+
+        ctx.save();
+        ctx.translate(center.x, center.y);
+        ctx.rotate(rotationRadians);
+        ctx.translate(-center.x, -center.y);
+
+        ctx.shadowColor = "rgba(15, 23, 42, 0.14)";
+        ctx.shadowBlur = 18 / camera.zoom;
+        ctx.shadowOffsetY = 6 / camera.zoom;
+        ctx.fillStyle = toThemeColor("#f4f5f4");
+        drawRoundedRect(
+          ctx,
+          imageElement.x,
+          imageElement.y,
+          imageElement.width,
+          imageElement.height,
+          cornerRadius,
+        );
+        ctx.fill();
+
+        ctx.save();
+        drawRoundedRect(
+          ctx,
+          imageElement.x,
+          imageElement.y,
+          imageElement.width,
+          imageElement.height,
+          cornerRadius,
+        );
+        ctx.clip();
+
+        if (image.complete && image.naturalWidth > 0 && image.naturalHeight > 0) {
+          ctx.drawImage(
+            image,
+            imageElement.x,
+            imageElement.y,
+            imageElement.width,
+            imageElement.height,
+          );
+        } else {
+          ctx.fillStyle = toThemeColor("#e6e7e8");
+          ctx.fillRect(
+            imageElement.x,
+            imageElement.y,
+            imageElement.width,
+            imageElement.height,
+          );
+        }
+        ctx.restore();
+
+        ctx.shadowColor = "transparent";
+        ctx.strokeStyle = toThemeColor("rgba(15, 23, 42, 0.08)");
+        ctx.lineWidth = 1 / camera.zoom;
+        drawRoundedRect(
+          ctx,
+          imageElement.x,
+          imageElement.y,
+          imageElement.width,
+          imageElement.height,
+          cornerRadius,
+        );
+        ctx.stroke();
+
+        if (shouldShowElementSelection) {
+          ctx.strokeStyle = isMultiSelection
+            ? accentSelectionColor
+            : accentColor;
+          ctx.lineWidth = 1 / camera.zoom;
+          ctx.strokeRect(
+            imageElement.x,
+            imageElement.y,
+            imageElement.width,
+            imageElement.height,
+          );
+        } else if (isMarqueePreview) {
+          ctx.strokeStyle = accentColor;
+          ctx.lineWidth = 1 / camera.zoom;
+          ctx.strokeRect(
+            imageElement.x,
+            imageElement.y,
+            imageElement.width,
+            imageElement.height,
+          );
+        }
+
+        if (shouldShowElementSelection && canTransformSelection) {
+          drawResizeHandles(ctx, bounds, camera.zoom, accentColor);
         }
 
         ctx.restore();
@@ -2211,8 +2379,6 @@ export const CanvasView = ({
     };
   }, [laserTrails.length]);
 
-  const fontsLoadedRef = useRef(false);
-  const [, setRenderTrigger] = useState(0);
   useEffect(() => {
     const handleFontsLoaded = () => {
       if (!fontsLoadedRef.current) {
@@ -2234,6 +2400,39 @@ export const CanvasView = ({
       window.removeEventListener("fontsLoaded", handleFontsLoaded);
     };
   }, []);
+
+  const handleDragOver = (event: React.DragEvent<HTMLCanvasElement>) => {
+    if (
+      !Array.from(event.dataTransfer.items).some((item) => item.kind === "file")
+    ) {
+      return;
+    }
+
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "copy";
+  };
+
+  const handleDrop = (event: React.DragEvent<HTMLCanvasElement>) => {
+    const files = Array.from(event.dataTransfer.files).filter((file) =>
+      file.type.startsWith("image/"),
+    );
+    if (files.length === 0) {
+      return;
+    }
+
+    event.preventDefault();
+
+    const canvas = canvasRef.current;
+    if (!canvas) {
+      return;
+    }
+
+    const rect = canvas.getBoundingClientRect();
+    const screenX = event.clientX - rect.left;
+    const screenY = event.clientY - rect.top;
+    const point = screenToWorld(screenX, screenY);
+    onDropImageFiles(files, point.x, point.y);
+  };
 
   const handlePointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
@@ -2275,7 +2474,7 @@ export const CanvasView = ({
       return;
     }
 
-    if (drawingTool) {
+    if (drawingTool && drawingTool !== "image") {
       if (editingText) {
         commitEditingText();
       }
@@ -3422,6 +3621,8 @@ export const CanvasView = ({
           ref={canvasRef}
           width={canvasSize.width}
           height={canvasSize.height}
+          onDragOver={handleDragOver}
+          onDrop={handleDrop}
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}

@@ -15,7 +15,7 @@ import type { LocaleMessages } from "../i18n";
 export type ResizeHandle = "nw" | "ne" | "se" | "sw";
 export type BoxDrawingType = Exclude<
   NewElementType,
-  "draw" | "marker" | "quill"
+  "draw" | "marker" | "quill" | "image"
 >;
 
 export interface DrawingSelection {
@@ -87,6 +87,7 @@ export interface CanvasViewProps {
     style?: Partial<DrawElementStyle>,
   ) => void;
   onDrawingToolComplete: () => void;
+  onDropImageFiles: (files: File[], x: number, y: number) => void;
   onSelectElements: (ids: string[]) => void;
   onCopySelection: () => void;
   onCutSelection: () => void;

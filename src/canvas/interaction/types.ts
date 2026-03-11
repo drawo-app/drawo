@@ -50,6 +50,13 @@ export interface ResizeState {
         height: number;
       }
     | {
+        type: "image";
+        x: number;
+        y: number;
+        width: number;
+        height: number;
+      }
+    | {
         type: "draw";
         x: number;
         y: number;

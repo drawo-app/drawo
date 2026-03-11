@@ -15,6 +15,7 @@ const getElementLeft = (element: SceneElement): number => {
   if (
     element.type === "rectangle" ||
     element.type === "circle" ||
+    element.type === "image" ||
     element.type === "draw" ||
     element.type === "line"
   ) {
@@ -28,6 +29,7 @@ const getElementTop = (element: SceneElement): number => {
   if (
     element.type === "rectangle" ||
     element.type === "circle" ||
+    element.type === "image" ||
     element.type === "draw" ||
     element.type === "line"
   ) {

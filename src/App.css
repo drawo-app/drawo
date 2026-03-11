@@ -880,6 +880,7 @@ html.dark .selection-toolbar {
 }
 .bottompanel-bar {
   overflow: hidden;
+  background: #fff;
   display: flex;
   box-shadow: var(--panel-shadow);
   border: 1px solid var(--panel-border);

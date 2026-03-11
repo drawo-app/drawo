@@ -6,6 +6,9 @@ export type LocaleCode = "en_US" | "es_ES";
 export interface LocaleMessages {
   settings: {
     showGrid: string;
+    gridStyle: string;
+    gridStyleDots: string;
+    gridStyleSquares: string;
     snapToGrid: string;
     quillDrawOptimizations: string;
     theme: string;
@@ -33,6 +36,7 @@ export interface LocaleMessages {
     text: string;
     rectangle: string;
     ellipse: string;
+    image: string;
     line: string;
     draw: string;
     laser: string;
@@ -106,7 +110,7 @@ export interface LocaleMessages {
 export const LANG_NAMES = {
   en_US: "English (US)",
   es_ES: "Español (ES)",
-}
+};
 
 export const LOCALES: Record<LocaleCode, LocaleMessages> = {
   en_US: enUS as LocaleMessages,

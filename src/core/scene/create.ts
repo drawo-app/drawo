@@ -277,3 +277,44 @@ export const addDrawElementToScene = (
     elements: [...scene.elements, element],
   };
 };
+
+export const addImageElementToScene = (
+  scene: Scene,
+  image: {
+    src: string;
+    naturalWidth: number;
+    naturalHeight: number;
+  },
+  x: number,
+  y: number,
+): Scene => {
+  const maxWidth = 360;
+  const maxHeight = 280;
+  const widthScale =
+    image.naturalWidth > 0 ? maxWidth / image.naturalWidth : 1;
+  const heightScale =
+    image.naturalHeight > 0 ? maxHeight / image.naturalHeight : 1;
+  const scale = Math.min(1, widthScale, heightScale);
+  const width = Math.max(48, Math.round(image.naturalWidth * scale));
+  const height = Math.max(48, Math.round(image.naturalHeight * scale));
+
+  const element: SceneElement = {
+    id: createElementId("image"),
+    type: "image",
+    rotation: 0,
+    x,
+    y,
+    width,
+    height,
+    src: image.src,
+    naturalWidth: image.naturalWidth,
+    naturalHeight: image.naturalHeight,
+  };
+
+  return {
+    ...scene,
+    elements: [...scene.elements, element],
+    selectedId: element.id,
+    selectedIds: [element.id],
+  };
+};

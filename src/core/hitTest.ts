@@ -4,6 +4,7 @@ import {
   hitTestRectangle,
   hitTestText,
   hitTestLine,
+  hitTestImage,
   type SceneElement,
 } from "./elements";
 
@@ -26,6 +27,10 @@ export const hitTestElement = (
 
   if (element.type === "line") {
     return hitTestLine(element, pointX, pointY);
+  }
+
+  if (element.type === "image") {
+    return hitTestImage(element, pointX, pointY);
   }
 
   return hitTestText(element, pointX, pointY);
