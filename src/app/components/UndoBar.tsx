@@ -8,7 +8,6 @@ interface UndoBarProps {
 }
 
 export function UndoBar({ canUndo, canRedo, onUndo, onRedo }: UndoBarProps) {
-
   return (
     <div className="undo-bar bottompanel-bar">
       <button
