@@ -2,6 +2,7 @@
   "settings": {
     "showGrid": "Mostrar cuadrícula",
     "snapToGrid": "Ajustar a cuadrícula",
+    "quillDrawOptimizations": "Optimización del trazo de pluma",
     "theme": "Tema",
     "language": "Idioma",
     "quickActions": "Acciones rápidas",

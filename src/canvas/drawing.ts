@@ -421,6 +421,7 @@ export const drawQuillStroke = (
   ctx: CanvasRenderingContext2D,
   points: ReadonlyArray<StrokePoint>,
   strokeWidth: number,
+  useRasterOptimization: boolean = true,
 ) => {
   if (points.length === 0) {
     return;
@@ -460,6 +461,7 @@ export const drawQuillStroke = (
     typeof ctx.strokeStyle === "string" ? ctx.strokeStyle : null;
 
   if (
+    useRasterOptimization &&
     cacheEntry &&
     strokeStyle &&
     cacheEntry.rasterCanvas &&
@@ -476,7 +478,7 @@ export const drawQuillStroke = (
     return;
   }
 
-  if (cacheEntry && strokeStyle) {
+  if (useRasterOptimization && cacheEntry && strokeStyle) {
     const rasterBounds = getQuillRasterBounds(smoothedPoints, widths);
     const rasterScale = 2;
     const rasterCanvas = document.createElement("canvas");

@@ -25,7 +25,7 @@ import type { SceneElement } from "./core/elements";
 import { useInteraction } from "./canvas/useInteraction";
 import { CanvasView } from "./canvas/CanvasView";
 import { TooltipProvider } from "./components/tooltip";
-import { SettingsBar } from "./app/components/SettingsBar";
+import { MenuBar } from "./app/components/MenuBar";
 import { ToolBar } from "./app/components/ToolBar";
 import { MusicBar } from "./app/components/MusicBar/MusicBar";
 import { useAppKeyboardShortcuts } from "./app/hooks/useAppKeyboardShortcuts";
@@ -418,7 +418,7 @@ export default function App() {
       <TooltipProvider>
         <div className="drawo-topbar">
           <div className="drawo-topbar-left">
-            <SettingsBar
+            <MenuBar
               scene={scene}
               locale={locale}
               messages={messages}

@@ -7,6 +7,7 @@ export interface LocaleMessages {
   settings: {
     showGrid: string;
     snapToGrid: string;
+    quillDrawOptimizations: string;
     theme: string;
     language: string;
     quickActions: string;

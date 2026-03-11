@@ -9,6 +9,7 @@ export interface Camera {
 export interface SceneSettings {
   showGrid: boolean;
   snapToGrid: boolean;
+  quillDrawOptimizations: boolean;
   gridSize: number;
   theme: "light" | "dark";
   zenMode: boolean;
@@ -61,6 +62,7 @@ export const initScene = (): Scene => ({
   settings: {
     showGrid: true,
     snapToGrid: false,
+    quillDrawOptimizations: true,
     gridSize: 24,
     theme: "light",
     zenMode: false,

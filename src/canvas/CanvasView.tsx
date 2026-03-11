@@ -13,7 +13,6 @@ import {
 } from "../core/elements";
 import { findHitElement } from "../core/hitTest";
 import type {
-  LineCap,
   RectangleElement,
   TextElement,
   LineElement,
@@ -21,11 +20,8 @@ import type {
 } from "../core/elements";
 import { createEditor, Editor, Transforms, type Descendant } from "slate";
 import {
-  Editable,
   ReactEditor,
-  Slate,
   withReact,
-  type RenderLeafProps,
 } from "slate-react";
 import { withHistory } from "slate-history";
 import {
@@ -62,23 +58,25 @@ import {
 } from "./geometry";
 import {
   getDrawSelectionBounds,
-  getLineCurveControlPoint,
   getLinePoints,
   getLineSelectionBounds,
   toLineLocalPointer,
 } from "./elementGeometry";
-import { drawLineEditHandles } from "./lineRendering";
+import { renderLineElement } from "./lineRendering";
 import {
   deserializeRichTextDocument,
   serializeRichTextDocument,
 } from "./richTextDocument";
 import { CanvasEmptyState } from "./CanvasEmptyState";
+import { SelectionShapeControls } from "./SelectionShapeControls";
 import { SelectionStrokeControls } from "./SelectionStrokeControls";
 import { SelectionTextControls } from "./SelectionTextControls";
 import { SelectionToolbar } from "./SelectionToolbar";
+import { TextEditorOverlay } from "./TextEditorOverlay";
 import {
   getSelectedDrawElements,
   getSelectedIds,
+  getSelectedShapeElements,
   getSelectedTextElements,
 } from "./selectionState";
 import type {
@@ -92,7 +90,6 @@ import type {
   MarqueeSelection,
   ResizeHandle,
   RichTextDocument,
-  RichTextLeaf,
 } from "./types";
 import { CanvasContextMenu } from "./CanvasContextMenu";
 
@@ -896,52 +893,57 @@ export const CanvasView = ({
   };
 
   const renderSelectionBarContents = () => {
-    const selectedTextElements = getSelectedTextElements(
-      scene.elements,
-      selectedIds,
-    );
-    if (selectedTextElements.length === 0) {
+    if (editingText) {
       return (
-        <SelectionStrokeControls
+        <SelectionTextControls
           scene={scene}
           selectedIds={selectedIds}
-          drawingTool={drawingTool}
           localeMessages={localeMessages}
-          customDrawColorPickerWrapRef={customDrawColorPickerWrapRef}
-          customDrawColorPickerContentRef={customDrawColorPickerContentRef}
-          isCustomDrawColorPickerOpen={isCustomDrawColorPickerOpen}
-          setIsCustomDrawColorPickerOpen={setIsCustomDrawColorPickerOpen}
-          customDrawColorPickerColor={customDrawColorPickerColor}
-          setCustomDrawColorPickerColor={setCustomDrawColorPickerColor}
-          onDrawStrokeWidthChange={onDrawStrokeWidthChange}
-          onDrawStrokeColorChange={onDrawStrokeColorChange}
-          onDrawDefaultStrokeColorChange={onDrawDefaultStrokeColorChange}
-          onLineStartCapChange={onLineStartCapChange}
-          onLineEndCapChange={onLineEndCapChange}
-          uniColor={uniColor}
+          editor={editor}
+          editingText={editingText}
+          setEditingText={setEditingText}
+          worldToScreen={worldToScreen}
+          toggleEditorMark={toggleEditorMark}
+          onTextCommit={onTextCommit}
+          onTextFontFamilyChange={onTextFontFamilyChange}
+          onTextFontSizeChange={onTextFontSizeChange}
+          onTextFontWeightChange={onTextFontWeightChange}
+          onTextFontStyleChange={onTextFontStyleChange}
+          onTextAlignChange={onTextAlignChange}
         />
       );
     }
 
+    const selectedShapeElements = getSelectedShapeElements(
+      scene.elements,
+      selectedIds,
+    );
+    if (selectedShapeElements.length > 0) {
+      return <SelectionShapeControls />;
+    }
+
     return (
-      <SelectionTextControls
+      <SelectionStrokeControls
         scene={scene}
         selectedIds={selectedIds}
+        drawingTool={drawingTool}
         localeMessages={localeMessages}
-        editor={editor}
-        editingText={editingText}
-        setEditingText={setEditingText}
-        worldToScreen={worldToScreen}
-        toggleEditorMark={toggleEditorMark}
-        onTextCommit={onTextCommit}
-        onTextFontFamilyChange={onTextFontFamilyChange}
-        onTextFontSizeChange={onTextFontSizeChange}
-        onTextFontWeightChange={onTextFontWeightChange}
-        onTextFontStyleChange={onTextFontStyleChange}
-        onTextAlignChange={onTextAlignChange}
+        customDrawColorPickerWrapRef={customDrawColorPickerWrapRef}
+        customDrawColorPickerContentRef={customDrawColorPickerContentRef}
+        isCustomDrawColorPickerOpen={isCustomDrawColorPickerOpen}
+        setIsCustomDrawColorPickerOpen={setIsCustomDrawColorPickerOpen}
+        customDrawColorPickerColor={customDrawColorPickerColor}
+        setCustomDrawColorPickerColor={setCustomDrawColorPickerColor}
+        onDrawStrokeWidthChange={onDrawStrokeWidthChange}
+        onDrawStrokeColorChange={onDrawStrokeColorChange}
+        onDrawDefaultStrokeColorChange={onDrawDefaultStrokeColorChange}
+        onLineStartCapChange={onLineStartCapChange}
+        onLineEndCapChange={onLineEndCapChange}
+        uniColor={uniColor}
       />
     );
   };
+
   const resolveIdleCursor = (
     pointX: number,
     pointY: number,
@@ -1448,7 +1450,12 @@ export const CanvasView = ({
             if (drawMode === "marker") {
               drawMarkerStroke(ctx, visibleLocalPoints, visibleStrokeWidth);
             } else if (drawMode === "quill") {
-              drawQuillStroke(ctx, visibleLocalPoints, visibleStrokeWidth);
+              drawQuillStroke(
+                ctx,
+                visibleLocalPoints,
+                visibleStrokeWidth,
+                scene.settings.quillDrawOptimizations,
+              );
             } else {
               ctx.beginPath();
               ctx.arc(
@@ -1465,7 +1472,12 @@ export const CanvasView = ({
             if (drawMode === "marker") {
               drawMarkerStroke(ctx, visibleLocalPoints, visibleStrokeWidth);
             } else if (drawMode === "quill") {
-              drawQuillStroke(ctx, visibleLocalPoints, visibleStrokeWidth);
+              drawQuillStroke(
+                ctx,
+                visibleLocalPoints,
+                visibleStrokeWidth,
+                scene.settings.quillDrawOptimizations,
+              );
             } else {
               ctx.beginPath();
               drawSmoothStrokePath(ctx, visibleLocalPoints);
@@ -1714,255 +1726,20 @@ export const CanvasView = ({
 
       if (element.type === "line") {
         const lineElement = element as LineElement;
-        const { start, end, throughPoint } = getLinePoints(lineElement);
-        const curveControl = getLineCurveControlPoint(start, end, throughPoint);
-        const hasControlPoint = Boolean(lineElement.controlPoint);
-        const capSize = Math.max(10, lineElement.strokeWidth * 1.9);
-        const selectionBounds = measureElementBounds(lineElement);
-        const centerX = start.x + lineElement.width / 2;
-        const centerY = start.y + lineElement.height / 2;
-
-        const drawArrowCap = (
-          ctx: CanvasRenderingContext2D,
-          x: number,
-          y: number,
-          angle: number,
-          isEnd: boolean,
-        ) => {
-          const capLength = capSize * 1.12;
-          const capHalfWidth = capSize * 0.66;
-          const outlineWidth = Math.max(1.1, lineElement.strokeWidth * 0.22);
-          ctx.save();
-          ctx.translate(x, y);
-          ctx.rotate(isEnd ? angle : angle + Math.PI);
-          ctx.fillStyle = toThemeColor(lineElement.stroke);
-          ctx.strokeStyle = toThemeColor(lineElement.stroke);
-          ctx.lineWidth = outlineWidth;
-          ctx.lineJoin = "round";
-          ctx.beginPath();
-          ctx.moveTo(capLength, 0);
-          ctx.lineTo(capLength * 0.04, -capHalfWidth);
-          ctx.lineTo(capLength * 0.04, capHalfWidth);
-          ctx.closePath();
-          ctx.fill();
-          ctx.stroke();
-          ctx.restore();
-        };
-
-        const drawLineArrowCap = (
-          ctx: CanvasRenderingContext2D,
-          x: number,
-          y: number,
-          angle: number,
-          isEnd: boolean,
-        ) => {
-          const capLength = capSize * 0.92;
-          const capHalfWidth = capSize * 0.56;
-          ctx.save();
-          ctx.translate(x, y);
-          ctx.rotate(isEnd ? angle : angle + Math.PI);
-          ctx.strokeStyle = toThemeColor(lineElement.stroke);
-          ctx.lineWidth = Math.max(2, lineElement.strokeWidth);
-          ctx.lineCap = "round";
-          ctx.lineJoin = "round";
-          ctx.beginPath();
-          ctx.moveTo(-capLength, -capHalfWidth);
-          ctx.lineTo(0, 0);
-          ctx.lineTo(-capLength, capHalfWidth);
-          ctx.stroke();
-          ctx.restore();
-        };
-
-        const drawInvertedTriangleCap = (
-          ctx: CanvasRenderingContext2D,
-          x: number,
-          y: number,
-          angle: number,
-          isEnd: boolean,
-        ) => {
-          const capLength = capSize * 1.08;
-          const capHalfWidth = capSize * 0.64;
-          const outlineWidth = Math.max(1.1, lineElement.strokeWidth * 0.22);
-          ctx.save();
-          ctx.translate(x, y);
-          ctx.rotate(isEnd ? angle : angle + Math.PI);
-          ctx.fillStyle = toThemeColor(lineElement.stroke);
-          ctx.strokeStyle = toThemeColor(lineElement.stroke);
-          ctx.lineWidth = outlineWidth;
-          ctx.lineJoin = "round";
-          ctx.beginPath();
-          ctx.moveTo(0, 0);
-          ctx.lineTo(capLength, -capHalfWidth);
-          ctx.lineTo(capLength, capHalfWidth);
-          ctx.closePath();
-          ctx.fill();
-          ctx.stroke();
-          ctx.restore();
-        };
-
-        const drawCircularArrowCap = (
-          ctx: CanvasRenderingContext2D,
-          x: number,
-          y: number,
-          angle: number,
-          isEnd: boolean,
-        ) => {
-          const radius = capSize * 0.62;
-          ctx.beginPath();
-          ctx.save();
-          ctx.translate(x, y);
-          ctx.rotate(isEnd ? angle : angle + Math.PI);
-          ctx.fillStyle = toThemeColor(lineElement.stroke);
-          ctx.arc(radius, 0, radius, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.restore();
-        };
-
-        const drawDiamondCap = (
-          ctx: CanvasRenderingContext2D,
-          x: number,
-          y: number,
-          angle: number,
-          isEnd: boolean,
-        ) => {
-          const capLength = capSize * 1.3;
-          const capHalfWidth = capSize * 0.6;
-          const outlineWidth = Math.max(1.1, lineElement.strokeWidth * 0.22);
-          ctx.save();
-          ctx.translate(x, y);
-          ctx.rotate(isEnd ? angle : angle + Math.PI);
-          ctx.fillStyle = toThemeColor(lineElement.stroke);
-          ctx.strokeStyle = toThemeColor(lineElement.stroke);
-          ctx.lineWidth = outlineWidth;
-          ctx.lineJoin = "round";
-          ctx.beginPath();
-          ctx.moveTo(0, 0);
-          ctx.lineTo(capLength * 0.5, -capHalfWidth);
-          ctx.lineTo(capLength, 0);
-          ctx.lineTo(capLength * 0.5, capHalfWidth);
-          ctx.closePath();
-          ctx.fill();
-          ctx.stroke();
-          ctx.restore();
-        };
-
-        const startTangent = hasControlPoint
-          ? {
-              x: curveControl.x - start.x,
-              y: curveControl.y - start.y,
-            }
-          : {
-              x: end.x - start.x,
-              y: end.y - start.y,
-            };
-        const endTangent = hasControlPoint
-          ? {
-              x: end.x - curveControl.x,
-              y: end.y - curveControl.y,
-            }
-          : {
-              x: end.x - start.x,
-              y: end.y - start.y,
-            };
-        const startAngle = Math.atan2(startTangent.y, startTangent.x);
-        const endAngle = Math.atan2(endTangent.y, endTangent.x);
-
-        ctx.save();
-        if (lineElement.rotation !== 0) {
-          ctx.translate(centerX, centerY);
-          ctx.rotate((lineElement.rotation * Math.PI) / 180);
-          ctx.translate(-centerX, -centerY);
-        }
-
-        ctx.strokeStyle = toThemeColor(lineElement.stroke);
-        ctx.lineWidth = lineElement.strokeWidth;
-        ctx.lineCap = "round";
-        ctx.lineJoin = "round";
-        ctx.beginPath();
-        ctx.moveTo(start.x, start.y);
-        if (hasControlPoint) {
-          ctx.quadraticCurveTo(curveControl.x, curveControl.y, end.x, end.y);
-        } else {
-          ctx.lineTo(end.x, end.y);
-        }
-        ctx.stroke();
-
-        const renderLineCap = (
-          cap: LineCap,
-          x: number,
-          y: number,
-          angle: number,
-          isEnd: boolean,
-        ) => {
-          if (cap === "none") {
-            return;
-          }
-
-          if (cap === "line arrow") {
-            drawLineArrowCap(ctx, x, y, angle, isEnd);
-            return;
-          }
-
-          if (cap === "triangle arrow") {
-            drawArrowCap(ctx, x, y, angle, isEnd);
-            return;
-          }
-
-          if (cap === "inverted triangle") {
-            drawInvertedTriangleCap(ctx, x, y, angle, isEnd);
-            return;
-          }
-
-          if (cap === "circular arrow") {
-            drawCircularArrowCap(ctx, x, y, angle, isEnd);
-            return;
-          }
-
-          drawDiamondCap(ctx, x, y, angle, isEnd);
-        };
-
-        renderLineCap(
-          lineElement.startCap,
-          start.x,
-          start.y,
-          startAngle,
-          false,
-        );
-        renderLineCap(lineElement.endCap, end.x, end.y, endAngle, true);
-
-        if (shouldShowElementSelection) {
-          if (isMultiSelection) {
-            ctx.strokeStyle = accentSelectionColor;
-            ctx.lineWidth = 1 / camera.zoom;
-            ctx.strokeRect(
-              selectionBounds.x,
-              selectionBounds.y,
-              selectionBounds.width,
-              selectionBounds.height,
-            );
-          } else if (canTransformSelection) {
-            drawLineEditHandles(
-              ctx,
-              lineElement,
-              camera.zoom,
-              accentColor,
-              toThemeColor("#F4F5F4"),
-              hoveredLineHandle,
-              activeLineHandle,
-            );
-          }
-        } else if (isMarqueePreview) {
-          ctx.strokeStyle = accentColor;
-          ctx.lineWidth = 1 / camera.zoom;
-          ctx.strokeRect(
-            selectionBounds.x,
-            selectionBounds.y,
-            selectionBounds.width,
-            selectionBounds.height,
-          );
-        }
-
-        ctx.restore();
+        renderLineElement({
+          ctx,
+          lineElement,
+          zoom: camera.zoom,
+          accentColor,
+          accentSelectionColor,
+          toThemeColor,
+          shouldShowElementSelection,
+          isMultiSelection,
+          isMarqueePreview,
+          canTransformSelection,
+          hoveredLineHandle,
+          activeLineHandle,
+        });
         continue;
       }
 
@@ -2210,7 +1987,12 @@ export const CanvasView = ({
         if (drawSelection.drawMode === "marker") {
           drawMarkerStroke(ctx, drawSelection.points, visibleStrokeWidth);
         } else if (drawSelection.drawMode === "quill") {
-          drawQuillStroke(ctx, drawSelection.points, visibleStrokeWidth);
+          drawQuillStroke(
+            ctx,
+            drawSelection.points,
+            visibleStrokeWidth,
+            scene.settings.quillDrawOptimizations,
+          );
         } else {
           ctx.beginPath();
           ctx.arc(
@@ -2227,7 +2009,12 @@ export const CanvasView = ({
         if (drawSelection.drawMode === "marker") {
           drawMarkerStroke(ctx, drawSelection.points, visibleStrokeWidth);
         } else if (drawSelection.drawMode === "quill") {
-          drawQuillStroke(ctx, drawSelection.points, visibleStrokeWidth);
+          drawQuillStroke(
+            ctx,
+            drawSelection.points,
+            visibleStrokeWidth,
+            scene.settings.quillDrawOptimizations,
+          );
         } else {
           ctx.beginPath();
           drawSmoothStrokePath(ctx, drawSelection.points);
@@ -3513,17 +3300,6 @@ export const CanvasView = ({
     syncEditingOverlayLayout(serializeRichTextDocument(nextDocument));
   };
 
-  const handleInputBlur = () => {
-    requestAnimationFrame(() => {
-      const activeElement = document.activeElement;
-      if (editorWrapRef.current?.contains(activeElement)) {
-        return;
-      }
-
-      commitEditingText();
-    });
-  };
-
   const toggleEditorMark = (mark: "bold" | "italic" | "strikethrough") => {
     const marks = Editor.marks(editor) as Record<string, unknown> | null;
     const currentValue = marks?.[mark];
@@ -3558,72 +3334,6 @@ export const CanvasView = ({
       Editor.addMark(editor, mark, true);
     }
   };
-
-  const handleInputKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
-    if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
-      e.preventDefault();
-      commitEditingText();
-      return;
-    }
-
-    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "b") {
-      e.preventDefault();
-      toggleEditorMark("bold");
-      return;
-    }
-
-    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "i") {
-      e.preventDefault();
-      toggleEditorMark("italic");
-      return;
-    }
-
-    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
-      e.preventDefault();
-      toggleEditorMark("strikethrough");
-      return;
-    }
-
-    if (e.key === "Escape") {
-      setEditingDocument(null);
-      setEditingText(null);
-    }
-  };
-
-  const renderLeaf = useCallback(
-    ({ attributes, children, leaf }: RenderLeafProps) => {
-      const richLeaf = leaf as RichTextLeaf;
-
-      return (
-        <span
-          {...attributes}
-          style={{
-            fontWeight:
-              richLeaf.bold === true
-                ? 700
-                : richLeaf.bold === false
-                  ? 400
-                  : undefined,
-            fontStyle:
-              richLeaf.italic === true
-                ? "italic"
-                : richLeaf.italic === false
-                  ? "normal"
-                  : undefined,
-            textDecorationLine:
-              richLeaf.strikethrough === true ? "line-through" : "none",
-            textDecorationColor:
-              richLeaf.strikethrough === true ? "currentColor" : undefined,
-            textDecorationThickness:
-              richLeaf.strikethrough === true ? "0.05em" : undefined,
-          }}
-        >
-          {children}
-        </span>
-      );
-    },
-    [],
-  );
 
   const uniColor = (color: string) =>
     isDarkMode ? invertLightnessPreservingHue(color) : color;
@@ -3749,58 +3459,20 @@ export const CanvasView = ({
         <CanvasEmptyState tagline={localeMessages.canvas.tagline} />
       )}
 
-      {editingText && (
-        <div
-          ref={editorWrapRef}
-          style={{
-            position: "absolute",
-            left: editingText.left,
-            top: editingText.top,
-            width: editingText.width,
-            height: editingText.height,
-            maxWidth: editingText.maxWidth,
-            margin: 0,
-            padding: 0,
-            border: "none",
-            outline: "none",
-            cursor: 'url("/cursors/text.svg") 12 12, auto',
-            background: "transparent",
-            boxShadow: "none",
-            color: toThemeColor(editingText.style.color),
-            fontFamily: editingText.style.fontFamily,
-            fontSize: editingText.style.fontSize * camera.zoom,
-            fontWeight: editingText.style.fontWeight,
-            fontStyle: editingText.style.fontStyle,
-            textAlign: editingText.style.textAlign,
-            lineHeight: `${getTextLineHeight(editingText.style.fontSize) * camera.zoom}px`,
-          }}
-        >
-          <Slate
-            editor={editor}
-            initialValue={
-              (editingDocument ??
-                deserializeRichTextDocument(editingText.value)) as Descendant[]
-            }
-            onChange={handleEditorChange}
-          >
-            <Editable
-              renderLeaf={renderLeaf}
-              onBlur={handleInputBlur}
-              onKeyDown={handleInputKeyDown}
-              spellCheck={false}
-              style={{
-                width: "100%",
-                height: "100%",
-                minHeight: `${editingText.style.fontSize * camera.zoom}px`,
-                outline: "none",
-                whiteSpace: "pre",
-                wordBreak: "normal",
-                background: "transparent",
-              }}
-            />
-          </Slate>
-        </div>
-      )}
+      <TextEditorOverlay
+        editorWrapRef={editorWrapRef}
+        editor={editor}
+        editingText={editingText}
+        editingDocument={editingDocument}
+        cameraZoom={camera.zoom}
+        setEditingDocument={setEditingDocument}
+        setEditingText={setEditingText}
+        toThemeColor={toThemeColor}
+        getTextLineHeight={getTextLineHeight}
+        onEditorChange={handleEditorChange}
+        onCommitEditingText={() => commitEditingText()}
+        onToggleEditorMark={toggleEditorMark}
+      />
 
       {selectionToolbarOverlay && (
         <SelectionToolbar

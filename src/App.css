@@ -488,10 +488,63 @@ html.dark .selection-toolbar {
   transition-duration: 0.1s;
   float: left;
 }
+.drawo-colorselect-item-child[data-multi="true"] {
+  --size: 20px !important;
+}
+.drawo-colorselect-item-child[data-current="true"]:not([data-multi="true"]) svg {
+  scale: 0.45;
+  color: black;
+}
+.drawo-colorselect-item-child[data-current="true"][data-dark="true"] svg {
+  color: white;
+}
+.drawo-colorselect-item-child svg * {
+  stroke-width: 5;
+}
+.drawo-colorselect-item-child svg {
+  scale: 0;
+  transition-duration: 0.1s;
+}
+.drawo-colorselect-item-child {
+  border-radius: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--size);
+  height: var(--size);
+  min-width: var(--size);
+  min-height: var(--size);
+  box-shadow: var(--panel-shadow);
+  max-height: var(--size);
+  border: 1px solid var(--panel-border);
+  max-width: var(--size);
+  --size: 18px;
+}
+.drawo-colorselect-item-container[data-current="true"] {
+  border-width: 2px;
+}
+.drawo-colorselect-item-container {
+  width: 28px;
+  border-width: 0px;
+  border-style: solid;
+  height: 28px;
+  align-items: center;
+  justify-content: center;
+  transition: 0.1s;
+  display: flex;
+  padding: 0px;
+  border-radius: 100%;
+}
+.drawo-colorselect-item:hover {
+  scale: 1.05;
+}
 .drawo-colorselect-item {
   padding: 4px 1px !important;
   background: transparent !important;
   width: fit-content;
+  flex-shrink: 0;
+  border-radius: 100%;
+  cursor: pointer;
   transition-duration: 0.1s;
   float: left;
 }
@@ -1268,8 +1321,8 @@ html.dark .selection-toolbar {
   background: rgba(var(--background-rgb), 0.5);
 }
 .drawo-numberinput-container svg {
-  width: 12px!important;
-  height: 12px!important;
+  width: 12px !important;
+  height: 12px !important;
 }
 .drawo-numberinput-container svg * {
   stroke-width: 2;

@@ -2,6 +2,7 @@
   "settings": {
     "showGrid": "Show grid",
     "snapToGrid": "Snap to grid",
+    "quillDrawOptimizations": "Quill stroke optimization",
     "theme": "Theme",
     "language": "Language",
     "quickActions": "Quick actions",

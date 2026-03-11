@@ -23,6 +23,17 @@ export const getSelectedTextElements = (
   );
 };
 
+export const getSelectedShapeElements = (
+  elements: SceneElement[],
+  selectedIds: string[],
+): EditableElement[] => {
+  return elements.filter(
+    (element): element is EditableElement =>
+      selectedIds.includes(element.id) &&
+      (element.type === "rectangle" || element.type === "circle"),
+  );
+};
+
 export const getSelectedDrawElements = (
   elements: SceneElement[],
   selectedIds: string[],

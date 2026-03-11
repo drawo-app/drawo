@@ -180,6 +180,13 @@ export const loadInitialScene = (): Scene => {
       }
       if (
         parsedSettings &&
+        typeof parsedSettings.quillDrawOptimizations === "boolean"
+      ) {
+        nextSettings.quillDrawOptimizations =
+          parsedSettings.quillDrawOptimizations;
+      }
+      if (
+        parsedSettings &&
         typeof parsedSettings.gridSize === "number" &&
         Number.isFinite(parsedSettings.gridSize)
       ) {
@@ -257,6 +264,9 @@ export const loadInitialScene = (): Scene => {
     }
     if (typeof parsed.snapToGrid === "boolean") {
       nextSettings.snapToGrid = parsed.snapToGrid;
+    }
+    if (typeof parsed.quillDrawOptimizations === "boolean") {
+      nextSettings.quillDrawOptimizations = parsed.quillDrawOptimizations;
     }
     if (
       typeof parsed.gridSize === "number" &&

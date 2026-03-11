@@ -7,6 +7,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../components/select";
+import { ColorSwatchPicker } from "../components/ColorSwatchPicker";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../components/tooltip";
 import type { LineCap } from "../core/elements";
 import type { NewElementType, Scene } from "../core/scene";
@@ -216,79 +217,38 @@ export const SelectionStrokeControls = ({
             </TooltipContent>
           </Tooltip>
           <SelectContent position="popper" className="drawo-colorselect-content">
-            {STROKE_COLORS.map((color) => (
-              <SelectItem
-                key={color}
-                value={color}
-                className="drawo-colorselect-item"
-                check={false}
-                onPointerDown={
-                  color === "multi"
-                    ? (event) => {
-                        event.preventDefault();
-                        event.stopPropagation();
-                        openCustomDrawColorPicker(selectedDrawStrokeColor);
-                      }
-                    : undefined
-                }
-                onSelect={
-                  color === "multi"
-                    ? (event) => {
-                        event.preventDefault();
-                        openCustomDrawColorPicker(selectedDrawStrokeColor);
-                      }
-                    : undefined
-                }
-              >
-                <div
-                  style={{
-                    border:
-                      drawStrokeColorSelectValue === color
-                        ? "2px solid var(--accent)"
-                        : "2px solid transparent",
-                    borderRadius: "100%",
-                    padding: "2px",
-                  }}
+            <ColorSwatchPicker
+              colors={STROKE_COLORS}
+              currentColor={selectedDrawStrokeColor}
+              uniColor={uniColor}
+              renderItem={({ color, isMulti, swatch }) => (
+                <SelectItem
+                  key={color}
+                  value={color}
+                  className="drawo-colorselect-item"
+                  check={false}
+                  onPointerDown={
+                    isMulti
+                      ? (event) => {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          openCustomDrawColorPicker(selectedDrawStrokeColor);
+                        }
+                      : undefined
+                  }
+                  onSelect={
+                    isMulti
+                      ? (event) => {
+                          event.preventDefault();
+                          openCustomDrawColorPicker(selectedDrawStrokeColor);
+                        }
+                      : undefined
+                  }
                 >
-                  <div
-                    style={{
-                      width: color === "multi" ? "22px" : "20px",
-                      borderRadius: "100%",
-                      border: color !== "multi" ? "1px solid #ffffff20" : "none",
-                      height: color === "multi" ? "22px" : "20px",
-                      background:
-                        color === "multi"
-                          ? `
-                        radial-gradient(circle at center,
-                          rgba(255,255,255,1) 0%,
-                          rgba(255,255,255,0.85) 10%,
-                          rgba(255,255,255,0.55) 22%,
-                          rgba(255,255,255,0.15) 40%,
-                          transparent 62%
-                        ),
-                        radial-gradient(circle at 36% 32%, rgba(255,255,255,0.35) 0%, transparent 35%),
-                        radial-gradient(circle at 68% 70%, rgba(0,0,0,0.38) 0%, transparent 52%),
-                        conic-gradient(
-                          from 0deg,
-                          hsl(0,   70%, 65%),
-                          hsl(30,  72%, 63%),
-                          hsl(55,  70%, 62%),
-                          hsl(80,  60%, 60%),
-                          hsl(120, 55%, 60%),
-                          hsl(160, 60%, 58%),
-                          hsl(185, 65%, 60%),
-                          hsl(210, 68%, 63%),
-                          hsl(240, 65%, 66%),
-                          hsl(270, 65%, 65%),
-                          hsl(300, 65%, 64%),
-                          hsl(330, 68%, 64%),
-                          hsl(360, 70%, 65%)`
-                          : uniColor(color),
-                    }}
-                  />
-                </div>
-              </SelectItem>
-            ))}
+                  {swatch}
+                </SelectItem>
+              )}
+            />
           </SelectContent>
         </Select>
       </div>
@@ -431,79 +391,38 @@ export const SelectionStrokeControls = ({
             </TooltipContent>
           </Tooltip>
           <SelectContent position="popper" className="drawo-colorselect-content">
-            {STROKE_COLORS.map((color) => (
-              <SelectItem
-                key={color}
-                value={color}
-                className="drawo-colorselect-item"
-                check={false}
-                onPointerDown={
-                  color === "multi"
-                    ? (event) => {
-                        event.preventDefault();
-                        event.stopPropagation();
-                        openCustomDrawColorPicker(selectedLineStrokePreviewColor);
-                      }
-                    : undefined
-                }
-                onSelect={
-                  color === "multi"
-                    ? (event) => {
-                        event.preventDefault();
-                        openCustomDrawColorPicker(selectedLineStrokePreviewColor);
-                      }
-                    : undefined
-                }
-              >
-                <div
-                  style={{
-                    border:
-                      lineStrokeColorSelectValue === color
-                        ? "2px solid var(--accent)"
-                        : "2px solid transparent",
-                    borderRadius: "100%",
-                    padding: "2px",
-                  }}
+            <ColorSwatchPicker
+              colors={STROKE_COLORS}
+              currentColor={selectedLineStrokePreviewColor}
+              uniColor={uniColor}
+              renderItem={({ color, isMulti, swatch }) => (
+                <SelectItem
+                  key={color}
+                  value={color}
+                  className="drawo-colorselect-item"
+                  check={false}
+                  onPointerDown={
+                    isMulti
+                      ? (event) => {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          openCustomDrawColorPicker(selectedLineStrokePreviewColor);
+                        }
+                      : undefined
+                  }
+                  onSelect={
+                    isMulti
+                      ? (event) => {
+                          event.preventDefault();
+                          openCustomDrawColorPicker(selectedLineStrokePreviewColor);
+                        }
+                      : undefined
+                  }
                 >
-                  <div
-                    style={{
-                      width: color === "multi" ? "22px" : "20px",
-                      borderRadius: "100%",
-                      border: color !== "multi" ? "1px solid #ffffff20" : "none",
-                      height: color === "multi" ? "22px" : "20px",
-                      background:
-                        color === "multi"
-                          ? `
-                        radial-gradient(circle at center,
-                          rgba(255,255,255,1) 0%,
-                          rgba(255,255,255,0.85) 10%,
-                          rgba(255,255,255,0.55) 22%,
-                          rgba(255,255,255,0.15) 40%,
-                          transparent 62%
-                        ),
-                        radial-gradient(circle at 36% 32%, rgba(255,255,255,0.35) 0%, transparent 35%),
-                        radial-gradient(circle at 68% 70%, rgba(0,0,0,0.38) 0%, transparent 52%),
-                        conic-gradient(
-                          from 0deg,
-                          hsl(0,   70%, 65%),
-                          hsl(30,  72%, 63%),
-                          hsl(55,  70%, 62%),
-                          hsl(80,  60%, 60%),
-                          hsl(120, 55%, 60%),
-                          hsl(160, 60%, 58%),
-                          hsl(185, 65%, 60%),
-                          hsl(210, 68%, 63%),
-                          hsl(240, 65%, 66%),
-                          hsl(270, 65%, 65%),
-                          hsl(300, 65%, 64%),
-                          hsl(330, 68%, 64%),
-                          hsl(360, 70%, 65%)`
-                          : uniColor(color),
-                    }}
-                  />
-                </div>
-              </SelectItem>
-            ))}
+                  {swatch}
+                </SelectItem>
+              )}
+            />
           </SelectContent>
         </Select>
       </div>

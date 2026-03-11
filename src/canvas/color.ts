@@ -5,6 +5,32 @@ interface RgbaColor {
   a: number;
 }
 
+export const MultiColorGradient = `
+                    radial-gradient(circle at center,
+                      rgba(255,255,255,1) 0%,
+                      rgba(255,255,255,0.85) 10%,
+                      rgba(255,255,255,0.55) 22%,
+                      rgba(255,255,255,0.15) 40%,
+                      transparent 62%
+                    ),
+                    radial-gradient(circle at 36% 32%, rgba(255,255,255,0.35) 0%, transparent 35%),
+                    radial-gradient(circle at 68% 70%, rgba(0,0,0,0.38) 0%, transparent 52%),
+                    conic-gradient(
+                      from 0deg,
+                      hsl(0,   70%, 65%),
+                      hsl(30,  72%, 63%),
+                      hsl(55,  70%, 62%),
+                      hsl(80,  60%, 60%),
+                      hsl(120, 55%, 60%),
+                      hsl(160, 60%, 58%),
+                      hsl(185, 65%, 60%),
+                      hsl(210, 68%, 63%),
+                      hsl(240, 65%, 66%),
+                      hsl(270, 65%, 65%),
+                      hsl(300, 65%, 64%),
+                      hsl(330, 68%, 64%),
+                      hsl(360, 70%, 65%)`;
+
 export const clamp01 = (value: number): number =>
   Math.min(1, Math.max(0, value));
 
@@ -31,6 +57,11 @@ const parseHexColor = (value: string): RgbaColor | null => {
 
   return null;
 };
+
+export function isDark({ r, g, b }: RgbaColor): boolean {
+  const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+  return lum < 128;
+}
 
 const parseRgbColor = (value: string): RgbaColor | null => {
   const match = value

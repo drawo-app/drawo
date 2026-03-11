@@ -31,6 +31,7 @@ import {
   File,
   Gear,
   Globe,
+  Layers3Diagonal,
   LayoutCells,
   ObjectsAlignBottom,
   PencilToSquare,
@@ -50,7 +51,7 @@ import {
 } from "../../components/dialog";
 import { Alt } from "../utils/macShortcuts";
 
-interface SettingsBarProps {
+interface MenuBarProps {
   scene: Scene;
   locale: LocaleCode;
   messages: LocaleMessages;
@@ -58,13 +59,13 @@ interface SettingsBarProps {
   setScene: Dispatch<SetStateAction<Scene>>;
 }
 
-export const SettingsBar = ({
+export const MenuBar = ({
   scene,
   locale,
   messages,
   setLocale,
   setScene,
-}: SettingsBarProps) => {
+}: MenuBarProps) => {
   const [isClearDialogOpen, setIsClearDialogOpen] = useState(false);
   const hasElements = scene.elements.length > 0;
 
@@ -179,6 +180,20 @@ export const SettingsBar = ({
                 <div className="drawo-keybind">
                   <span>{Alt()}</span>+ <span>R</span>
                 </div>
+              </DropdownMenuCheckboxItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuCheckboxItem
+                checked={scene.settings.quillDrawOptimizations}
+                onClick={() => {
+                  setScene((currentScene) =>
+                    updateSceneSettings(currentScene, {
+                      quillDrawOptimizations:
+                        !currentScene.settings.quillDrawOptimizations,
+                    }),
+                  );
+                }}
+              >
+                <Layers3Diagonal /> {messages.settings.quillDrawOptimizations}
               </DropdownMenuCheckboxItem>
             </DropdownMenuSubContent>
           </DropdownMenuSub>
