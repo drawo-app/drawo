@@ -5,6 +5,8 @@ export interface ImageElement {
   rotation: number;
   x: number;
   y: number;
+  opacity: number;
+  frame: boolean;
   width: number;
   height: number;
   src: string;

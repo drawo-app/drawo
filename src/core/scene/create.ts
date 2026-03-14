@@ -1,5 +1,9 @@
-import type { LocaleMessages } from "../../i18n";
-import { createElementId, type DrawPoint, type SceneElement } from "../elements";
+import type { LocaleMessages } from "@shared/i18n";
+import {
+  createElementId,
+  type DrawPoint,
+  type SceneElement,
+} from "../elements";
 import type {
   DrawElementStyle,
   ElementCreationBounds,
@@ -102,6 +106,8 @@ export const addElementToScene = (
       width,
       height,
       borderRadius: 12,
+      fillStyle: "solid",
+      sloppiness: "architect",
       fill: "#f5f5f5",
       stroke: "#cccccc",
       strokeWidth: 1,
@@ -127,6 +133,8 @@ export const addElementToScene = (
       y: normalizedBounds ? normalizedBounds.y : y - 50,
       width,
       height,
+      fillStyle: "solid",
+      sloppiness: "architect",
       fill: "#f5f5f5",
       stroke: "#cccccc",
       strokeWidth: 1,
@@ -290,8 +298,7 @@ export const addImageElementToScene = (
 ): Scene => {
   const maxWidth = 360;
   const maxHeight = 280;
-  const widthScale =
-    image.naturalWidth > 0 ? maxWidth / image.naturalWidth : 1;
+  const widthScale = image.naturalWidth > 0 ? maxWidth / image.naturalWidth : 1;
   const heightScale =
     image.naturalHeight > 0 ? maxHeight / image.naturalHeight : 1;
   const scale = Math.min(1, widthScale, heightScale);
@@ -306,6 +313,8 @@ export const addImageElementToScene = (
     y,
     width,
     height,
+    frame: false,
+    opacity: 100,
     src: image.src,
     naturalWidth: image.naturalWidth,
     naturalHeight: image.naturalHeight,

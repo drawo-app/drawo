@@ -269,3 +269,148 @@ export const updateDrawElementsStrokeColor = (
     }),
   };
 };
+
+export const updateShapeElementsFillStyle = (
+  scene: Scene,
+  ids: string[],
+  fillStyle: "solid" | "hachure" | "none",
+): Scene => {
+  if (ids.length === 0) {
+    return scene;
+  }
+
+  const targetIds = new Set(ids);
+
+  return {
+    ...scene,
+    elements: scene.elements.map((element) => {
+      if (
+        !targetIds.has(element.id) ||
+        (element.type !== "rectangle" && element.type !== "circle")
+      ) {
+        return element;
+      }
+
+      return {
+        ...element,
+        fillStyle: fillStyle,
+      };
+    }),
+  };
+};
+
+export const updateShapeElementsSloppiness = (
+  scene: Scene,
+  ids: string[],
+  sloppiness: "architect" | "artist" | "cartoonist",
+): Scene => {
+  if (ids.length === 0) {
+    return scene;
+  }
+
+  const targetIds = new Set(ids);
+
+  return {
+    ...scene,
+    elements: scene.elements.map((element) => {
+      if (
+        !targetIds.has(element.id) ||
+        (element.type !== "rectangle" && element.type !== "circle")
+      ) {
+        return element;
+      }
+
+      return {
+        ...element,
+        sloppiness,
+      };
+    }),
+  };
+};
+
+export const updateShapeElementsFillColor = (
+  scene: Scene,
+  ids: string[],
+  fillColor: string,
+): Scene => {
+  if (ids.length === 0 || fillColor === "multi") {
+    return scene;
+  }
+
+  const targetIds = new Set(ids);
+
+  return {
+    ...scene,
+    elements: scene.elements.map((element) => {
+      if (
+        !targetIds.has(element.id) ||
+        (element.type !== "rectangle" && element.type !== "circle")
+      ) {
+        return element;
+      }
+
+      return {
+        ...element,
+        fill: fillColor,
+      };
+    }),
+  };
+};
+
+export const updateShapeElementsStrokeColor = (
+  scene: Scene,
+  ids: string[],
+  strokeColor: string,
+): Scene => {
+  if (ids.length === 0 || strokeColor === "multi") {
+    return scene;
+  }
+
+  const targetIds = new Set(ids);
+
+  return {
+    ...scene,
+    elements: scene.elements.map((element) => {
+      if (
+        !targetIds.has(element.id) ||
+        (element.type !== "rectangle" && element.type !== "circle")
+      ) {
+        return element;
+      }
+
+      return {
+        ...element,
+        stroke: strokeColor,
+      };
+    }),
+  };
+};
+
+export const updateShapeElementsStrokeWidth = (
+  scene: Scene,
+  ids: string[],
+  strokeWidth: number,
+): Scene => {
+  if (ids.length === 0) {
+    return scene;
+  }
+
+  const targetIds = new Set(ids);
+
+  return {
+    ...scene,
+    elements: scene.elements.map((element) => {
+      if (
+        !targetIds.has(element.id) ||
+        (element.type !== "rectangle" && element.type !== "circle")
+      ) {
+        return element;
+      }
+
+      return {
+        ...element,
+        strokeWidth,
+      };
+    }),
+  };
+};
