@@ -10,6 +10,7 @@ export interface SceneSettings {
   showGrid: boolean;
   gridStyle: "dots" | "squares";
   snapToGrid: boolean;
+  smartGuides: boolean;
   quillDrawOptimizations: boolean;
   gridSize: number;
   theme: "light" | "dark";
@@ -65,6 +66,7 @@ export const initScene = (): Scene => ({
     showGrid: true,
     gridStyle: "dots",
     snapToGrid: false,
+    smartGuides: true,
     quillDrawOptimizations: true,
     gridSize: 24,
     theme: "light",

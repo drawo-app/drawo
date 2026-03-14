@@ -1,4 +1,144 @@
+import {
+  estimateTextHeight,
+  estimateTextWidth,
+  getTextStartX,
+  type LineCap,
+  type SceneElement,
+} from "../elements";
 import type { Scene } from "./types";
+
+type Bounds = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
+
+const getSelectedIds = (scene: Scene): string[] => {
+  return scene.selectedIds.length > 0
+    ? scene.selectedIds
+    : scene.selectedId
+      ? [scene.selectedId]
+      : [];
+};
+
+const getDrawPadding = (
+  strokeWidth: number,
+  drawMode: "draw" | "marker" | "quill",
+): number => {
+  if (drawMode === "marker") {
+    return Math.max(6, strokeWidth * 0.65);
+  }
+
+  if (drawMode === "quill") {
+    return Math.max(4, strokeWidth * 1.45);
+  }
+
+  return Math.max(3, strokeWidth / 2);
+};
+
+const getLineCapPadding = (cap: LineCap, strokeWidth: number): number => {
+  if (
+    cap === "line arrow" ||
+    cap === "triangle arrow" ||
+    cap === "inverted triangle" ||
+    cap === "diamond arrow"
+  ) {
+    return Math.max(8, strokeWidth * 1.5);
+  }
+
+  if (cap === "circular arrow") {
+    return Math.max(4, strokeWidth * 0.75);
+  }
+
+  return 0;
+};
+
+const getElementBounds = (element: SceneElement): Bounds => {
+  if (
+    element.type === "rectangle" ||
+    element.type === "circle" ||
+    element.type === "image"
+  ) {
+    return {
+      x: element.x,
+      y: element.y,
+      width: element.width,
+      height: element.height,
+    };
+  }
+
+  if (element.type === "draw") {
+    const padding = getDrawPadding(
+      element.strokeWidth,
+      element.drawMode ?? "draw",
+    );
+
+    return {
+      x: element.x - padding,
+      y: element.y - padding,
+      width: element.width + padding * 2,
+      height: element.height + padding * 2,
+    };
+  }
+
+  if (element.type === "line") {
+    const startX = element.x;
+    const startY = element.y;
+    const endX = element.x + element.width;
+    const endY = element.y + element.height;
+    const minX = Math.min(startX, endX);
+    const minY = Math.min(startY, endY);
+    const maxX = Math.max(startX, endX);
+    const maxY = Math.max(startY, endY);
+    const strokePadding = Math.max(2, element.strokeWidth / 2);
+    const capPadding = Math.max(
+      getLineCapPadding(element.startCap, element.strokeWidth),
+      getLineCapPadding(element.endCap, element.strokeWidth),
+    );
+    const padding = strokePadding + capPadding;
+
+    return {
+      x: minX - padding,
+      y: minY - padding,
+      width: Math.max(1, maxX - minX) + padding * 2,
+      height: Math.max(1, maxY - minY) + padding * 2,
+    };
+  }
+
+  return {
+    x: getTextStartX(element),
+    y: element.y - element.fontSize,
+    width: Math.max(16, estimateTextWidth(element)),
+    height: estimateTextHeight(element),
+  };
+};
+
+const translateElement = (
+  element: SceneElement,
+  dx: number,
+  dy: number,
+): SceneElement => {
+  if (element.type === "line") {
+    return {
+      ...element,
+      x: element.x + dx,
+      y: element.y + dy,
+      controlPoint: element.controlPoint
+        ? {
+            x: element.controlPoint.x + dx,
+            y: element.controlPoint.y + dy,
+          }
+        : null,
+    };
+  }
+
+  return {
+    ...element,
+    x: element.x + dx,
+    y: element.y + dy,
+  };
+};
 
 export const updateElementPosition = (
   scene: Scene,
@@ -172,6 +312,76 @@ export const updateGroupElementsRotation = (
         y: rotatedCenterY + startPos.offsetY,
         rotation: startPos.rotation + angleDeltaDegrees,
       };
+    }),
+  };
+};
+
+export const alignSelectedElements = (
+  scene: Scene,
+  alignment: "left" | "center" | "right" | "top" | "middle" | "bottom",
+): Scene => {
+  const selectedIds = getSelectedIds(scene);
+
+  if (selectedIds.length < 2) {
+    return scene;
+  }
+
+  const selectedIdSet = new Set(selectedIds);
+  const selectedBounds = scene.elements
+    .filter((element) => selectedIdSet.has(element.id))
+    .map((element) => ({
+      id: element.id,
+      bounds: getElementBounds(element),
+    }));
+
+  if (selectedBounds.length < 2) {
+    return scene;
+  }
+
+  const selectionLeft = Math.min(...selectedBounds.map((entry) => entry.bounds.x));
+  const selectionTop = Math.min(...selectedBounds.map((entry) => entry.bounds.y));
+  const selectionRight = Math.max(
+    ...selectedBounds.map((entry) => entry.bounds.x + entry.bounds.width),
+  );
+  const selectionBottom = Math.max(
+    ...selectedBounds.map((entry) => entry.bounds.y + entry.bounds.height),
+  );
+  const selectionCenterX = (selectionLeft + selectionRight) / 2;
+  const selectionCenterY = (selectionTop + selectionBottom) / 2;
+  const boundsById = new Map(
+    selectedBounds.map((entry) => [entry.id, entry.bounds]),
+  );
+
+  return {
+    ...scene,
+    elements: scene.elements.map((element) => {
+      if (!selectedIdSet.has(element.id)) {
+        return element;
+      }
+
+      const bounds = boundsById.get(element.id);
+      if (!bounds) {
+        return element;
+      }
+
+      let dx = 0;
+      let dy = 0;
+
+      if (alignment === "left") {
+        dx = selectionLeft - bounds.x;
+      } else if (alignment === "center") {
+        dx = selectionCenterX - (bounds.x + bounds.width / 2);
+      } else if (alignment === "right") {
+        dx = selectionRight - (bounds.x + bounds.width);
+      } else if (alignment === "top") {
+        dy = selectionTop - bounds.y;
+      } else if (alignment === "middle") {
+        dy = selectionCenterY - (bounds.y + bounds.height / 2);
+      } else {
+        dy = selectionBottom - (bounds.y + bounds.height);
+      }
+
+      return translateElement(element, dx, dy);
     }),
   };
 };

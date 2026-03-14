@@ -5,6 +5,7 @@
     "gridStyleDots": "De puntos",
     "gridStyleSquares": "De cuadros",
     "snapToGrid": "Ajustar a cuadrícula",
+    "smartGuides": "Guías de alineación",
     "quillDrawOptimizations": "Optimización del trazo de pluma",
     "theme": "Tema",
     "language": "Idioma",
@@ -20,7 +21,15 @@
     "object": "Objeto",
     "text": "Texto",
     "organize": "Organizar",
-    "settings": "Preferencias"
+    "settings": "Preferencias",
+    "organizeActions": {
+      "alignLeft": "Alinear a la izquierda",
+      "alignCenter": "Centrar horizontalmente",
+      "alignRight": "Alinear a la derecha",
+      "alignTop": "Alinear arriba",
+      "alignMiddle": "Centrar verticalmente",
+      "alignBottom": "Alinear abajo"
+    }
   },
   "dialogs": {
     "clearCanvas": {

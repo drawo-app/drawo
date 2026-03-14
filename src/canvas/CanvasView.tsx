@@ -113,15 +113,15 @@ const SLOPPINESS_CONFIG: Record<
     borderPasses: 1,
     borderRoughness: 0.65,
     fillRoughness: 0.35,
-    hachureGap: 14,
-    hachureRoughness: 1.35,
-    hachureBow: 0.7,
+    hachureGap: 3,
+    hachureRoughness: 0,
+    hachureBow: 0,
   },
   artist: {
     borderPasses: 2,
     borderRoughness: 1.1,
     fillRoughness: 0.7,
-    hachureGap: 12,
+    hachureGap: 4,
     hachureRoughness: 2.2,
     hachureBow: 1.1,
   },
@@ -129,9 +129,9 @@ const SLOPPINESS_CONFIG: Record<
     borderPasses: 3,
     borderRoughness: 1.8,
     fillRoughness: 1.2,
-    hachureGap: 10,
-    hachureRoughness: 3.1,
-    hachureBow: 1.55,
+    hachureGap: 5,
+    hachureRoughness: 3.5,
+    hachureBow: 2.0,
   },
 };
 
@@ -538,18 +538,39 @@ const fillShape = (
   for (
     let offset = element.x - hatchSpan;
     offset <= element.x + element.width + hatchSpan;
-    offset += spacing
   ) {
+    let currentLineWidth = lineWidth;
+    let dx = hatchSpan;
+    let currentSpacing = spacing;
+
+    if (element.sloppiness === "cartoonist") {
+      const thicknessVariation = Math.sin(lineIndex * 0.3) * 0.5 + 0.5;
+      currentLineWidth = Math.max(
+        1,
+        lineWidth * (0.5 + 2.5 * thicknessVariation),
+      );
+
+      const rotationVariation = Math.sin(lineIndex * 0.2);
+      dx = hatchSpan + rotationVariation * hatchSpan * 0.15;
+
+      const distanceVariation = Math.cos(lineIndex * 0.25) * 0.5 + 0.5;
+      currentSpacing = spacing * (0.8 + 1.2 * distanceVariation);
+    }
+
+    ctx.lineWidth = currentLineWidth;
+
     strokeSketchLine(
       ctx,
       offset,
       element.y + element.height + hatchSpan,
-      offset + hatchSpan,
+      offset + dx,
       element.y - hatchSpan,
       config.hachureRoughness,
       config.hachureBow,
       baseSeed + lineIndex * 37,
     );
+
+    offset += currentSpacing;
     lineIndex += 1;
   }
 

@@ -205,6 +205,9 @@ export const loadInitialScene = (): Scene => {
       if (parsedSettings && typeof parsedSettings.snapToGrid === "boolean") {
         nextSettings.snapToGrid = parsedSettings.snapToGrid;
       }
+      if (parsedSettings && typeof parsedSettings.smartGuides === "boolean") {
+        nextSettings.smartGuides = parsedSettings.smartGuides;
+      }
       if (
         parsedSettings &&
         typeof parsedSettings.quillDrawOptimizations === "boolean"
@@ -294,6 +297,9 @@ export const loadInitialScene = (): Scene => {
     }
     if (typeof parsed.snapToGrid === "boolean") {
       nextSettings.snapToGrid = parsed.snapToGrid;
+    }
+    if (typeof parsed.smartGuides === "boolean") {
+      nextSettings.smartGuides = parsed.smartGuides;
     }
     if (typeof parsed.quillDrawOptimizations === "boolean") {
       nextSettings.quillDrawOptimizations = parsed.quillDrawOptimizations;

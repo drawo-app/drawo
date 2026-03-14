@@ -88,6 +88,7 @@ import type {
   ResizeHandle,
   RichTextDocument,
 } from "./types";
+import type { SmartGuide } from "./alignmentGuides";
 import { LASER_COLOR, drawLaserTrail, useLaserTrails } from "./laser";
 import {
   CanvasContextMenu,
@@ -113,15 +114,15 @@ const SLOPPINESS_CONFIG: Record<
     borderPasses: 1,
     borderRoughness: 0.65,
     fillRoughness: 0.35,
-    hachureGap: 14,
-    hachureRoughness: 1.35,
-    hachureBow: 0.7,
+    hachureGap: 3,
+    hachureRoughness: 0,
+    hachureBow: 0,
   },
   artist: {
     borderPasses: 2,
     borderRoughness: 1.1,
     fillRoughness: 0.7,
-    hachureGap: 12,
+    hachureGap: 4,
     hachureRoughness: 2.2,
     hachureBow: 1.1,
   },
@@ -129,9 +130,9 @@ const SLOPPINESS_CONFIG: Record<
     borderPasses: 3,
     borderRoughness: 1.8,
     fillRoughness: 1.2,
-    hachureGap: 10,
-    hachureRoughness: 3.1,
-    hachureBow: 1.55,
+    hachureGap: 5,
+    hachureRoughness: 3.5,
+    hachureBow: 2.0,
   },
 };
 
@@ -153,6 +154,70 @@ const seededUnit = (seed: number) => {
 
 const seededRange = (seed: number, min: number, max: number) => {
   return min + (max - min) * seededUnit(seed);
+};
+
+const drawGuideMarker = (
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  zoom: number,
+  color: string,
+) => {
+  const size = 8 / zoom;
+
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(Math.PI / 4);
+  ctx.fillStyle = color;
+  ctx.fillRect(-size / 2, -size / 2, size, size);
+  ctx.restore();
+};
+
+const drawSmartGuides = (
+  ctx: CanvasRenderingContext2D,
+  guides: SmartGuide[],
+  zoom: number,
+  color: string,
+) => {
+  if (guides.length === 0) {
+    return;
+  }
+
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.fillStyle = color;
+  ctx.lineWidth = 1 / zoom;
+  ctx.setLineDash([6 / zoom, 4 / zoom]);
+
+  for (const guide of guides) {
+    ctx.beginPath();
+
+    if (guide.axis === "x") {
+      ctx.moveTo(guide.value, guide.start);
+      ctx.lineTo(guide.value, guide.end);
+    } else {
+      ctx.moveTo(guide.start, guide.value);
+      ctx.lineTo(guide.end, guide.value);
+    }
+
+    ctx.stroke();
+    drawGuideMarker(
+      ctx,
+      guide.movingPoint.x,
+      guide.movingPoint.y,
+      zoom,
+      color,
+    );
+    drawGuideMarker(
+      ctx,
+      guide.targetPoint.x,
+      guide.targetPoint.y,
+      zoom,
+      color,
+    );
+  }
+
+  ctx.restore();
 };
 
 const drawShapePath = (
@@ -538,18 +603,39 @@ const fillShape = (
   for (
     let offset = element.x - hatchSpan;
     offset <= element.x + element.width + hatchSpan;
-    offset += spacing
   ) {
+    let currentLineWidth = lineWidth;
+    let dx = hatchSpan;
+    let currentSpacing = spacing;
+
+    if (element.sloppiness === "cartoonist") {
+      const thicknessVariation = Math.sin(lineIndex * 0.3) * 0.5 + 0.5;
+      currentLineWidth = Math.max(
+        1,
+        lineWidth * (0.5 + 2.5 * thicknessVariation),
+      );
+
+      const rotationVariation = Math.sin(lineIndex * 0.2);
+      dx = hatchSpan + rotationVariation * hatchSpan * 0.15;
+
+      const distanceVariation = Math.cos(lineIndex * 0.25) * 0.5 + 0.5;
+      currentSpacing = spacing * (0.8 + 1.2 * distanceVariation);
+    }
+
+    ctx.lineWidth = currentLineWidth;
+
     strokeSketchLine(
       ctx,
       offset,
       element.y + element.height + hatchSpan,
-      offset + hatchSpan,
+      offset + dx,
       element.y - hatchSpan,
       config.hachureRoughness,
       config.hachureBow,
       baseSeed + lineIndex * 37,
     );
+
+    offset += currentSpacing;
     lineIndex += 1;
   }
 
@@ -586,6 +672,7 @@ const strokeShapeOutline = (
 
 export const CanvasView = ({
   scene,
+  alignmentGuides,
   interactionMode,
   drawingTool,
   localeMessages,
@@ -1934,6 +2021,7 @@ export const CanvasView = ({
       "124, 92, 255";
     const accentSelectionColor = `rgba(${accentRgb}, 0.45)`;
     const accentMarqueeFillColor = `rgba(${accentRgb}, 0.12)`;
+    const guideColor = isDarkMode ? "#ff9b9b" : "#ff7a7a";
 
     ctx.fillStyle = toThemeColor("#F4F5F4");
     ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -2509,6 +2597,8 @@ export const CanvasView = ({
         ctx.restore();
       }
     }
+
+    drawSmartGuides(ctx, alignmentGuides, camera.zoom, guideColor);
 
     if (marqueeSelection) {
       const marqueeBounds = getMarqueeBounds(marqueeSelection);

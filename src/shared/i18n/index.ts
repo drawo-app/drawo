@@ -10,6 +10,7 @@ export interface LocaleMessages {
     gridStyleDots: string;
     gridStyleSquares: string;
     snapToGrid: string;
+    smartGuides: string;
     quillDrawOptimizations: string;
     theme: string;
     language: string;
@@ -26,6 +27,14 @@ export interface LocaleMessages {
     text: string;
     organize: string;
     settings: string;
+    organizeActions: {
+      alignLeft: string;
+      alignCenter: string;
+      alignRight: string;
+      alignTop: string;
+      alignMiddle: string;
+      alignBottom: string;
+    };
   };
   dialogs: {
     clearCanvas: {

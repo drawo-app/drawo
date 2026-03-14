@@ -6,8 +6,12 @@ import {
 } from "react";
 import type { LocaleCode, LocaleMessages } from "@shared/i18n";
 import { isLocaleCode, LANG_NAMES } from "@shared/i18n";
-import { type Scene, updateSceneSettings } from "@core/scene";
-import { MenuIcon } from "lucide-react";
+import {
+  alignSelectedElements,
+  type Scene,
+  updateSceneSettings,
+} from "@core/scene";
+import { Crosshair, MenuIcon } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -51,12 +55,10 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@shared/ui/dialog";
 import { Alt } from "@shared/lib/platform/macShortcuts";
 import { LaserPointerStylusIcon } from "@shared/ui/icons";
 import { ColorSwatchPicker } from "@shared/ui/ColorSwatchPicker";
-import { SelectItem } from "@shared/ui/select";
 import { invertLightnessPreservingHue } from "@features/canvas/color";
 
 interface MenuBarProps {
@@ -77,6 +79,12 @@ export const MenuBar = ({
   const [isClearDialogOpen, setIsClearDialogOpen] = useState(false);
   const [isLaserPointerOpen, setIsLaserPointerOpen] = useState(false);
   const hasElements = scene.elements.length > 0;
+  const selectedCount =
+    scene.selectedIds.length > 0
+      ? scene.selectedIds.length
+      : scene.selectedId
+        ? 1
+        : 0;
 
   const uniColor = (color: string) =>
     document.documentElement.classList.contains("dark")
@@ -131,7 +139,8 @@ export const MenuBar = ({
               <PencilToSquare />
               {messages.menu.edit}
             </DropdownMenuSubTrigger>
-            <DropdownMenuSubContent></DropdownMenuSubContent>
+            <DropdownMenuSubContent>
+            </DropdownMenuSubContent>
           </DropdownMenuSub>
           <DropdownMenuSub>
             <DropdownMenuSubTrigger>
@@ -183,18 +192,6 @@ export const MenuBar = ({
                   </DropdownMenuRadioGroup>
                 </DropdownMenuSubContent>
               </DropdownMenuSub>
-              <DropdownMenuCheckboxItem
-                checked={scene.settings.snapToGrid}
-                onClick={() => {
-                  setScene((currentScene) =>
-                    updateSceneSettings(currentScene, {
-                      snapToGrid: !currentScene.settings.snapToGrid,
-                    }),
-                  );
-                }}
-              >
-                <SquareDashedCircle /> {messages.menu.snapToGrid}
-              </DropdownMenuCheckboxItem>
               <DropdownMenuSeparator />
 
               <DropdownMenuCheckboxItem
@@ -262,7 +259,69 @@ export const MenuBar = ({
               <ObjectsAlignBottom />
               {messages.menu.organize}
             </DropdownMenuSubTrigger>
-            <DropdownMenuSubContent></DropdownMenuSubContent>
+            <DropdownMenuSubContent>
+              <DropdownMenuItem
+                disabled={selectedCount < 2}
+                onClick={() => {
+                  setScene((currentScene) =>
+                    alignSelectedElements(currentScene, "left"),
+                  );
+                }}
+              >
+                {messages.menu.organizeActions.alignLeft}
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                disabled={selectedCount < 2}
+                onClick={() => {
+                  setScene((currentScene) =>
+                    alignSelectedElements(currentScene, "center"),
+                  );
+                }}
+              >
+                {messages.menu.organizeActions.alignCenter}
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                disabled={selectedCount < 2}
+                onClick={() => {
+                  setScene((currentScene) =>
+                    alignSelectedElements(currentScene, "right"),
+                  );
+                }}
+              >
+                {messages.menu.organizeActions.alignRight}
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                disabled={selectedCount < 2}
+                onClick={() => {
+                  setScene((currentScene) =>
+                    alignSelectedElements(currentScene, "top"),
+                  );
+                }}
+              >
+                {messages.menu.organizeActions.alignTop}
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                disabled={selectedCount < 2}
+                onClick={() => {
+                  setScene((currentScene) =>
+                    alignSelectedElements(currentScene, "middle"),
+                  );
+                }}
+              >
+                {messages.menu.organizeActions.alignMiddle}
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                disabled={selectedCount < 2}
+                onClick={() => {
+                  setScene((currentScene) =>
+                    alignSelectedElements(currentScene, "bottom"),
+                  );
+                }}
+              >
+                {messages.menu.organizeActions.alignBottom}
+              </DropdownMenuItem>
+            </DropdownMenuSubContent>
           </DropdownMenuSub>
           <DropdownMenuSeparator />
           <DropdownMenuSub>
@@ -271,6 +330,31 @@ export const MenuBar = ({
               {messages.menu.settings}
             </DropdownMenuSubTrigger>
             <DropdownMenuSubContent>
+              <DropdownMenuCheckboxItem
+                checked={scene.settings.snapToGrid}
+                onClick={() => {
+                  setScene((currentScene) =>
+                    updateSceneSettings(currentScene, {
+                      snapToGrid: !currentScene.settings.snapToGrid,
+                    }),
+                  );
+                }}
+              >
+                <SquareDashedCircle /> {messages.menu.snapToGrid}
+              </DropdownMenuCheckboxItem>
+              <DropdownMenuCheckboxItem
+                checked={scene.settings.smartGuides}
+                onClick={() => {
+                  setScene((currentScene) =>
+                    updateSceneSettings(currentScene, {
+                      smartGuides: !currentScene.settings.smartGuides,
+                    }),
+                  );
+                }}
+              >
+                <Crosshair size={16} /> {messages.menu.smartGuides}
+              </DropdownMenuCheckboxItem>
+              <DropdownMenuSeparator />
               <div className="custom-element">
                 <span>
                   <BucketPaint />
@@ -356,7 +440,16 @@ export const MenuBar = ({
           <p className="label">Color</p>
           <div className="colorswatch-dialog">
             <ColorSwatchPicker
-              colors={["#FF1A28", "#FF7A00", "#FFD400", "#00E05A", "#008CFF", "#9B3DFF", "#FF2BD6", "#00E5FF"]}
+              colors={[
+                "#FF1A28",
+                "#FF7A00",
+                "#FFD400",
+                "#00E05A",
+                "#008CFF",
+                "#9B3DFF",
+                "#FF2BD6",
+                "#00E5FF",
+              ]}
               currentColor={"#FF1A28"}
               uniColor={uniColor}
               renderItem={({ color, isMulti, swatch }) => (
@@ -372,9 +465,7 @@ export const MenuBar = ({
             />
           </div>
           <p className="label">Duración del trazo</p>
-  
-          
-          
+
           <DialogFooter>
             <div className="drawo-dialog-actions">
               <DialogClose asChild>
@@ -385,9 +476,7 @@ export const MenuBar = ({
               <button
                 type="button"
                 className="drawo-btn-primary"
-                onClick={() => {
-                  
-                }}
+                onClick={() => {}}
               >
                 Guardar
               </button>

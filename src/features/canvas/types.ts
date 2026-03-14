@@ -11,6 +11,7 @@ import type {
   TextElement,
 } from "@core/elements";
 import type { LocaleMessages } from "@shared/i18n";
+import type { SmartGuide } from "./alignmentGuides";
 
 export type ResizeHandle = "nw" | "ne" | "se" | "sw";
 export type BoxDrawingType = Exclude<
@@ -45,6 +46,7 @@ export interface ElementBounds {
 
 export interface CanvasViewProps {
   scene: Scene;
+  alignmentGuides: SmartGuide[];
   interactionMode: "select" | "pan";
   drawingTool: NewElementType | "laser" | null;
   localeMessages: LocaleMessages;

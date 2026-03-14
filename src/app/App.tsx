@@ -315,6 +315,7 @@ export default function App() {
     handleLineEndCapChange,
     handleLineEditStart,
     handleLineGeometryChange,
+    alignmentGuides,
   } = useInteraction({
     scene,
     setScene,
@@ -541,6 +542,7 @@ export default function App() {
         </div>
         <CanvasView
           scene={scene}
+          alignmentGuides={alignmentGuides}
           interactionMode={effectiveInteractionMode}
           drawingTool={effectiveDrawingTool}
           onPointerDown={handlePointerDown}

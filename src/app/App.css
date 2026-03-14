@@ -12,8 +12,8 @@ html {
 *::before,
 *::after {
     --accent: #7c5cff;
-    --logoduotone-secondcolor: #3119CF;
-    --logocolor: #1D00D7;
+    --logoduotone-secondcolor: #3119cf;
+    --logocolor: #1d00d7;
     --accent-rgb: 124, 92, 255;
     --text-rgb: 15, 15, 15;
     --background-rgb: 220, 220, 220;
@@ -55,15 +55,17 @@ html.dark .app-root {
     width: 250px !important;
 }
 .settings-bar {
-    border-radius: 25px;
+    border-radius: 12px;
     width: fit-content;
+    height: fit-content;
     z-index: 10;
     display: flex;
+    padding: 2px;
     corner-shape: squircle;
     border: 1px solid var(--panel-border);
-    padding: 2px;
     gap: 1px;
     align-items: center;
+    justify-content: center;
     background: rgba(255, 255, 255, 0.94);
     box-shadow: var(--panel-shadow);
 }
@@ -680,10 +682,10 @@ html.dark .selection-toolbar {
 }
 
 .drawo-contextmenu-content {
+    border-radius: 12px;
     background: var(--panel-bg, #fff);
     color: rgb(var(--text-rgb));
     min-width: 12rem;
-    border-radius: 24px;
     padding: 4px;
     font-family: Inter;
     box-shadow: var(--panel-shadow);
@@ -702,12 +704,12 @@ html.dark .selection-toolbar {
 }
 
 .drawo-keybind span {
+    border-radius: 5px;
     background-color: rgba(var(--text-rgb), 0.1) !important;
     color: rgba(var(--text-rgb), 0.6) !important;
     corner-shape: squircle;
     font-weight: 500;
     padding: 2px 4px;
-    border-radius: 8px;
 }
 .drawo-keybind {
     display: flex;
@@ -722,10 +724,10 @@ html.dark .selection-toolbar {
 .drawo-contextmenu-subtrigger,
 .drawo-contextmenu-checkboxitem,
 .drawo-contextmenu-radioitem {
+    border-radius: 10px;
     display: flex;
     align-items: center;
     gap: 6px;
-    border-radius: 28px;
     corner-shape: squircle;
     padding: 8px 12px;
     font-size: 16px;
@@ -750,10 +752,10 @@ html.dark .selection-toolbar {
 }
 
 .drawo-contextmenu-subcontent {
+    border-radius: 12px;
     background: var(--panel-bg, #fff);
     color: rgb(var(--text-rgb));
     min-width: 12rem;
-    border-radius: 24px;
     padding: 4px;
     font-family: Inter;
     box-shadow: var(--panel-shadow);
@@ -808,10 +810,10 @@ html.dark .selection-toolbar {
 }
 .drawo-dropdown-content,
 .drawo-dropdown-subcontent {
+    border-radius: 12px;
     background: var(--popover, #fff);
     color: var(--popover-foreground, #111);
     min-width: 8rem;
-    border-radius: 24px;
     padding: 4px;
     box-shadow: var(--panel-shadow);
 
@@ -856,12 +858,12 @@ html.dark .selection-toolbar {
 .drawo-dropdown-checkboxitem,
 .drawo-dropdown-radioitem,
 .drawo-dropdown-subtrigger {
+    border-radius: 10px;
     display: flex;
     align-items: center;
     corner-shape: squircle;
     gap: 6px;
     padding-right: 36px !important;
-    border-radius: 24px;
     padding: 10px 16px;
     position: relative;
     white-space: nowrap;
@@ -878,8 +880,8 @@ html.dark .selection-toolbar {
     border-left: 1px solid rgba(var(--text-rgb), 0.1);
 }
 .bottompanel-bar button {
-    display: flex;
     padding: 8px;
+    display: flex;
     border: none;
     corner-shape: squircle;
     background-color: transparent;
@@ -920,13 +922,13 @@ html.dark .selection-toolbar {
 }
 
 .bottompanel-bar {
+    border-radius: 12px;
     overflow: hidden;
     gap: 0px;
     border: 1px solid var(--panel-border);
     box-shadow: var(--panel-shadow);
     corner-shape: squircle;
     background: #fff;
-    border-radius: 24px;
     display: flex;
 }
 .dark .bottompanel-bar {
@@ -995,7 +997,7 @@ html.dark .selection-toolbar {
     background: rgba(var(--accent-rgb), 0.5);
 }
 .theme-option {
-    border-radius: 24px;
+    border-radius: 10px;
     display: flex;
     transition: 0.1s;
     cursor: pointer;
@@ -1006,7 +1008,7 @@ html.dark .selection-toolbar {
 .theme-selector {
     gap: 2px;
     border: 1px solid rgba(var(--text-rgb), 0.1);
-    border-radius: 24px;
+    border-radius: 12px;
     padding: 2px;
     corner-shape: squircle;
     display: flex;
@@ -1021,7 +1023,7 @@ html.dark .selection-toolbar {
     gap: 8px;
     padding: 12px 16px;
     justify-content: space-between;
-    border-radius: 24px;
+    border-radius: 12px;
     corner-shape: squircle;
     margin-bottom: 8px;
 }
@@ -1126,7 +1128,7 @@ html.dark .selection-toolbar {
     max-width: 32rem;
     transform: translate(-50%, -50%);
     background: var(--background, #fff);
-    border-radius: 28px;
+    border-radius: 18px;
     padding: 16px 28px;
     font-size: 14px;
     corner-shape: squircle;
@@ -1216,15 +1218,15 @@ html.dark .selection-toolbar {
     background: none;
     padding: 0px;
     margin: 0px;
-    color: unset!important;
+    color: unset !important;
     width: 100%;
     font-family: Inter, sans-serif;
 }
 
-p.label  {
+p.label {
     margin: 0px;
     opacity: 0.7;
-    transform: translateY(5px)
+    transform: translateY(5px);
 }
 .colorswatch-dialog * {
     --size: 32px;
@@ -1335,7 +1337,7 @@ p.label  {
 
     padding: 8px 10px;
 
-    border-radius: 16px;
+    border-radius: 8px;
     corner-shape: squircle;
     border: 1px solid var(--panel-border);
 
@@ -1420,7 +1422,7 @@ p.label  {
 .drawo-numberinput-container {
     display: flex;
     height: var(--size);
-    border-radius: 18px;
+    border-radius: 8px;
     corner-shape: squircle;
     border: 1px solid var(--panel-border);
     overflow: hidden;
@@ -1462,9 +1464,9 @@ p.label  {
     margin: 0px;
 }
 .drawo-tooltip-content {
+    border-radius: 8px;
     background: rgb(var(--text-rgb));
     color: rgb(var(--background-rgb));
-    border-radius: 18px;
     corner-shape: squircle;
     padding: 7px 12px;
     font-size: 12px;
@@ -1566,31 +1568,6 @@ p.label  {
     border-radius: 2.7px;
 }
 
-/**
-*
-*
-*  SQUIRCLE
-*
-*/
-@supports (corner-shape: squircle) {
-    .selection-toolbar {
-        border-radius: 24px;
-    }
-    .select-content {
-        border-radius: 20px;
-    }
-    .select-item {
-        border-radius: 12px;
-    }
-    .insert-item,
-    .tool-item {
-        border-radius: 22px;
-    }
-    .tool-bar,
-    .top-toolbar {
-        border-radius: 30px;
-    }
-}
 .drawo-topright-bar {
     position: absolute;
     top: 12px;
@@ -1678,10 +1655,70 @@ p.label  {
 .drawo-zen-mode .zoom-bar {
     translate: 0px 200% !important;
 }
-.drawo-zen-mode 
-.drawo-topbar-right > div::after {
+.drawo-zen-mode .drawo-topbar-right > div::after {
     pointer-events: all;
 }
 [style*="z-index: 500;"] {
     z-index: 100000 !important;
+}
+
+/**
+*
+*
+*  SQUIRCLE
+*
+*/
+@supports (corner-shape: squircle) {
+    .settings-bar {
+        border-radius: 25px;
+    }
+    .select-content {
+        border-radius: 20px;
+    }
+    .select-item {
+        border-radius: 12px;
+    }
+    .drawo-input {
+        border-radius: 16px;
+    }
+    .drawo-numberinput-container,
+    .drawo-tooltip-content {
+        border-radius: 18px;
+    }
+    .insert-item,
+    .tool-item {
+        border-radius: 22px;
+    }
+    .tool-bar,
+    .top-toolbar {
+        border-radius: 30px;
+    }
+
+    .drawo-keybind span {
+        border-radius: 8px;
+    }
+
+    .drawo-contextmenu-item,
+    .drawo-contextmenu-subtrigger,
+    .drawo-contextmenu-checkboxitem,
+    .drawo-contextmenu-radioitem,
+    .drawo-dialog-content {
+        border-radius: 28px;
+    }
+
+    .drawo-contextmenu-subcontent,
+    .drawo-dropdown-content,
+    .drawo-dropdown-subcontent,
+    .bottompanel-bar,
+    .drawo-contextmenu-content,
+    .selection-toolbar,
+    .drawo-dropdown-item,
+    .drawo-dropdown-checkboxitem,
+    .drawo-dropdown-radioitem,
+    .drawo-dropdown-subtrigger,
+    .theme-option,
+    .theme-selector,
+    .drawo-dropdown-content .custom-element .custom-select-trigger {
+        border-radius: 24px;
+    }
 }

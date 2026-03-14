@@ -127,9 +127,9 @@
     border-radius: 50%;
 }
 .timer-textbtn {
+    border-radius: 12px;
     corner-shape: squircle;
     padding: 4px 12px;
-    border-radius: 24px;
     border: 1px solid rgba(var(--text-rgb), 0.2);
 }
 .timer-btn--primary:hover {
@@ -161,6 +161,7 @@
 }
 
 .timer-preset {
+    border-radius: 12px;
     color: currentColor;
     cursor: pointer;
     transition: 0.1s;
@@ -170,6 +171,20 @@
     border: none;
     corner-shape: squircle;
     padding: 6px 12px;
-    border-radius: 24px;
     background: rgba(var(--text-rgb), 0.1);
+}
+
+/**
+*
+*
+*  SQUIRCLE
+*
+*/
+@supports (corner-shape: squircle) {
+    .timer-preset {
+        border-radius: 24px;
+    }
+    .timer-textbtn {
+        border-radius: 24px;
+    }
 }

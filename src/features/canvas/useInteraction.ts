@@ -1,4 +1,4 @@
-import { useCallback, useRef } from "react";
+import { useCallback, useRef, useState } from "react";
 import {
   estimateTextHeight,
   estimateTextWidth,
@@ -64,6 +64,10 @@ import type {
   RotationState,
   UseInteractionProps,
 } from "./interaction/types";
+import {
+  getSmartGuidesForDrag,
+  type SmartGuide,
+} from "./alignmentGuides";
 export const useInteraction = ({
   scene,
   setScene,
@@ -76,6 +80,7 @@ export const useInteraction = ({
   const rotationStateRef = useRef<RotationState | null>(null);
   const groupRotationStateRef = useRef<GroupRotationState | null>(null);
   const interactionBeforeRef = useRef<Scene | null>(null);
+  const [alignmentGuides, setAlignmentGuides] = useState<SmartGuide[]>([]);
 
   const beginInteractionHistory = useCallback(() => {
     interactionBeforeRef.current = scene;
@@ -96,6 +101,8 @@ export const useInteraction = ({
       shiftKey: boolean,
       internalSelectKey: boolean,
     ) => {
+      setAlignmentGuides([]);
+
       setScene((currentScene) => {
         const hitId = findHitElement(currentScene.elements, x, y);
         const selectedIds = getSelectedIds(currentScene);
@@ -662,28 +669,40 @@ export const useInteraction = ({
 
       const dragState = dragStateRef.current;
       if (!dragState) {
+        setAlignmentGuides([]);
         return;
       }
 
+      let dx = x - dragState.startPointerX;
+      let dy = y - dragState.startPointerY;
+
+      if (shiftKey) {
+        const absDx = Math.abs(dx);
+        const absDy = Math.abs(dy);
+
+        if (absDx > absDy) {
+          dy = 0;
+        } else {
+          dx = 0;
+        }
+      }
+
+      const smartGuideResult = scene.settings.smartGuides
+        ? getSmartGuidesForDrag(scene, dragState.elements, dx, dy)
+        : { offsetX: 0, offsetY: 0, guides: [] };
+
+      dx += smartGuideResult.offsetX;
+      dy += smartGuideResult.offsetY;
+      setAlignmentGuides(smartGuideResult.guides);
+
       setSceneWithoutHistory((currentScene) => {
         const byId = new Map(dragState.elements.map((item) => [item.id, item]));
-        let dx = x - dragState.startPointerX;
-        let dy = y - dragState.startPointerY;
-
-        // Ruler constraint with shift key
-        if (shiftKey) {
-          const absDx = Math.abs(dx);
-          const absDy = Math.abs(dy);
-
-          // Determine direction based on which delta is larger
-          if (absDx > absDy) {
-            // Horizontal ruler: lock Y movement
-            dy = 0;
-          } else {
-            // Vertical ruler: lock X movement
-            dx = 0;
-          }
-        }
+        const hasGuideX = smartGuideResult.guides.some(
+          (guide) => guide.axis === "x",
+        );
+        const hasGuideY = smartGuideResult.guides.some(
+          (guide) => guide.axis === "y",
+        );
 
         return {
           ...currentScene,
@@ -696,10 +715,10 @@ export const useInteraction = ({
             const nextX = startElement.x + dx;
             const nextY = startElement.y + dy;
 
-            const appliedX = currentScene.settings.snapToGrid
+            const appliedX = currentScene.settings.snapToGrid && !hasGuideX
               ? snapValue(nextX, currentScene.settings.gridSize)
               : nextX;
-            const appliedY = currentScene.settings.snapToGrid
+            const appliedY = currentScene.settings.snapToGrid && !hasGuideY
               ? snapValue(nextY, currentScene.settings.gridSize)
               : nextY;
 
@@ -728,7 +747,7 @@ export const useInteraction = ({
         };
       });
     },
-    [setSceneWithoutHistory],
+    [scene, setSceneWithoutHistory],
   );
 
   const handlePointerUp = useCallback(() => {
@@ -736,6 +755,8 @@ export const useInteraction = ({
     if (interactionBefore) {
       commitInteractionHistory(interactionBefore);
     }
+
+    setAlignmentGuides([]);
 
     dragStateRef.current = null;
     resizeStateRef.current = null;
@@ -1418,5 +1439,6 @@ export const useInteraction = ({
     handleLineEndCapChange,
     handleLineEditStart,
     handleLineGeometryChange,
+    alignmentGuides,
   };
 };

@@ -26,6 +26,9 @@ import {
 import { parseColorForPicker } from "./color";
 import { getSelectedShapeElements, getSharedValue } from "./selectionState";
 import {
+  ArchitectSloppinessIcon,
+  ArtistSloppinessIcon,
+  CartoonistSloppinessIcon,
   HachureIcon,
   SquareFilledIcon,
   SquareUnfilledIcon,
@@ -380,8 +383,6 @@ export const SelectionShapeControls = ({
         </TooltipContent>
       </Tooltip>
 
-      <div className="selectionbar-separator" />
-
       {/* Stroke color */}
       <Select
         open={activeSelectId === "shape-stroke-color" || undefined}
@@ -473,41 +474,42 @@ export const SelectionShapeControls = ({
       </Select>
 
       {/* Stroke width */}
-      <Select
-        open={activeSelectId === "shape-stroke-width" || undefined}
-        onOpenChange={(isOpen) => {
-          if (isOpen) {
-            setActiveSelectId("shape-stroke-width");
-          } else if (activeSelectId === "shape-stroke-width") {
+      {/*
+        <Select
+          open={activeSelectId === "shape-stroke-width" || undefined}
+          onOpenChange={(isOpen) => {
+            if (isOpen) {
+              setActiveSelectId("shape-stroke-width");
+            } else if (activeSelectId === "shape-stroke-width") {
+              setActiveSelectId(null);
+            }
+          }}
+          value={String(selectedStrokeWidth)}
+          onValueChange={(value) => {
             setActiveSelectId(null);
-          }
-        }}
-        value={String(selectedStrokeWidth)}
-        onValueChange={(value) => {
-          setActiveSelectId(null);
-          onShapeStrokeWidthChange(selectedShapeIds, Number(value));
-        }}
-      >
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <SelectTrigger className="draw-stroke-trigger">
-              <SelectValue
-                placeholder={localeMessages.selectionBar.strokeWidth}
-              />
-            </SelectTrigger>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>{localeMessages.selectionBar.strokeWidth}</p>
-          </TooltipContent>
-        </Tooltip>
-        <SelectContent position="popper">
-          {DRAW_STROKE_OPTIONS.map((option) => (
-            <SelectItem key={option} value={String(option)}>
-              {option}px
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+            onShapeStrokeWidthChange(selectedShapeIds, Number(value));
+          }}
+        >
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <SelectTrigger className="draw-stroke-trigger">
+                <SelectValue
+                  placeholder={localeMessages.selectionBar.strokeWidth}
+                />
+              </SelectTrigger>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>{localeMessages.selectionBar.strokeWidth}</p>
+            </TooltipContent>
+          </Tooltip>
+          <SelectContent position="popper">
+            {DRAW_STROKE_OPTIONS.map((option) => (
+              <SelectItem key={option} value={String(option)}>
+                {option}px
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select> */}
 
       <div className="selectionbar-separator" />
 
@@ -528,7 +530,7 @@ export const SelectionShapeControls = ({
                 onShapeSloppinessChange(selectedShapeIds, "architect")
               }
             >
-              {localeMessages.selectionBar.architect}
+              <ArchitectSloppinessIcon />
             </button>
           </TooltipTrigger>
           <TooltipContent>
@@ -548,7 +550,7 @@ export const SelectionShapeControls = ({
                 onShapeSloppinessChange(selectedShapeIds, "artist")
               }
             >
-              {localeMessages.selectionBar.artist}
+              <ArtistSloppinessIcon />
             </button>
           </TooltipTrigger>
           <TooltipContent>
@@ -568,7 +570,7 @@ export const SelectionShapeControls = ({
                 onShapeSloppinessChange(selectedShapeIds, "cartoonist")
               }
             >
-              {localeMessages.selectionBar.cartoonist}
+              <CartoonistSloppinessIcon />
             </button>
           </TooltipTrigger>
           <TooltipContent>

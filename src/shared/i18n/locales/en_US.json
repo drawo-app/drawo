@@ -5,6 +5,7 @@
     "gridStyleDots": "Dotted",
     "gridStyleSquares": "Squared",
     "snapToGrid": "Snap to grid",
+    "smartGuides": "Smart guides",
     "quillDrawOptimizations": "Quill stroke optimization",
     "theme": "Theme",
     "language": "Language",
@@ -20,7 +21,15 @@
     "object": "Object",
     "text": "Text",
     "organize": "Organize",
-    "settings": "Settings"
+    "settings": "Settings",
+    "organizeActions": {
+      "alignLeft": "Align left",
+      "alignCenter": "Align center",
+      "alignRight": "Align right",
+      "alignTop": "Align top",
+      "alignMiddle": "Align middle",
+      "alignBottom": "Align bottom"
+    }
   },
   "dialogs": {
     "clearCanvas": {
