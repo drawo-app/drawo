@@ -1,7 +1,7 @@
 import type { Dispatch, SetStateAction } from "react";
 import type { Scene } from "@core/scene";
 import type { SceneElement } from "@core/elements";
-import type { ResizeHandle } from "../types";
+import type { ResizeHandle } from "@features/canvas/types";
 
 export interface UseInteractionProps {
   scene: Scene;

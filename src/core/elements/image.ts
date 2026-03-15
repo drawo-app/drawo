@@ -3,6 +3,8 @@ export interface ImageElement {
   groupId?: string | null;
   type: "image";
   rotation: number;
+  flipX: boolean;
+  flipY: boolean;
   x: number;
   y: number;
   opacity: number;

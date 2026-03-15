@@ -299,35 +299,6 @@ export const updateShapeElementsFillStyle = (
   };
 };
 
-export const updateShapeElementsSloppiness = (
-  scene: Scene,
-  ids: string[],
-  sloppiness: "architect" | "artist" | "cartoonist",
-): Scene => {
-  if (ids.length === 0) {
-    return scene;
-  }
-
-  const targetIds = new Set(ids);
-
-  return {
-    ...scene,
-    elements: scene.elements.map((element) => {
-      if (
-        !targetIds.has(element.id) ||
-        (element.type !== "rectangle" && element.type !== "circle")
-      ) {
-        return element;
-      }
-
-      return {
-        ...element,
-        sloppiness,
-      };
-    }),
-  };
-};
-
 export const updateShapeElementsFillColor = (
   scene: Scene,
   ids: string[],

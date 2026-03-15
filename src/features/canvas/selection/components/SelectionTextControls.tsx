@@ -30,17 +30,20 @@ import {
   getAlignedStartX,
   getShapeTextAnchorX,
   getTextAlignSelectValue,
-} from "./geometry";
+} from "@features/canvas/geometry/geometry";
 import {
   deserializeRichTextDocument,
   serializeRichTextDocument,
-} from "./richTextDocument";
-import { getSelectedTextElements, getSharedValue } from "./selectionState";
+} from "@features/canvas/text/richTextDocument";
+import {
+  getSelectedTextElements,
+  getSharedValue,
+} from "@features/canvas/selection/selectionState";
 import type {
   EditableElement,
   EditingTextState,
   RichTextDocument,
-} from "./types";
+} from "@features/canvas/types";
 import { NumberInput } from "@shared/ui/input";
 
 interface SelectionTextControlsProps {

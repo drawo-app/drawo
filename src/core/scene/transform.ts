@@ -1,11 +1,16 @@
 import {
   estimateTextHeight,
   estimateTextWidth,
+  type DrawElement,
+  type ImageElement,
   getTextStartX,
   type LineCap,
+  type LineElement,
   type SceneElement,
 } from "../elements";
 import type { Scene } from "./types";
+
+export type FlipAxis = "horizontal" | "vertical";
 
 type Bounds = {
   x: number;
@@ -140,6 +145,90 @@ const translateElement = (
   };
 };
 
+const isFlippableElement = (
+  element: SceneElement,
+): element is Exclude<SceneElement, { type: "text" }> => {
+  return element.type !== "text";
+};
+
+const flipDrawElementLocally = (
+  element: DrawElement,
+  axis: FlipAxis,
+): DrawElement => ({
+  ...element,
+  points: element.points.map((point) => ({
+    ...point,
+    x: axis === "horizontal" ? element.width - point.x : point.x,
+    y: axis === "vertical" ? element.height - point.y : point.y,
+  })),
+});
+
+const flipLineElementLocally = (
+  element: LineElement,
+  axis: FlipAxis,
+): LineElement => {
+  if (axis === "horizontal") {
+    return {
+      ...element,
+      x: element.x + element.width,
+      width: -element.width,
+      controlPoint: element.controlPoint
+        ? {
+            x: element.x * 2 + element.width - element.controlPoint.x,
+            y: element.controlPoint.y,
+          }
+        : null,
+    };
+  }
+
+  return {
+    ...element,
+    y: element.y + element.height,
+    height: -element.height,
+    controlPoint: element.controlPoint
+      ? {
+          x: element.controlPoint.x,
+          y: element.y * 2 + element.height - element.controlPoint.y,
+        }
+      : null,
+  };
+};
+
+const flipElementLocally = (
+  element: Exclude<SceneElement, { type: "text" }>,
+  axis: FlipAxis,
+): Exclude<SceneElement, { type: "text" }> => {
+  if (element.type === "draw") {
+    return {
+      ...flipDrawElementLocally(element, axis),
+      rotation: -element.rotation,
+    };
+  }
+
+  if (element.type === "line") {
+    return {
+      ...flipLineElementLocally(element, axis),
+      rotation: -element.rotation,
+    };
+  }
+
+  if (element.type === "image") {
+    const imageElement: ImageElement = {
+      ...element,
+      rotation: -element.rotation,
+      flipX: axis === "horizontal" ? !element.flipX : element.flipX,
+      flipY: axis === "vertical" ? !element.flipY : element.flipY,
+    };
+
+    return imageElement;
+  }
+
+  return {
+    ...element,
+    rotation: -element.rotation,
+  };
+};
+
 export const updateElementPosition = (
   scene: Scene,
   id: string,
@@ -207,8 +296,7 @@ export const updateRectangleElementBounds = (
               ((element.controlPoint.x - element.x) / startWidth) * nextWidth,
             y:
               nextStartY +
-              ((element.controlPoint.y - element.y) / startHeight) *
-                nextHeight,
+              ((element.controlPoint.y - element.y) / startHeight) * nextHeight,
           }
         : null;
 
@@ -262,6 +350,33 @@ export const updateElementRotation = (
     };
   }),
 });
+
+export const translateSelectedElements = (
+  scene: Scene,
+  dx: number,
+  dy: number,
+): Scene => {
+  if (dx === 0 && dy === 0) {
+    return scene;
+  }
+
+  const selectedIds = getSelectedIds(scene);
+
+  if (selectedIds.length === 0) {
+    return scene;
+  }
+
+  const selectedIdSet = new Set(selectedIds);
+
+  return {
+    ...scene,
+    elements: scene.elements.map((element) =>
+      selectedIdSet.has(element.id)
+        ? translateElement(element, dx, dy)
+        : element,
+    ),
+  };
+};
 
 export const updateGroupElementsRotation = (
   scene: Scene,
@@ -338,8 +453,12 @@ export const alignSelectedElements = (
     return scene;
   }
 
-  const selectionLeft = Math.min(...selectedBounds.map((entry) => entry.bounds.x));
-  const selectionTop = Math.min(...selectedBounds.map((entry) => entry.bounds.y));
+  const selectionLeft = Math.min(
+    ...selectedBounds.map((entry) => entry.bounds.x),
+  );
+  const selectionTop = Math.min(
+    ...selectedBounds.map((entry) => entry.bounds.y),
+  );
   const selectionRight = Math.max(
     ...selectedBounds.map((entry) => entry.bounds.x + entry.bounds.width),
   );
@@ -382,6 +501,73 @@ export const alignSelectedElements = (
       }
 
       return translateElement(element, dx, dy);
+    }),
+  };
+};
+
+export const flipSelectedElements = (scene: Scene, axis: FlipAxis): Scene => {
+  const selectedIds = getSelectedIds(scene);
+
+  if (selectedIds.length === 0) {
+    return scene;
+  }
+
+  const selectedIdSet = new Set(selectedIds);
+  const flippableElements = scene.elements.filter(
+    (element): element is Exclude<SceneElement, { type: "text" }> =>
+      selectedIdSet.has(element.id) && isFlippableElement(element),
+  );
+
+  if (flippableElements.length === 0) {
+    return scene;
+  }
+
+  const boundsById = new Map(
+    flippableElements.map((element) => [element.id, getElementBounds(element)]),
+  );
+  const selectionLeft = Math.min(
+    ...flippableElements.map((element) => boundsById.get(element.id)?.x ?? 0),
+  );
+  const selectionTop = Math.min(
+    ...flippableElements.map((element) => boundsById.get(element.id)?.y ?? 0),
+  );
+  const selectionRight = Math.max(
+    ...flippableElements.map((element) => {
+      const bounds = boundsById.get(element.id);
+      return (bounds?.x ?? 0) + (bounds?.width ?? 0);
+    }),
+  );
+  const selectionBottom = Math.max(
+    ...flippableElements.map((element) => {
+      const bounds = boundsById.get(element.id);
+      return (bounds?.y ?? 0) + (bounds?.height ?? 0);
+    }),
+  );
+
+  return {
+    ...scene,
+    elements: scene.elements.map((element) => {
+      if (!selectedIdSet.has(element.id) || !isFlippableElement(element)) {
+        return element;
+      }
+
+      const bounds = boundsById.get(element.id);
+      if (!bounds) {
+        return element;
+      }
+
+      const nextBoundsX =
+        axis === "horizontal"
+          ? selectionLeft + selectionRight - (bounds.x + bounds.width)
+          : bounds.x;
+      const nextBoundsY =
+        axis === "vertical"
+          ? selectionTop + selectionBottom - (bounds.y + bounds.height)
+          : bounds.y;
+      const dx = nextBoundsX - bounds.x;
+      const dy = nextBoundsY - bounds.y;
+
+      return translateElement(flipElementLocally(element, axis), dx, dy);
     }),
   };
 };

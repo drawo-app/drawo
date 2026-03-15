@@ -86,10 +86,6 @@ export interface LocaleMessages {
     strokeColor: string;
     fillColor: string;
     fillStyle: string;
-    sloppiness: string;
-    architect: string;
-    artist: string;
-    cartoonist: string;
     opacity: string;
     textAlign: string;
     startLineCap: string;

@@ -3,8 +3,8 @@ import {
   HANDLE_RESIZE_RADIUS_PX,
   HANDLE_ROTATE_RADIUS_PX,
   SHAPE_TEXT_HORIZONTAL_PADDING_PX,
-} from "./constants";
-import type { ElementBounds, ResizeHandle } from "./types";
+} from "@features/canvas/rendering/constants";
+import type { ElementBounds, ResizeHandle } from "@features/canvas/types";
 
 export const getAlignedStartX = (
   anchorX: number,
@@ -59,7 +59,10 @@ export const getRotateCursor = (handle: ResizeHandle): string => {
   }
 };
 
-export const getHandleCenter = (bounds: ElementBounds, handle: ResizeHandle) => {
+export const getHandleCenter = (
+  bounds: ElementBounds,
+  handle: ResizeHandle,
+) => {
   if (handle === "nw") {
     return { x: bounds.x, y: bounds.y };
   }

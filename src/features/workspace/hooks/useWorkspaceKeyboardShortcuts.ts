@@ -12,6 +12,7 @@ import {
   type Scene,
   removeSelectedElement,
   selectElements,
+  translateSelectedElements,
   ungroupSelectedElements,
   updateSceneSettings,
 } from "@core/scene";
@@ -22,6 +23,30 @@ import {
   MIN_CAMERA_ZOOM,
   ZOOM_SENSITIVITY,
 } from "@features/canvas/interaction/constants";
+
+const ELEMENT_KEYBOARD_MOVE_AMOUNT = 1;
+const ELEMENT_KEYBOARD_MOVE_AMOUNT_WITH_SHIFT = 10;
+
+const getArrowKeyTranslation = (
+  event: KeyboardEvent,
+): { dx: number; dy: number } | null => {
+  const moveAmount = event.shiftKey
+    ? ELEMENT_KEYBOARD_MOVE_AMOUNT_WITH_SHIFT
+    : ELEMENT_KEYBOARD_MOVE_AMOUNT;
+
+  switch (event.key) {
+    case "ArrowUp":
+      return { dx: 0, dy: -moveAmount };
+    case "ArrowDown":
+      return { dx: 0, dy: moveAmount };
+    case "ArrowLeft":
+      return { dx: -moveAmount, dy: 0 };
+    case "ArrowRight":
+      return { dx: moveAmount, dy: 0 };
+    default:
+      return null;
+  }
+};
 
 interface UseAppKeyboardShortcutsProps {
   scene: Scene;
@@ -69,6 +94,30 @@ export const useWorkspaceKeyboardShortcuts = ({
     const handleKeyDown = (event: KeyboardEvent) => {
       if (isEditableTarget(event.target)) {
         return;
+      }
+
+      const arrowKeyTranslation = getArrowKeyTranslation(event);
+      if (
+        arrowKeyTranslation &&
+        !event.altKey &&
+        !event.ctrlKey &&
+        !event.metaKey
+      ) {
+        const selectedIds = getSelectedIds(scene);
+
+        if (selectedIds.length > 0) {
+          event.preventDefault();
+          dispatch({
+            type: "setScene",
+            updater: (currentScene) =>
+              translateSelectedElements(
+                currentScene,
+                arrowKeyTranslation.dx,
+                arrowKeyTranslation.dy,
+              ),
+          });
+          return;
+        }
       }
 
       const key = event.key.toLowerCase();
@@ -366,7 +415,7 @@ export const useWorkspaceKeyboardShortcuts = ({
 
       if (!hasShortcutModifier && !event.altKey) {
         if (scene.settings.presentationMode) {
-          if (key === "h") {
+          if (key === "h" && !event.shiftKey) {
             event.preventDefault();
             setInteractionMode("pan");
             setDrawingTool(null);
@@ -375,14 +424,14 @@ export const useWorkspaceKeyboardShortcuts = ({
           return;
         }
 
-        if (key === "v") {
+        if (key === "v" && !event.shiftKey) {
           event.preventDefault();
           setInteractionMode("select");
           setDrawingTool(null);
           return;
         }
 
-        if (key === "h") {
+        if (key === "h" && !event.shiftKey) {
           event.preventDefault();
           setInteractionMode("pan");
           setDrawingTool(null);

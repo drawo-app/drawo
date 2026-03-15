@@ -1,6 +1,10 @@
 import type { ReactNode } from "react";
 import { Check } from "lucide-react";
-import { MultiColorGradient, isDark, parseColor } from "@features/canvas/color";
+import {
+  MultiColorGradient,
+  isDark,
+  parseColor,
+} from "@features/canvas/rendering/color";
 
 interface RenderColorSwatchItemArgs {
   color: string;

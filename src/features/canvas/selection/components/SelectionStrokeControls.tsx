@@ -27,13 +27,13 @@ import {
   MARKER_STROKE_OPTIONS,
   MARKER_STROKE_PREVIEWS,
   STROKE_COLORS,
-} from "./constants";
-import { parseColorForPicker } from "./color";
+} from "@features/canvas/rendering/constants";
+import { parseColorForPicker } from "@features/canvas/rendering/color";
 import {
   getSelectedDrawElements,
   getSelectedLineElements,
   getSharedValue,
-} from "./selectionState";
+} from "@features/canvas/selection/selectionState";
 
 interface SelectionStrokeControlsProps {
   scene: Scene;
@@ -187,7 +187,11 @@ export const SelectionStrokeControls = ({
         style={{ position: "relative", display: "inline-flex" }}
       >
         <Select
-          open={activeSelectId === "draw-stroke-color" || isCustomDrawColorPickerOpen || undefined}
+          open={
+            activeSelectId === "draw-stroke-color" ||
+            isCustomDrawColorPickerOpen ||
+            undefined
+          }
           onOpenChange={(isOpen) => {
             if (isOpen) {
               setActiveSelectId("draw-stroke-color");
@@ -398,7 +402,11 @@ export const SelectionStrokeControls = ({
         style={{ position: "relative", display: "inline-flex" }}
       >
         <Select
-          open={activeSelectId === "line-stroke-color" || isCustomDrawColorPickerOpen || undefined}
+          open={
+            activeSelectId === "line-stroke-color" ||
+            isCustomDrawColorPickerOpen ||
+            undefined
+          }
           onOpenChange={(isOpen) => {
             if (isOpen) {
               setActiveSelectId("line-stroke-color");

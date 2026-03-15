@@ -1,6 +1,6 @@
 import type { DrawElement, LineCap, LineElement } from "@core/elements";
 import { rotatePointAroundCenter } from "./geometry";
-import type { ElementBounds } from "./types";
+import type { ElementBounds } from "@features/canvas/types";
 
 export const getLineCapPadding = (
   cap: LineCap,
@@ -22,9 +22,7 @@ export const getLineCapPadding = (
   return 0;
 };
 
-export const getDrawSelectionBounds = (
-  element: DrawElement,
-): ElementBounds => {
+export const getDrawSelectionBounds = (element: DrawElement): ElementBounds => {
   const padding =
     element.drawMode === "marker"
       ? Math.max(6, element.strokeWidth * 0.65)
@@ -40,9 +38,7 @@ export const getDrawSelectionBounds = (
   };
 };
 
-export const getLineSelectionBounds = (
-  element: LineElement,
-): ElementBounds => {
+export const getLineSelectionBounds = (element: LineElement): ElementBounds => {
   const startX = element.x;
   const startY = element.y;
   const endX = element.x + element.width;

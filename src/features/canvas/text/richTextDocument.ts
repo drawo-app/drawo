@@ -2,7 +2,7 @@ import type {
   RichTextDocument,
   RichTextLeaf,
   RichTextParagraph,
-} from "./types";
+} from "@features/canvas/types";
 
 export const EMPTY_RICH_TEXT_DOCUMENT: RichTextDocument = [
   { type: "paragraph", children: [{ text: "" }] },
@@ -29,7 +29,9 @@ const isRichTextParagraph = (value: unknown): value is RichTextParagraph => {
   return Array.isArray(children) && children.every(isRichTextLeaf);
 };
 
-export const deserializeRichTextDocument = (value: string): RichTextDocument => {
+export const deserializeRichTextDocument = (
+  value: string,
+): RichTextDocument => {
   if (!value.trim()) {
     return EMPTY_RICH_TEXT_DOCUMENT;
   }
@@ -52,6 +54,8 @@ export const deserializeRichTextDocument = (value: string): RichTextDocument => 
   return EMPTY_RICH_TEXT_DOCUMENT;
 };
 
-export const serializeRichTextDocument = (document: RichTextDocument): string => {
+export const serializeRichTextDocument = (
+  document: RichTextDocument,
+): string => {
   return JSON.stringify(document);
 };

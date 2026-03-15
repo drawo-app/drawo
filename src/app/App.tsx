@@ -10,6 +10,7 @@ import {
 import {
   addImageElementToScene,
   duplicateSelectedElements,
+  flipSelectedElements,
   getGroupElementIds,
   groupSelectedElements,
   pasteElementsIntoScene,
@@ -23,8 +24,8 @@ import {
 } from "@core/scene";
 import { isLocaleCode, LOCALES, type LocaleCode } from "@shared/i18n";
 import type { SceneElement } from "@core/elements";
-import { useInteraction } from "@features/canvas/useInteraction";
-import { CanvasView } from "@features/canvas/CanvasView";
+import { useInteraction } from "@features/canvas/hooks/useInteraction";
+import { CanvasView } from "@features/canvas/view/CanvasView";
 import { TooltipProvider } from "@shared/ui/tooltip";
 import { MenuBar } from "@features/workspace/components/MenuBar";
 import { ToolBar } from "@features/workspace/components/ToolBar";
@@ -306,7 +307,6 @@ export default function App() {
     handleDrawStrokeColorChange,
     handleShapeFillColorChange,
     handleShapeFillStyleChange,
-    handleShapeSloppinessChange,
     handleShapeStrokeColorChange,
     handleShapeStrokeWidthChange,
     handleDrawDefaultStrokeColorChange,
@@ -354,6 +354,13 @@ export default function App() {
     handleCopySelection();
     setScene((currentScene) => removeSelectedElement(currentScene));
   }, [handleCopySelection, setScene]);
+
+  const handleFlipSelection = useCallback(
+    (axis: "horizontal" | "vertical") => {
+      setScene((currentScene) => flipSelectedElements(currentScene, axis));
+    },
+    [setScene],
+  );
 
   const handlePasteAt = useCallback(
     (x: number, y: number) => {
@@ -571,7 +578,6 @@ export default function App() {
           onDrawStrokeColorChange={handleDrawStrokeColorChange}
           onShapeFillColorChange={handleShapeFillColorChange}
           onShapeFillStyleChange={handleShapeFillStyleChange}
-          onShapeSloppinessChange={handleShapeSloppinessChange}
           onShapeStrokeColorChange={handleShapeStrokeColorChange}
           onShapeStrokeWidthChange={handleShapeStrokeWidthChange}
           onDrawDefaultStrokeColorChange={handleDrawDefaultStrokeColorChange}
@@ -590,6 +596,7 @@ export default function App() {
           onUngroupSelection={handleUngroupSelection}
           onSelectGroupForElement={handleSelectGroupForElement}
           onReorderSelection={handleReorderSelection}
+          onFlipSelection={handleFlipSelection}
           localeMessages={messages}
         />
 

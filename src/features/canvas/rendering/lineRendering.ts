@@ -4,7 +4,7 @@ import {
   getLineCurveControlPoint,
   getLinePoints,
   getLineSelectionBounds,
-} from "./elementGeometry";
+} from "../geometry/elementGeometry";
 
 export const drawLineEditHandles = (
   ctx: CanvasRenderingContext2D,
@@ -93,7 +93,12 @@ export const renderLineElement = ({
   const centerX = start.x + lineElement.width / 2;
   const centerY = start.y + lineElement.height / 2;
 
-  const drawArrowCap = (x: number, y: number, angle: number, isEnd: boolean) => {
+  const drawArrowCap = (
+    x: number,
+    y: number,
+    angle: number,
+    isEnd: boolean,
+  ) => {
     const capLength = capSize * 1.12;
     const capHalfWidth = capSize * 0.66;
     const outlineWidth = Math.max(1.1, lineElement.strokeWidth * 0.22);

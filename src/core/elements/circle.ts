@@ -8,7 +8,6 @@ export interface CircleElement {
   width: number;
   height: number;
   fillStyle: "solid" | "hachure" | "none";
-  sloppiness: "architect" | "artist" | "cartoonist";
   fill: string;
   stroke: string;
   strokeWidth: number;

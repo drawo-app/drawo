@@ -11,7 +11,7 @@ import {
   type Scene,
   updateSceneSettings,
 } from "@core/scene";
-import { Crosshair, MenuIcon } from "lucide-react";
+import { MenuIcon } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -40,8 +40,14 @@ import {
   LayoutHeaderCursor,
   Molecule,
   ObjectsAlignBottom,
+  ObjectsAlignCenterHorizontal,
+  ObjectsAlignCenterVertical,
+  ObjectsAlignLeft,
+  ObjectsAlignRight,
+  ObjectsAlignTop,
   PencilToSquare,
   Rectangles4,
+  Route,
   SquareDashedCircle,
   Text,
   Thunderbolt,
@@ -59,7 +65,7 @@ import {
 import { Alt } from "@shared/lib/platform/macShortcuts";
 import { LaserPointerStylusIcon } from "@shared/ui/icons";
 import { ColorSwatchPicker } from "@shared/ui/ColorSwatchPicker";
-import { invertLightnessPreservingHue } from "@features/canvas/color";
+import { invertLightnessPreservingHue } from "@features/canvas/rendering/color";
 
 interface MenuBarProps {
   scene: Scene;
@@ -139,8 +145,7 @@ export const MenuBar = ({
               <PencilToSquare />
               {messages.menu.edit}
             </DropdownMenuSubTrigger>
-            <DropdownMenuSubContent>
-            </DropdownMenuSubContent>
+            <DropdownMenuSubContent></DropdownMenuSubContent>
           </DropdownMenuSub>
           <DropdownMenuSub>
             <DropdownMenuSubTrigger>
@@ -268,6 +273,7 @@ export const MenuBar = ({
                   );
                 }}
               >
+              <ObjectsAlignLeft />
                 {messages.menu.organizeActions.alignLeft}
               </DropdownMenuItem>
               <DropdownMenuItem
@@ -278,6 +284,7 @@ export const MenuBar = ({
                   );
                 }}
               >
+                <ObjectsAlignCenterHorizontal />
                 {messages.menu.organizeActions.alignCenter}
               </DropdownMenuItem>
               <DropdownMenuItem
@@ -288,6 +295,7 @@ export const MenuBar = ({
                   );
                 }}
               >
+                <ObjectsAlignRight/>
                 {messages.menu.organizeActions.alignRight}
               </DropdownMenuItem>
               <DropdownMenuSeparator />
@@ -299,6 +307,7 @@ export const MenuBar = ({
                   );
                 }}
               >
+                <ObjectsAlignTop />
                 {messages.menu.organizeActions.alignTop}
               </DropdownMenuItem>
               <DropdownMenuItem
@@ -309,6 +318,7 @@ export const MenuBar = ({
                   );
                 }}
               >
+                <ObjectsAlignCenterVertical/>
                 {messages.menu.organizeActions.alignMiddle}
               </DropdownMenuItem>
               <DropdownMenuItem
@@ -319,6 +329,7 @@ export const MenuBar = ({
                   );
                 }}
               >
+                <ObjectsAlignBottom />
                 {messages.menu.organizeActions.alignBottom}
               </DropdownMenuItem>
             </DropdownMenuSubContent>
@@ -352,7 +363,7 @@ export const MenuBar = ({
                   );
                 }}
               >
-                <Crosshair size={16} /> {messages.menu.smartGuides}
+                <Route /> {messages.menu.smartGuides}
               </DropdownMenuCheckboxItem>
               <DropdownMenuSeparator />
               <div className="custom-element">
@@ -452,7 +463,7 @@ export const MenuBar = ({
               ]}
               currentColor={"#FF1A28"}
               uniColor={uniColor}
-              renderItem={({ color, isMulti, swatch }) => (
+              renderItem={({ color, swatch }) => (
                 <div
                   key={color}
                   className="drawo-colorselect-item"

@@ -9,7 +9,6 @@ export interface RectangleElement {
   height: number;
   borderRadius: number;
   fillStyle: "solid" | "hachure" | "none";
-  sloppiness: "architect" | "artist" | "cartoonist";
   fill: string;
   stroke: string;
   strokeWidth: number;

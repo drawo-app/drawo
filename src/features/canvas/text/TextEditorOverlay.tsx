@@ -1,12 +1,22 @@
-import { useCallback, type Dispatch, type RefObject, type SetStateAction } from "react";
-import { Editable, Slate, type ReactEditor as ReactEditorType, type RenderLeafProps } from "slate-react";
+import {
+  useCallback,
+  type Dispatch,
+  type RefObject,
+  type SetStateAction,
+} from "react";
+import {
+  Editable,
+  Slate,
+  type ReactEditor as ReactEditorType,
+  type RenderLeafProps,
+} from "slate-react";
 import type { Descendant } from "slate";
 import { deserializeRichTextDocument } from "./richTextDocument";
 import type {
   EditingTextState,
   RichTextDocument,
   RichTextLeaf,
-} from "./types";
+} from "@features/canvas/types";
 
 interface TextEditorOverlayProps {
   editorWrapRef: RefObject<HTMLDivElement | null>;

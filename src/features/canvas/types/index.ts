@@ -1,6 +1,7 @@
 import type {
   DrawElementStyle,
   ElementCreationBounds,
+  FlipAxis,
   NewElementType,
   Scene,
 } from "@core/scene";
@@ -11,7 +12,7 @@ import type {
   TextElement,
 } from "@core/elements";
 import type { LocaleMessages } from "@shared/i18n";
-import type { SmartGuide } from "./alignmentGuides";
+import type { SmartGuide } from "@features/canvas/selection/alignmentGuides";
 
 export type ResizeHandle = "nw" | "ne" | "se" | "sw";
 export type BoxDrawingType = Exclude<
@@ -91,6 +92,7 @@ export interface CanvasViewProps {
   onReorderSelection: (
     direction: "forward" | "backward" | "front" | "back",
   ) => void;
+  onFlipSelection: (axis: FlipAxis) => void;
   onTextFontFamilyChange: (ids: string[], fontFamily: string) => void;
   onTextFontSizeChange: (ids: string[], fontSize: number) => void;
   onTextFontWeightChange: (ids: string[], fontWeight: string) => void;
@@ -103,10 +105,6 @@ export interface CanvasViewProps {
   onDrawStrokeColorChange: (ids: string[], strokeColor: string) => void;
   onShapeFillColorChange: (ids: string[], fillColor: string) => void;
   onShapeFillStyleChange: (ids: string[], fillColor: string) => void;
-  onShapeSloppinessChange: (
-    ids: string[],
-    sloppiness: "architect" | "artist" | "cartoonist",
-  ) => void;
   onShapeStrokeColorChange: (ids: string[], strokeColor: string) => void;
   onShapeStrokeWidthChange: (ids: string[], strokeWidth: number) => void;
   onDrawDefaultStrokeColorChange: (

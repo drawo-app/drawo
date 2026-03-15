@@ -36,13 +36,13 @@ import {
 } from "@core/scene";
 import type { LineCap, SceneElement } from "@core/elements";
 import type { LocaleMessages } from "@shared/i18n";
-import type { ResizeHandle } from "./types";
+import type { ResizeHandle } from "@features/canvas/types";
 import {
   MAX_CAMERA_ZOOM,
   MIN_CAMERA_ZOOM,
   MIN_ELEMENT_SIZE,
   ZOOM_SENSITIVITY,
-} from "./interaction/constants";
+} from "../interaction/constants";
 import {
   clamp,
   getAspectRatioLockedBounds,
@@ -51,7 +51,7 @@ import {
   getSelectedIds,
   getTextXFromBounds,
   snapValue,
-} from "./interaction/geometry";
+} from "../interaction/geometry";
 import type {
   Bounds,
   DragState,
@@ -62,13 +62,13 @@ import type {
   ResizeState,
   RotationState,
   UseInteractionProps,
-} from "./interaction/types";
+} from "../interaction/types";
 import {
   getSmartGuidesForBounds,
   getSmartGuidesForDrag,
   type GuidePointKind,
   type SmartGuide,
-} from "./alignmentGuides";
+} from "../selection/alignmentGuides";
 export const useInteraction = ({
   scene,
   setScene,

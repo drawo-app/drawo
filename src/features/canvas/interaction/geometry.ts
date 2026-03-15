@@ -7,7 +7,7 @@ import type { Scene } from "@core/scene";
 import type { SceneElement } from "@core/elements";
 import { MIN_ELEMENT_SIZE } from "./constants";
 import type { Bounds } from "./types";
-import type { ResizeHandle } from "../types";
+import type { ResizeHandle } from "@features/canvas/types";
 
 const getDrawPadding = (
   strokeWidth: number,

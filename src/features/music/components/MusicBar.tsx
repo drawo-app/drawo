@@ -31,7 +31,7 @@ import {
   VolumeLoud,
 } from "@solar-icons/react";
 import { CDSVG } from "./CD";
-import { parseColor } from "@features/canvas/color";
+import { parseColor } from "@features/canvas/rendering/color";
 import { MUSIC_BAR_STORAGE_KEY } from "@app/state/constants";
 import type { LocaleMessages } from "@shared/i18n";
 

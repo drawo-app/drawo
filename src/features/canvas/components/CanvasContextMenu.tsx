@@ -36,6 +36,7 @@ export type CanvasContextMenuSelectionType = "draw" | "image" | "multiple";
 interface CanvasContextMenuProps {
   children: ReactNode;
   hasSelection: boolean;
+  canFlipSelection: boolean;
   selectionType: CanvasContextMenuSelectionType;
   localeMessages: LocaleMessages;
   hasElements: boolean;
@@ -52,11 +53,14 @@ interface CanvasContextMenuProps {
   onBringToFront: () => void;
   onSendToBack: () => void;
   onMoveBackward: () => void;
+  onFlipHorizontal: () => void;
+  onFlipVertical: () => void;
 }
 
 export const CanvasContextMenu = ({
   children,
   hasSelection,
+  canFlipSelection,
   selectionType,
   hasElements,
   localeMessages,
@@ -73,6 +77,8 @@ export const CanvasContextMenu = ({
   onBringToFront,
   onSendToBack,
   onMoveBackward,
+  onFlipHorizontal,
+  onFlipVertical,
 }: CanvasContextMenuProps) => {
   const hasMultipleSelection = hasSelection && selectionType === "multiple";
 
@@ -179,20 +185,24 @@ export const CanvasContextMenu = ({
             </ContextMenuSub>
             <ContextMenuSeparator />
             <ContextMenuItem
-              onClick={() => {
-                // implement this, codex
-              }}
+              disabled={!canFlipSelection}
+              onClick={onFlipHorizontal}
             >
               <TrapezoidUpLineVertical />
               Voltear horizontalmente
+              <span className="drawo-keybind">
+                <span>{Shift()}</span>+<span>H</span>
+              </span>
             </ContextMenuItem>
             <ContextMenuItem
-              onClick={() => {
-                // implement this, codex
-              }}
+              disabled={!canFlipSelection}
+              onClick={onFlipVertical}
             >
               <TrapezoidLeftLineHorizontal />
               Voltear verticalmente
+              <span className="drawo-keybind">
+                <span>{Shift()}</span>+<span>V</span>
+              </span>
             </ContextMenuItem>
           </>
         )}

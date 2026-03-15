@@ -1,4 +1,4 @@
-import { clamp01 } from "../color";
+import { clamp01 } from "../rendering/color";
 import {
   LASER_BASE_WIDTH_PX,
   LASER_COLOR,
@@ -69,7 +69,10 @@ export const drawLaserTrail = (
 
       const pointT = p1.t + (p2.t - p1.t) * t;
       const widthFactor = getLaserWidthFactor(now - pointT);
-      const widthPx = Math.max(LASER_MIN_WIDTH_PX, LASER_BASE_WIDTH_PX * widthFactor);
+      const widthPx = Math.max(
+        LASER_MIN_WIDTH_PX,
+        LASER_BASE_WIDTH_PX * widthFactor,
+      );
 
       if (widthPx > LASER_MIN_WIDTH_PX + 0.01) {
         if (firstPoint) {

@@ -10,13 +10,9 @@ import {
   SquareLinear,
 } from "@shared/ui/icons";
 import { Circle } from "lucide-react";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@shared/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@shared/ui/tooltip";
 import { MarkerIcon, PenIcon, QuillIcon } from "./Draw/icons";
-import { invertLightnessPreservingHue } from "@features/canvas/color";
+import { invertLightnessPreservingHue } from "@features/canvas/rendering/color";
 import Chrome from "@uiw/react-color-chrome";
 import {
   DRAW_STROKE_OPTIONS,
@@ -24,7 +20,7 @@ import {
   MARKER_STROKE_OPTIONS,
   MARKER_STROKE_PREVIEWS,
   STROKE_COLORS,
-} from "@features/canvas/constants";
+} from "@features/canvas/rendering/constants";
 import {
   Select,
   SelectContent,

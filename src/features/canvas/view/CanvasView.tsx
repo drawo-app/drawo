@@ -1,5 +1,5 @@
 import { useRef, useEffect, useMemo, useState, useCallback } from "react";
-import type { DrawElementStyle } from "../core/scene";
+import type { DrawElementStyle, FlipAxis } from "@core/scene";
 import {
   estimateTextHeight,
   estimateTextWidth,
@@ -9,8 +9,8 @@ import {
   hitTestRectangle,
   measureTextLineWidth,
   parseRichText,
-} from "../core/elements";
-import { findHitElement } from "../core/hitTest";
+} from "@core/elements";
+import { findHitElement } from "@core/hitTest";
 import type {
   CircleElement,
   ImageElement,
@@ -18,7 +18,7 @@ import type {
   TextElement,
   LineElement,
   SceneElement,
-} from "../core/elements";
+} from "@core/elements";
 import { createEditor, Editor, Transforms, type Descendant } from "slate";
 import { ReactEditor, withReact } from "slate-react";
 import { withHistory } from "slate-history";
@@ -30,8 +30,11 @@ import {
   RADIUS_HANDLE_SIZE_PX,
   TEXT_SELECTION_PADDING_PX,
   SHAPE_TEXT_HORIZONTAL_PADDING_PX,
-} from "./constants";
-import { invertLightnessPreservingHue, normalizeRgbTriplet } from "./color";
+} from "@features/canvas/rendering/constants";
+import {
+  invertLightnessPreservingHue,
+  normalizeRgbTriplet,
+} from "@features/canvas/rendering/color";
 import {
   drawQuillStroke,
   getDrawLineCap,
@@ -40,7 +43,7 @@ import {
   drawRoundedRect,
   drawSmoothStrokePath,
   getVisibleStrokeWidth,
-} from "./drawing";
+} from "@features/canvas/rendering/drawing";
 import {
   type CornerAction,
   findCornerAction,
@@ -51,32 +54,32 @@ import {
   getRotateCursor,
   getShapeTextAnchorX,
   rotatePointAroundCenter,
-} from "./geometry";
+} from "@features/canvas/geometry/geometry";
 import {
   getDrawSelectionBounds,
   getLinePoints,
   getLineSelectionBounds,
   toLineLocalPointer,
-} from "./elementGeometry";
-import { renderLineElement } from "./lineRendering";
+} from "@features/canvas/geometry/elementGeometry";
+import { renderLineElement } from "@features/canvas/rendering/lineRendering";
 import {
   deserializeRichTextDocument,
   serializeRichTextDocument,
-} from "./richTextDocument";
-import { CanvasEmptyState } from "./CanvasEmptyState";
-import { SelectionImageControls } from "./SelectionImageControls";
-import { SelectionShapeControls } from "./SelectionShapeControls.tsx";
-import { SelectionStrokeControls } from "./SelectionStrokeControls";
-import { SelectionTextControls } from "./SelectionTextControls";
-import { SelectionToolbar } from "./SelectionToolbar";
-import { TextEditorOverlay } from "./TextEditorOverlay";
+} from "@features/canvas/text/richTextDocument";
+import { CanvasEmptyState } from "@features/canvas/components/CanvasEmptyState";
+import { SelectionImageControls } from "@features/canvas/selection/components/SelectionImageControls";
+import { SelectionShapeControls } from "@features/canvas/selection/components/SelectionShapeControls";
+import { SelectionStrokeControls } from "@features/canvas/selection/components/SelectionStrokeControls";
+import { SelectionTextControls } from "@features/canvas/selection/components/SelectionTextControls";
+import { SelectionToolbar } from "@features/canvas/selection/components/SelectionToolbar";
+import { TextEditorOverlay } from "@features/canvas/text/TextEditorOverlay";
 import {
   getSelectedDrawElements,
   getSelectedImageElements,
   getSelectedIds,
   getSelectedShapeElements,
   getSelectedTextElements,
-} from "./selectionState";
+} from "@features/canvas/selection/selectionState";
 import type {
   CanvasViewProps,
   DrawSelection,
@@ -87,72 +90,112 @@ import type {
   MarqueeSelection,
   ResizeHandle,
   RichTextDocument,
-} from "./types";
-import { LASER_COLOR, drawLaserTrail, useLaserTrails } from "./laser";
+} from "@features/canvas/types";
+import type { SmartGuide } from "@features/canvas/selection/alignmentGuides";
+import {
+  LASER_COLOR,
+  drawLaserTrail,
+  useLaserTrails,
+} from "@features/canvas/laser";
 import {
   CanvasContextMenu,
   type CanvasContextMenuSelectionType,
-} from "./CanvasContextMenu";
+} from "@features/canvas/components/CanvasContextMenu";
 
 const getCurrentTimestamp = () => performance.now();
 type ShapeElement = RectangleElement | CircleElement;
-type ShapeSloppiness = ShapeElement["sloppiness"];
+type FlippableSceneElement = Exclude<SceneElement, { type: "text" }>;
 
-const SLOPPINESS_CONFIG: Record<
-  ShapeSloppiness,
-  {
-    borderPasses: number;
-    borderRoughness: number;
-    fillRoughness: number;
-    hachureGap: number;
-    hachureRoughness: number;
-    hachureBow: number;
-  }
-> = {
-  architect: {
-    borderPasses: 1,
-    borderRoughness: 0.65,
-    fillRoughness: 0.35,
-    hachureGap: 3,
-    hachureRoughness: 0,
-    hachureBow: 0,
-  },
-  artist: {
-    borderPasses: 2,
-    borderRoughness: 1.1,
-    fillRoughness: 0.7,
-    hachureGap: 4,
-    hachureRoughness: 2.2,
-    hachureBow: 1.1,
-  },
-  cartoonist: {
-    borderPasses: 3,
-    borderRoughness: 1.8,
-    fillRoughness: 1.2,
-    hachureGap: 5,
-    hachureRoughness: 3.5,
-    hachureBow: 2.0,
-  },
+interface FlipPreviewItem {
+  fromCenterX: number;
+  fromCenterY: number;
+  toCenterX: number;
+  toCenterY: number;
+}
+
+interface FlipPreviewState {
+  axis: FlipAxis;
+  startedAt: number;
+  durationMs: number;
+  items: Map<string, FlipPreviewItem>;
+}
+
+const FLIP_ANIMATION_DURATION_MS = 220;
+
+const isFlippableSceneElement = (
+  element: SceneElement,
+): element is FlippableSceneElement => {
+  return element.type !== "text";
 };
 
-const hashSeed = (value: string) => {
-  let hash = 2166136261;
-
-  for (let index = 0; index < value.length; index++) {
-    hash ^= value.charCodeAt(index);
-    hash = Math.imul(hash, 16777619);
+const easeInOutCubic = (value: number) => {
+  if (value < 0.5) {
+    return 4 * value * value * value;
   }
 
-  return hash >>> 0;
+  return 1 - Math.pow(-2 * value + 2, 3) / 2;
 };
 
-const seededUnit = (seed: number) => {
-  const next = Math.sin(seed * 12.9898) * 43758.5453123;
-  return next - Math.floor(next);
+const lerp = (start: number, end: number, progress: number) => {
+  return start + (end - start) * progress;
 };
 
-const seededRange = (seed: number, min: number, max: number) => {
-  return min + (max - min) * seededUnit(seed);
+const drawGuideMarker = (
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  zoom: number,
+  color: string,
+) => {
+  const size = 6 / zoom;
+
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 1 / zoom;
+  ctx.lineCap = "round";
+  ctx.setLineDash([]);
+  ctx.beginPath();
+  ctx.moveTo(x - size / 2, y - size / 2);
+  ctx.lineTo(x + size / 2, y + size / 2);
+  ctx.moveTo(x + size / 2, y - size / 2);
+  ctx.lineTo(x - size / 2, y + size / 2);
+  ctx.stroke();
+  ctx.restore();
+};
+
+const drawSmartGuides = (
+  ctx: CanvasRenderingContext2D,
+  guides: SmartGuide[],
+  zoom: number,
+  color: string,
+) => {
+  if (guides.length === 0) {
+    return;
+  }
+
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.fillStyle = color;
+  ctx.lineWidth = 1 / zoom;
+  ctx.setLineDash([6 / zoom, 4 / zoom]);
+
+  for (const guide of guides) {
+    ctx.beginPath();
+
+    if (guide.axis === "x") {
+      ctx.moveTo(guide.value, guide.start);
+      ctx.lineTo(guide.value, guide.end);
+    } else {
+      ctx.moveTo(guide.start, guide.value);
+      ctx.lineTo(guide.end, guide.value);
+    }
+
+    ctx.stroke();
+    drawGuideMarker(ctx, guide.movingPoint.x, guide.movingPoint.y, zoom, color);
+    drawGuideMarker(ctx, guide.targetPoint.x, guide.targetPoint.y, zoom, color);
+  }
+
+  ctx.restore();
 };
 
 const drawShapePath = (
@@ -184,394 +227,49 @@ const drawShapePath = (
   );
 };
 
-const drawSketchShapePath = (
-  ctx: CanvasRenderingContext2D,
-  element: ShapeElement,
-  rectangleRadius: number,
-  roughness: number,
-  seed: number,
-) => {
-  const offsetX = seededRange(seed + 1, -roughness, roughness);
-  const offsetY = seededRange(seed + 2, -roughness, roughness);
-
-  if (element.type === "circle") {
-    const radiusX = Math.max(
-      1,
-      element.width / 2 +
-        seededRange(seed + 3, -roughness * 0.45, roughness * 0.45),
-    );
-    const radiusY = Math.max(
-      1,
-      element.height / 2 +
-        seededRange(seed + 4, -roughness * 0.45, roughness * 0.45),
-    );
-
-    ctx.beginPath();
-    ctx.ellipse(
-      element.x + element.width / 2 + offsetX,
-      element.y + element.height / 2 + offsetY,
-      radiusX,
-      radiusY,
-      seededRange(seed + 5, -0.02, 0.02),
-      0,
-      Math.PI * 2,
-    );
-    return;
-  }
-
-  const width = Math.max(
-    1,
-    element.width + seededRange(seed + 3, -roughness * 0.6, roughness * 0.6),
-  );
-  const height = Math.max(
-    1,
-    element.height + seededRange(seed + 4, -roughness * 0.6, roughness * 0.6),
-  );
-  const radius = Math.max(
-    0,
-    Math.min(
-      rectangleRadius +
-        seededRange(seed + 5, -roughness * 0.35, roughness * 0.35),
-      Math.min(width, height) / 2,
-    ),
-  );
-
-  drawRoundedRect(
-    ctx,
-    element.x + offsetX,
-    element.y + offsetY,
-    width,
-    height,
-    radius,
-  );
-};
-
-const strokeSketchLine = (
-  ctx: CanvasRenderingContext2D,
-  startX: number,
-  startY: number,
-  endX: number,
-  endY: number,
-  roughness: number,
-  bowing: number,
-  seed: number,
-) => {
-  const dx = endX - startX;
-  const dy = endY - startY;
-  const length = Math.hypot(dx, dy) || 1;
-  const normalX = -dy / length;
-  const normalY = dx / length;
-  const bowOffset =
-    seededRange(seed + 5, -roughness * 8, roughness * 8) * bowing;
-  const midX =
-    (startX + endX) / 2 +
-    normalX * bowOffset +
-    seededRange(seed + 3, -roughness * 2, roughness * 2);
-  const midY =
-    (startY + endY) / 2 +
-    normalY * bowOffset +
-    seededRange(seed + 4, -roughness * 2, roughness * 2);
-
-  ctx.beginPath();
-  ctx.moveTo(
-    startX + seededRange(seed + 1, -roughness, roughness),
-    startY + seededRange(seed + 2, -roughness, roughness),
-  );
-  ctx.quadraticCurveTo(
-    midX,
-    midY,
-    endX + seededRange(seed + 6, -roughness, roughness),
-    endY + seededRange(seed + 7, -roughness, roughness),
-  );
-  ctx.stroke();
-};
-
-const strokeSketchArc = (
-  ctx: CanvasRenderingContext2D,
-  centerX: number,
-  centerY: number,
-  radiusX: number,
-  radiusY: number,
-  startAngle: number,
-  endAngle: number,
-  roughness: number,
-  seed: number,
-) => {
-  const steps = Math.max(
-    6,
-    Math.ceil(
-      (Math.abs(endAngle - startAngle) * Math.max(radiusX, radiusY)) / 10,
-    ),
-  );
-
-  let previousX =
-    centerX +
-    Math.cos(startAngle) *
-      (radiusX + seededRange(seed + 1, -roughness * 0.35, roughness * 0.35));
-  let previousY =
-    centerY +
-    Math.sin(startAngle) *
-      (radiusY + seededRange(seed + 2, -roughness * 0.35, roughness * 0.35));
-
-  for (let index = 1; index <= steps; index++) {
-    const t = index / steps;
-    const angle = startAngle + (endAngle - startAngle) * t;
-    const nextX =
-      centerX +
-      Math.cos(angle) *
-        (radiusX +
-          seededRange(seed + 10 + index, -roughness * 0.35, roughness * 0.35));
-    const nextY =
-      centerY +
-      Math.sin(angle) *
-        (radiusY +
-          seededRange(seed + 40 + index, -roughness * 0.35, roughness * 0.35));
-
-    strokeSketchLine(
-      ctx,
-      previousX,
-      previousY,
-      nextX,
-      nextY,
-      roughness * 0.45,
-      0.18,
-      seed + 100 + index * 17,
-    );
-
-    previousX = nextX;
-    previousY = nextY;
-  }
-};
-
-const strokeSketchEllipseOutline = (
-  ctx: CanvasRenderingContext2D,
-  element: Extract<ShapeElement, { type: "circle" }>,
-  roughness: number,
-  seed: number,
-) => {
-  const centerX = element.x + element.width / 2;
-  const centerY = element.y + element.height / 2;
-  const radiusX = Math.max(1, element.width / 2);
-  const radiusY = Math.max(1, element.height / 2);
-
-  strokeSketchArc(
-    ctx,
-    centerX,
-    centerY,
-    radiusX,
-    radiusY,
-    0,
-    Math.PI * 2,
-    roughness,
-    seed,
-  );
-};
-
-const strokeSketchRoundedRectOutline = (
-  ctx: CanvasRenderingContext2D,
-  element: Extract<ShapeElement, { type: "rectangle" }>,
-  rectangleRadius: number,
-  roughness: number,
-  seed: number,
-) => {
-  const x = element.x;
-  const y = element.y;
-  const width = element.width;
-  const height = element.height;
-  const radius = Math.max(0, Math.min(rectangleRadius, width / 2, height / 2));
-
-  if (radius <= 0) {
-    strokeSketchLine(ctx, x, y, x + width, y, roughness, 0.22, seed + 11);
-    strokeSketchLine(
-      ctx,
-      x + width,
-      y,
-      x + width,
-      y + height,
-      roughness,
-      0.22,
-      seed + 22,
-    );
-    strokeSketchLine(
-      ctx,
-      x + width,
-      y + height,
-      x,
-      y + height,
-      roughness,
-      0.22,
-      seed + 33,
-    );
-    strokeSketchLine(ctx, x, y + height, x, y, roughness, 0.22, seed + 44);
-    return;
-  }
-
-  strokeSketchLine(
-    ctx,
-    x + radius,
-    y,
-    x + width - radius,
-    y,
-    roughness,
-    0.18,
-    seed + 11,
-  );
-  strokeSketchArc(
-    ctx,
-    x + width - radius,
-    y + radius,
-    radius,
-    radius,
-    -Math.PI / 2,
-    0,
-    roughness,
-    seed + 21,
-  );
-  strokeSketchLine(
-    ctx,
-    x + width,
-    y + radius,
-    x + width,
-    y + height - radius,
-    roughness,
-    0.18,
-    seed + 31,
-  );
-  strokeSketchArc(
-    ctx,
-    x + width - radius,
-    y + height - radius,
-    radius,
-    radius,
-    0,
-    Math.PI / 2,
-    roughness,
-    seed + 41,
-  );
-  strokeSketchLine(
-    ctx,
-    x + width - radius,
-    y + height,
-    x + radius,
-    y + height,
-    roughness,
-    0.18,
-    seed + 51,
-  );
-  strokeSketchArc(
-    ctx,
-    x + radius,
-    y + height - radius,
-    radius,
-    radius,
-    Math.PI / 2,
-    Math.PI,
-    roughness,
-    seed + 61,
-  );
-  strokeSketchLine(
-    ctx,
-    x,
-    y + height - radius,
-    x,
-    y + radius,
-    roughness,
-    0.18,
-    seed + 71,
-  );
-  strokeSketchArc(
-    ctx,
-    x + radius,
-    y + radius,
-    radius,
-    radius,
-    Math.PI,
-    (Math.PI * 3) / 2,
-    roughness,
-    seed + 81,
-  );
-};
-
 const fillShape = (
   ctx: CanvasRenderingContext2D,
   element: ShapeElement,
   rectangleRadius: number,
   resolveColor: (color: string | null | undefined) => string,
 ) => {
-  const config = SLOPPINESS_CONFIG[element.sloppiness];
-  const baseSeed = hashSeed(element.id);
-
   if (element.fillStyle === "none") {
     return;
   }
 
+  const fillColor = resolveColor(element.fill);
+
+  ctx.save();
   if (element.fillStyle === "solid") {
-    ctx.save();
-    ctx.fillStyle = resolveColor(element.fill);
-    drawSketchShapePath(
-      ctx,
-      element,
-      rectangleRadius,
-      config.fillRoughness,
-      baseSeed,
-    );
+    ctx.fillStyle = fillColor;
+    drawShapePath(ctx, element, rectangleRadius);
     ctx.fill();
     ctx.restore();
     return;
   }
 
-  const spacing = config.hachureGap;
+  const spacing = 8;
   const lineWidth = Math.max(1, element.strokeWidth);
   const hatchSpan =
     Math.hypot(element.width, element.height) +
     Math.max(element.width, element.height) * 2;
 
-  ctx.save();
   drawShapePath(ctx, element, rectangleRadius);
   ctx.clip();
-  ctx.strokeStyle = resolveColor(element.fill);
+  ctx.strokeStyle = fillColor;
   ctx.lineWidth = lineWidth;
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
 
-  let lineIndex = 0;
   for (
     let offset = element.x - hatchSpan;
     offset <= element.x + element.width + hatchSpan;
+    offset += spacing
   ) {
-    let currentLineWidth = lineWidth;
-    let dx = hatchSpan;
-    let currentSpacing = spacing;
-
-    if (element.sloppiness === "cartoonist") {
-      const thicknessVariation = Math.sin(lineIndex * 0.3) * 0.5 + 0.5;
-      currentLineWidth = Math.max(
-        1,
-        lineWidth * (0.5 + 2.5 * thicknessVariation),
-      );
-
-      const rotationVariation = Math.sin(lineIndex * 0.2);
-      dx = hatchSpan + rotationVariation * hatchSpan * 0.15;
-
-      const distanceVariation = Math.cos(lineIndex * 0.25) * 0.5 + 0.5;
-      currentSpacing = spacing * (0.8 + 1.2 * distanceVariation);
-    }
-
-    ctx.lineWidth = currentLineWidth;
-
-    strokeSketchLine(
-      ctx,
-      offset,
-      element.y + element.height + hatchSpan,
-      offset + dx,
-      element.y - hatchSpan,
-      config.hachureRoughness,
-      config.hachureBow,
-      baseSeed + lineIndex * 37,
-    );
-
-    offset += currentSpacing;
-    lineIndex += 1;
+    ctx.beginPath();
+    ctx.moveTo(offset, element.y + element.height + hatchSpan);
+    ctx.lineTo(offset + hatchSpan, element.y - hatchSpan);
+    ctx.stroke();
   }
 
   ctx.restore();
@@ -583,30 +281,20 @@ const strokeShapeOutline = (
   rectangleRadius: number,
   resolveColor: (color: string | null | undefined) => string,
 ) => {
-  const config = SLOPPINESS_CONFIG[element.sloppiness];
-  const baseSeed = hashSeed(`${element.id}:border`);
-
   ctx.save();
   ctx.strokeStyle = resolveColor(element.stroke);
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
   ctx.lineWidth = Math.max(1, element.strokeWidth);
-  for (let pass = 0; pass < config.borderPasses; pass++) {
-    drawSketchShapePath(
-      ctx,
-      element,
-      rectangleRadius,
-      config.borderRoughness,
-      baseSeed + pass * 97,
-    );
-    ctx.stroke();
-  }
+  drawShapePath(ctx, element, rectangleRadius);
+  ctx.stroke();
 
   ctx.restore();
 };
 
 export const CanvasView = ({
   scene,
+  alignmentGuides,
   interactionMode,
   drawingTool,
   localeMessages,
@@ -629,6 +317,7 @@ export const CanvasView = ({
   onUngroupSelection,
   onSelectGroupForElement,
   onReorderSelection,
+  onFlipSelection,
   onTextFontFamilyChange,
   onTextFontSizeChange,
   onTextFontWeightChange,
@@ -638,7 +327,6 @@ export const CanvasView = ({
   onDrawStrokeColorChange,
   onShapeFillColorChange,
   onShapeFillStyleChange,
-  onShapeSloppinessChange,
   onShapeStrokeColorChange,
   onShapeStrokeWidthChange,
   onDrawDefaultStrokeColorChange,
@@ -684,6 +372,7 @@ export const CanvasView = ({
   );
   const fontsLoadedRef = useRef(false);
   const [, setRenderTrigger] = useState(0);
+  const [flipPreview, setFlipPreview] = useState<FlipPreviewState | null>(null);
   const {
     laserTrails,
     laserNow,
@@ -694,6 +383,8 @@ export const CanvasView = ({
   const customDrawColorPickerWrapRef = useRef<HTMLDivElement>(null);
   const customDrawColorPickerContentRef = useRef<HTMLDivElement>(null);
   const [isCustomDrawColorPickerOpen, setIsCustomDrawColorPickerOpen] =
+    useState(false);
+  const [isCustomDrawColorPickerOpen2, setIsCustomDrawColorPickerOpen2] =
     useState(false);
   const [customDrawColorPickerColor, setCustomDrawColorPickerColor] =
     useState<string>("#2f3b52");
@@ -748,6 +439,9 @@ export const CanvasView = ({
   const selectedElementId = canTransformSelection ? selectedIds[0] : null;
   const selectedElements = scene.elements.filter((element) =>
     selectedIds.includes(element.id),
+  );
+  const canFlipSelection = selectedElements.some((element) =>
+    isFlippableSceneElement(element),
   );
   const selectedElementType: CanvasContextMenuSelectionType =
     selectedIds.length === 1
@@ -1011,6 +705,10 @@ export const CanvasView = ({
     if (!isCustomDrawColorPickerOpen) {
       return;
     }
+    if (!isCustomDrawColorPickerOpen2) {
+      return;
+    }
+
 
     const handlePointerDownOutside = (event: PointerEvent) => {
       const target = event.target as Node | null;
@@ -1027,11 +725,13 @@ export const CanvasView = ({
       }
 
       setIsCustomDrawColorPickerOpen(false);
+      setIsCustomDrawColorPickerOpen2(false);
     };
 
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         setIsCustomDrawColorPickerOpen(false);
+        setIsCustomDrawColorPickerOpen2(false);
       }
     };
 
@@ -1271,6 +971,96 @@ export const CanvasView = ({
     };
   };
 
+  const handleFlipSelectionWithAnimation = (axis: FlipAxis) => {
+    if (flipPreview) {
+      return;
+    }
+
+    const previewElements = scene.elements.filter(
+      (element): element is FlippableSceneElement =>
+        selectedIds.includes(element.id) && isFlippableSceneElement(element),
+    );
+
+    if (previewElements.length === 0) {
+      return;
+    }
+
+    const boundsEntries = previewElements.map((element) => ({
+      id: element.id,
+      bounds: measureElementBounds(element),
+    }));
+    const selectionLeft = Math.min(
+      ...boundsEntries.map((entry) => entry.bounds.x),
+    );
+    const selectionTop = Math.min(
+      ...boundsEntries.map((entry) => entry.bounds.y),
+    );
+    const selectionRight = Math.max(
+      ...boundsEntries.map((entry) => entry.bounds.x + entry.bounds.width),
+    );
+    const selectionBottom = Math.max(
+      ...boundsEntries.map((entry) => entry.bounds.y + entry.bounds.height),
+    );
+    const items = new Map<string, FlipPreviewItem>();
+
+    for (const entry of boundsEntries) {
+      const center = getBoundsCenter(entry.bounds);
+      const nextBoundsX =
+        axis === "horizontal"
+          ? selectionLeft +
+            selectionRight -
+            (entry.bounds.x + entry.bounds.width)
+          : entry.bounds.x;
+      const nextBoundsY =
+        axis === "vertical"
+          ? selectionTop +
+            selectionBottom -
+            (entry.bounds.y + entry.bounds.height)
+          : entry.bounds.y;
+
+      items.set(entry.id, {
+        fromCenterX: center.x,
+        fromCenterY: center.y,
+        toCenterX: center.x + (nextBoundsX - entry.bounds.x),
+        toCenterY: center.y + (nextBoundsY - entry.bounds.y),
+      });
+    }
+
+    setFlipPreview({
+      axis,
+      startedAt: getCurrentTimestamp(),
+      durationMs: FLIP_ANIMATION_DURATION_MS,
+      items,
+    });
+  };
+
+  useEffect(() => {
+    if (!flipPreview) {
+      return;
+    }
+
+    let frameId = 0;
+
+    const tick = () => {
+      const elapsed = getCurrentTimestamp() - flipPreview.startedAt;
+
+      if (elapsed >= flipPreview.durationMs) {
+        setFlipPreview(null);
+        onFlipSelection(flipPreview.axis);
+        return;
+      }
+
+      setRenderTrigger((previous) => previous + 1);
+      frameId = requestAnimationFrame(tick);
+    };
+
+    frameId = requestAnimationFrame(tick);
+
+    return () => {
+      cancelAnimationFrame(frameId);
+    };
+  }, [flipPreview, onFlipSelection]);
+
   const selectionToolbarOverlay = (() => {
     if (selectedIds.length === 0) {
       return null;
@@ -1496,13 +1286,14 @@ export const CanvasView = ({
           localeMessages={localeMessages}
           customDrawColorPickerWrapRef={customDrawColorPickerWrapRef}
           customDrawColorPickerContentRef={customDrawColorPickerContentRef}
-          isCustomDrawColorPickerOpen={isCustomDrawColorPickerOpen}
-          setIsCustomDrawColorPickerOpen={setIsCustomDrawColorPickerOpen}
           customDrawColorPickerColor={customDrawColorPickerColor}
           setCustomDrawColorPickerColor={setCustomDrawColorPickerColor}
+          setIsCustomDrawColorPickerOpen1={setIsCustomDrawColorPickerOpen}
+          isCustomDrawColorPickerOpen1={isCustomDrawColorPickerOpen}
+          setIsCustomDrawColorPickerOpen2={setIsCustomDrawColorPickerOpen2}
+          isCustomDrawColorPickerOpen2={isCustomDrawColorPickerOpen2}
           onShapeFillColorChange={onShapeFillColorChange}
           onShapeFillStyleChange={onShapeFillStyleChange}
-          onShapeSloppinessChange={onShapeSloppinessChange}
           onShapeStrokeColorChange={onShapeStrokeColorChange}
           onShapeStrokeWidthChange={onShapeStrokeWidthChange}
           uniColor={uniColor}
@@ -1955,6 +1746,68 @@ export const CanvasView = ({
       "124, 92, 255";
     const accentSelectionColor = `rgba(${accentRgb}, 0.45)`;
     const accentMarqueeFillColor = `rgba(${accentRgb}, 0.12)`;
+    const guideColor = isDarkMode ? "#ff9b9b" : "#ff7a7a";
+    const flipPreviewProgress = flipPreview
+      ? Math.min(
+          1,
+          Math.max(
+            0,
+            (getCurrentTimestamp() - flipPreview.startedAt) /
+              flipPreview.durationMs,
+          ),
+        )
+      : null;
+    const flipPreviewEasedProgress =
+      flipPreviewProgress === null ? null : easeInOutCubic(flipPreviewProgress);
+
+    const applyFlipPreviewTransform = (
+      renderCtx: CanvasRenderingContext2D,
+      bounds: ElementBounds,
+      elementId: string,
+    ) => {
+      if (!flipPreview || flipPreviewEasedProgress === null) {
+        return;
+      }
+
+      const item = flipPreview.items.get(elementId);
+      if (!item) {
+        return;
+      }
+
+      const nextCenterX = lerp(
+        item.fromCenterX,
+        item.toCenterX,
+        flipPreviewEasedProgress,
+      );
+      const nextCenterY = lerp(
+        item.fromCenterY,
+        item.toCenterY,
+        flipPreviewEasedProgress,
+      );
+      const rawScaleX =
+        flipPreview.axis === "horizontal"
+          ? 1 - flipPreviewEasedProgress * 2
+          : 1;
+      const rawScaleY =
+        flipPreview.axis === "vertical" ? 1 - flipPreviewEasedProgress * 2 : 1;
+      const scaleX =
+        Math.abs(rawScaleX) < 0.001
+          ? rawScaleX < 0
+            ? -0.001
+            : 0.001
+          : rawScaleX;
+      const scaleY =
+        Math.abs(rawScaleY) < 0.001
+          ? rawScaleY < 0
+            ? -0.001
+            : 0.001
+          : rawScaleY;
+      const center = getBoundsCenter(bounds);
+
+      renderCtx.translate(nextCenterX, nextCenterY);
+      renderCtx.scale(scaleX, scaleY);
+      renderCtx.translate(-center.x, -center.y);
+    };
 
     ctx.fillStyle = toThemeColor("#F4F5F4");
     ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -2036,6 +1889,7 @@ export const CanvasView = ({
         const center = getBoundsCenter(bounds);
 
         ctx.save();
+        applyFlipPreviewTransform(ctx, bounds, element.id);
         ctx.translate(center.x, center.y);
         ctx.rotate(rotationRadians);
         ctx.translate(-center.x, -center.y);
@@ -2151,9 +2005,16 @@ export const CanvasView = ({
         );
 
         ctx.save();
+        applyFlipPreviewTransform(ctx, bounds, imageElement.id);
         ctx.translate(center.x, center.y);
         ctx.rotate(rotationRadians);
         ctx.translate(-center.x, -center.y);
+
+        if (imageElement.flipX || imageElement.flipY) {
+          ctx.translate(center.x, center.y);
+          ctx.scale(imageElement.flipX ? -1 : 1, imageElement.flipY ? -1 : 1);
+          ctx.translate(-center.x, -center.y);
+        }
 
         ctx.shadowColor = "rgba(15, 23, 42, 0.14)";
         ctx.shadowBlur = 18 / camera.zoom;
@@ -2266,6 +2127,7 @@ export const CanvasView = ({
             : 0;
 
         ctx.save();
+        applyFlipPreviewTransform(ctx, bounds, element.id);
         ctx.translate(center.x, center.y);
         ctx.rotate(rotationRadians);
         ctx.translate(-center.x, -center.y);
@@ -2401,6 +2263,10 @@ export const CanvasView = ({
 
       if (element.type === "line") {
         const lineElement = element as LineElement;
+        const bounds = getLineSelectionBounds(lineElement);
+
+        ctx.save();
+        applyFlipPreviewTransform(ctx, bounds, lineElement.id);
         renderLineElement({
           ctx,
           lineElement,
@@ -2415,6 +2281,7 @@ export const CanvasView = ({
           hoveredLineHandle,
           activeLineHandle,
         });
+        ctx.restore();
         continue;
       }
 
@@ -2490,7 +2357,7 @@ export const CanvasView = ({
       ctx.restore();
     }
 
-    if (selectedIds.length > 1) {
+    if (selectedIds.length > 1 && !flipPreview) {
       const groupBounds = getSelectionBounds(selectedIds, ctx, true);
       if (groupBounds) {
         ctx.save();
@@ -2509,7 +2376,7 @@ export const CanvasView = ({
       }
     }
 
-    if (isSingleElementWithinGroupSelected) {
+    if (isSingleElementWithinGroupSelected && !flipPreview) {
       const parentGroupBounds = getSelectionBounds(
         selectedGroupElementIds,
         ctx,
@@ -2530,6 +2397,8 @@ export const CanvasView = ({
         ctx.restore();
       }
     }
+
+    drawSmartGuides(ctx, alignmentGuides, camera.zoom, guideColor);
 
     if (marqueeSelection) {
       const marqueeBounds = getMarqueeBounds(marqueeSelection);
@@ -2741,8 +2610,38 @@ export const CanvasView = ({
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
+      const key = event.key.toLowerCase();
+
+      if (
+        event.shiftKey &&
+        !event.ctrlKey &&
+        !event.metaKey &&
+        !event.altKey &&
+        !editingText
+      ) {
+        if (key === "h") {
+          if (!canFlipSelection) {
+            return;
+          }
+
+          event.preventDefault();
+          handleFlipSelectionWithAnimation("horizontal");
+          return;
+        }
+
+        if (key === "v") {
+          if (!canFlipSelection) {
+            return;
+          }
+
+          event.preventDefault();
+          handleFlipSelectionWithAnimation("vertical");
+          return;
+        }
+      }
+
       if (event.ctrlKey || event.metaKey) {
-        const hotkey = event.key.toLowerCase();
+        const hotkey = key;
         if (hotkey === "b" || hotkey === "i") {
           if (editingText) {
             return;
@@ -2815,7 +2714,9 @@ export const CanvasView = ({
     };
   }, [
     beginTextEditing,
+    canFlipSelection,
     camera.zoom,
+    handleFlipSelectionWithAnimation,
     measureRichTextLayout,
     worldToScreen,
     scene.elements,
@@ -4042,6 +3943,7 @@ export const CanvasView = ({
     >
       <CanvasContextMenu
         hasSelection={hasSelection}
+        canFlipSelection={canFlipSelection}
         selectionType={selectedElementType}
         hasElements={scene.elements.length > 0}
         canUngroupSelection={canUngroupSelection}
@@ -4064,6 +3966,8 @@ export const CanvasView = ({
         onBringToFront={() => onReorderSelection("front")}
         onSendToBack={() => onReorderSelection("back")}
         onMoveBackward={() => onReorderSelection("backward")}
+        onFlipHorizontal={() => handleFlipSelectionWithAnimation("horizontal")}
+        onFlipVertical={() => handleFlipSelectionWithAnimation("vertical")}
       >
         <canvas
           ref={canvasRef}

@@ -22,13 +22,13 @@ import {
   STROKE_COLORS,
   DRAW_STROKE_OPTIONS,
   getClosestDrawStrokeOption,
-} from "./constants";
-import { parseColorForPicker } from "./color";
-import { getSelectedShapeElements, getSharedValue } from "./selectionState";
+} from "@features/canvas/rendering/constants";
+import { parseColorForPicker } from "@features/canvas/rendering/color";
 import {
-  ArchitectSloppinessIcon,
-  ArtistSloppinessIcon,
-  CartoonistSloppinessIcon,
+  getSelectedShapeElements,
+  getSharedValue,
+} from "@features/canvas/selection/selectionState";
+import {
   HachureIcon,
   SquareFilledIcon,
   SquareUnfilledIcon,
@@ -40,16 +40,14 @@ interface SelectionShapeControlsProps {
   localeMessages: LocaleMessages;
   customDrawColorPickerWrapRef: RefObject<HTMLDivElement | null>;
   customDrawColorPickerContentRef: RefObject<HTMLDivElement | null>;
-  isCustomDrawColorPickerOpen: boolean;
-  setIsCustomDrawColorPickerOpen: Dispatch<SetStateAction<boolean>>;
+  isCustomDrawColorPickerOpen1: boolean;
+  setIsCustomDrawColorPickerOpen1: Dispatch<SetStateAction<boolean>>;
+  isCustomDrawColorPickerOpen2: boolean;
+  setIsCustomDrawColorPickerOpen2: Dispatch<SetStateAction<boolean>>;
   customDrawColorPickerColor: string;
   setCustomDrawColorPickerColor: Dispatch<SetStateAction<string>>;
   onShapeFillColorChange: (ids: string[], fillColor: string) => void;
   onShapeFillStyleChange: (ids: string[], fillStyle: string) => void;
-  onShapeSloppinessChange: (
-    ids: string[],
-    sloppiness: "architect" | "artist" | "cartoonist",
-  ) => void;
   onShapeStrokeColorChange: (ids: string[], strokeColor: string) => void;
   onShapeStrokeWidthChange: (ids: string[], strokeWidth: number) => void;
   uniColor: (color: string) => string;
@@ -63,13 +61,14 @@ export const SelectionShapeControls = ({
   localeMessages,
   customDrawColorPickerWrapRef,
   customDrawColorPickerContentRef,
-  isCustomDrawColorPickerOpen,
-  setIsCustomDrawColorPickerOpen,
+  isCustomDrawColorPickerOpen1,
+  setIsCustomDrawColorPickerOpen1,
+  isCustomDrawColorPickerOpen2,
+  setIsCustomDrawColorPickerOpen2,
   customDrawColorPickerColor,
   setCustomDrawColorPickerColor,
   onShapeFillColorChange,
   onShapeFillStyleChange,
-  onShapeSloppinessChange,
   onShapeStrokeColorChange,
   onShapeStrokeWidthChange,
   uniColor,
@@ -109,16 +108,6 @@ export const SelectionShapeControls = ({
     ["solid", "hachure", "none"].some(
       (fillStyle) => fillStyle === sharedFillStyle,
     ) && sharedFillStyle;
-  const sharedSloppiness = getSharedValue(
-    selectedShapeElements,
-    (element) => element.sloppiness,
-  );
-  const sloppinessValue =
-    sharedSloppiness === "architect" ||
-    sharedSloppiness === "artist" ||
-    sharedSloppiness === "cartoonist"
-      ? sharedSloppiness
-      : null;
 
   // Track whether the open custom color picker is for "fill" or "stroke"
   const colorPickerModeRef = useRef<"fill" | "stroke">("fill");
@@ -149,13 +138,13 @@ export const SelectionShapeControls = ({
   const openCustomFillColorPicker = (initialColor: string) => {
     colorPickerModeRef.current = "fill";
     setCustomDrawColorPickerColor(parseColorForPicker(initialColor));
-    setIsCustomDrawColorPickerOpen(true);
+    setIsCustomDrawColorPickerOpen1(true);
   };
 
   const openCustomStrokeColorPicker = (initialColor: string) => {
     colorPickerModeRef.current = "stroke";
     setCustomDrawColorPickerColor(parseColorForPicker(initialColor));
-    setIsCustomDrawColorPickerOpen(true);
+    setIsCustomDrawColorPickerOpen2(true);
   };
 
   return (
@@ -167,7 +156,7 @@ export const SelectionShapeControls = ({
         <Select
           open={
             activeSelectId === "shape-fill-color" ||
-            isCustomDrawColorPickerOpen ||
+            isCustomDrawColorPickerOpen1 ||
             undefined
           }
           onOpenChange={(isOpen) => {
@@ -181,7 +170,7 @@ export const SelectionShapeControls = ({
           onValueChange={(value) => {
             if (["solid", "hachure", "none"].includes(value)) {
               onShapeFillStyleChange(selectedShapeIds, value);
-              setIsCustomDrawColorPickerOpen(false);
+              setIsCustomDrawColorPickerOpen1(false);
               return;
             }
             if (value === "multi") {
@@ -189,7 +178,7 @@ export const SelectionShapeControls = ({
               return;
             }
 
-            setIsCustomDrawColorPickerOpen(false);
+            setIsCustomDrawColorPickerOpen1(false);
             setActiveSelectId(null);
             onShapeFillColorChange(selectedShapeIds, value);
           }}
@@ -350,7 +339,7 @@ export const SelectionShapeControls = ({
         </Select>
       </div>
 
-      <Tooltip open={isCustomDrawColorPickerOpen}>
+      <Tooltip open={isCustomDrawColorPickerOpen1}>
         <TooltipTrigger asChild>
           <div className="selectionbar-separator" />
         </TooltipTrigger>
@@ -385,7 +374,11 @@ export const SelectionShapeControls = ({
 
       {/* Stroke color */}
       <Select
-        open={activeSelectId === "shape-stroke-color" || undefined}
+        open={
+          activeSelectId === "shape-stroke-color" ||
+          isCustomDrawColorPickerOpen2 ||
+          undefined
+        }
         onOpenChange={(isOpen) => {
           if (isOpen) {
             setActiveSelectId("shape-stroke-color");
@@ -399,7 +392,7 @@ export const SelectionShapeControls = ({
             openCustomStrokeColorPicker(selectedStrokePreviewColor);
             return;
           }
-          setIsCustomDrawColorPickerOpen(false);
+          setIsCustomDrawColorPickerOpen2(false);
           setActiveSelectId(null);
           onShapeStrokeColorChange(selectedShapeIds, value);
         }}
@@ -512,72 +505,6 @@ export const SelectionShapeControls = ({
         </Select> */}
 
       <div className="selectionbar-separator" />
-
-      <div
-        style={{ display: "flex", alignItems: "center", gap: 2 }}
-        aria-label={localeMessages.selectionBar.sloppiness}
-      >
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <button
-              type="button"
-              className={
-                "toggle-selectionbar-button" +
-                (sloppinessValue === "architect" ? " active" : "")
-              }
-              style={{ width: "auto", padding: "0 10px" }}
-              onClick={() =>
-                onShapeSloppinessChange(selectedShapeIds, "architect")
-              }
-            >
-              <ArchitectSloppinessIcon />
-            </button>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>{localeMessages.selectionBar.architect}</p>
-          </TooltipContent>
-        </Tooltip>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <button
-              type="button"
-              className={
-                "toggle-selectionbar-button" +
-                (sloppinessValue === "artist" ? " active" : "")
-              }
-              style={{ width: "auto", padding: "0 10px" }}
-              onClick={() =>
-                onShapeSloppinessChange(selectedShapeIds, "artist")
-              }
-            >
-              <ArtistSloppinessIcon />
-            </button>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>{localeMessages.selectionBar.artist}</p>
-          </TooltipContent>
-        </Tooltip>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <button
-              type="button"
-              className={
-                "toggle-selectionbar-button" +
-                (sloppinessValue === "cartoonist" ? " active" : "")
-              }
-              style={{ width: "auto", padding: "0 10px" }}
-              onClick={() =>
-                onShapeSloppinessChange(selectedShapeIds, "cartoonist")
-              }
-            >
-              <CartoonistSloppinessIcon />
-            </button>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>{localeMessages.selectionBar.cartoonist}</p>
-          </TooltipContent>
-        </Tooltip>
-      </div>
     </div>
   );
 };

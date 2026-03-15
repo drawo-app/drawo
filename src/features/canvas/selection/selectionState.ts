@@ -5,7 +5,7 @@ import type {
   SceneElement,
 } from "@core/elements";
 import type { Scene } from "@core/scene";
-import type { EditableElement } from "./types";
+import type { EditableElement } from "@features/canvas/types";
 
 export const getSelectedIds = (scene: Scene): string[] => {
   return scene.selectedIds.length > 0
