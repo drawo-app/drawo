@@ -385,3 +385,32 @@ export const updateShapeElementsStrokeWidth = (
     }),
   };
 };
+
+export const updateShapeElementsStrokeStyle = (
+  scene: Scene,
+  ids: string[],
+  strokeStyle: "solid" | "dashed" | "none",
+): Scene => {
+  if (ids.length === 0) {
+    return scene;
+  }
+
+  const targetIds = new Set(ids);
+
+  return {
+    ...scene,
+    elements: scene.elements.map((element) => {
+      if (
+        !targetIds.has(element.id) ||
+        (element.type !== "rectangle" && element.type !== "circle")
+      ) {
+        return element;
+      }
+
+      return {
+        ...element,
+        strokeStyle,
+      };
+    }),
+  };
+};

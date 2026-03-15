@@ -49,6 +49,7 @@ interface SelectionShapeControlsProps {
   onShapeFillStyleChange: (ids: string[], fillStyle: string) => void;
   onShapeStrokeColorChange: (ids: string[], strokeColor: string) => void;
   onShapeStrokeWidthChange: (ids: string[], strokeWidth: number) => void;
+  onShapeStrokeStyleChange: (ids: string[], strokeStyle: "solid" | "dashed" | "none") => void;
   uniColor: (color: string) => string;
   activeSelectId: string | null;
   setActiveSelectId: (id: string | null) => void;
@@ -65,6 +66,7 @@ export const SelectionShapeControls = ({
   onShapeFillColorChange,
   onShapeFillStyleChange,
   onShapeStrokeColorChange,
+  onShapeStrokeStyleChange,
   uniColor,
   activeSelectId,
   setActiveSelectId,
@@ -420,6 +422,10 @@ export const SelectionShapeControls = ({
         onOpenChange={handleStrokeSelectOpenChange}
         value={String(strokeColorSelectValue)}
         onValueChange={(value) => {
+          if (["solid", "dashed", "none"].includes(value)) {
+            onShapeStrokeStyleChange(selectedShapeIds, value as "solid" | "dashed" | "none");
+            return;
+          }
           if (value === "multi") {
             openCustomStrokeColorPicker(selectedStrokePreviewColor);
             return;

@@ -24,6 +24,7 @@ import {
   updateShapeElementsFillColor,
   updateShapeElementsStrokeColor,
   updateShapeElementsStrokeWidth,
+  updateShapeElementsStrokeStyle,
   updateSceneSettings,
   updateTextElementContent,
   updateTextElementLayout,
@@ -1528,6 +1529,15 @@ export const useInteraction = ({
     [setScene],
   );
 
+  const handleShapeStrokeStyleChange = useCallback(
+    (ids: string[], strokeStyle: "solid" | "dashed" | "none") => {
+      setScene((currentScene) =>
+        updateShapeElementsStrokeStyle(currentScene, ids, strokeStyle),
+      );
+    },
+    [setScene],
+  );
+
   const handleDrawStrokeColorChange = useCallback(
     (ids: string[], strokeColor: string) => {
       setScene((currentScene) =>
@@ -1699,6 +1709,7 @@ export const useInteraction = ({
     handleShapeFillStyleChange,
     handleShapeStrokeColorChange,
     handleShapeStrokeWidthChange,
+    handleShapeStrokeStyleChange,
     handleDrawDefaultStrokeColorChange,
     handleDrawDefaultStrokeWidthChange,
     handleLineStartCapChange,

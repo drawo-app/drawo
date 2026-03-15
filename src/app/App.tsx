@@ -309,6 +309,7 @@ export default function App() {
     handleShapeFillStyleChange,
     handleShapeStrokeColorChange,
     handleShapeStrokeWidthChange,
+    handleShapeStrokeStyleChange,
     handleDrawDefaultStrokeColorChange,
     handleDrawDefaultStrokeWidthChange,
     handleLineStartCapChange,
@@ -580,6 +581,7 @@ export default function App() {
           onShapeFillStyleChange={handleShapeFillStyleChange}
           onShapeStrokeColorChange={handleShapeStrokeColorChange}
           onShapeStrokeWidthChange={handleShapeStrokeWidthChange}
+          onShapeStrokeStyleChange={handleShapeStrokeStyleChange}
           onDrawDefaultStrokeColorChange={handleDrawDefaultStrokeColorChange}
           onDrawDefaultStrokeWidthChange={handleDrawDefaultStrokeWidthChange}
           onLineStartCapChange={handleLineStartCapChange}

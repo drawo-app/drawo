@@ -281,11 +281,22 @@ const strokeShapeOutline = (
   rectangleRadius: number,
   resolveColor: (color: string | null | undefined) => string,
 ) => {
+  if (element.strokeStyle === "none") {
+    return;
+  }
+
   ctx.save();
   ctx.strokeStyle = resolveColor(element.stroke);
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
   ctx.lineWidth = Math.max(1, element.strokeWidth);
+
+  if (element.strokeStyle === "dashed") {
+    ctx.setLineDash([8, 4]);
+  } else {
+    ctx.setLineDash([]);
+  }
+
   drawShapePath(ctx, element, rectangleRadius);
   ctx.stroke();
 
@@ -329,6 +340,7 @@ export const CanvasView = ({
   onShapeFillStyleChange,
   onShapeStrokeColorChange,
   onShapeStrokeWidthChange,
+  onShapeStrokeStyleChange,
   onDrawDefaultStrokeColorChange,
   onLineStartCapChange,
   onLineEndCapChange,
@@ -1293,6 +1305,7 @@ export const CanvasView = ({
           onShapeFillStyleChange={onShapeFillStyleChange}
           onShapeStrokeColorChange={onShapeStrokeColorChange}
           onShapeStrokeWidthChange={onShapeStrokeWidthChange}
+          onShapeStrokeStyleChange={onShapeStrokeStyleChange}
           uniColor={uniColor}
           activeSelectId={activeSelectId}
           setActiveSelectId={setActiveSelectId}
