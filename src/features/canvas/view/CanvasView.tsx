@@ -709,7 +709,6 @@ export const CanvasView = ({
       return;
     }
 
-
     const handlePointerDownOutside = (event: PointerEvent) => {
       const target = event.target as Node | null;
       if (!target) {
@@ -726,12 +725,14 @@ export const CanvasView = ({
 
       setIsCustomDrawColorPickerOpen(false);
       setIsCustomDrawColorPickerOpen2(false);
+      setActiveSelectId(null);
     };
 
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         setIsCustomDrawColorPickerOpen(false);
         setIsCustomDrawColorPickerOpen2(false);
+        setActiveSelectId(null);
       }
     };
 
@@ -1288,10 +1289,6 @@ export const CanvasView = ({
           customDrawColorPickerContentRef={customDrawColorPickerContentRef}
           customDrawColorPickerColor={customDrawColorPickerColor}
           setCustomDrawColorPickerColor={setCustomDrawColorPickerColor}
-          setIsCustomDrawColorPickerOpen1={setIsCustomDrawColorPickerOpen}
-          isCustomDrawColorPickerOpen1={isCustomDrawColorPickerOpen}
-          setIsCustomDrawColorPickerOpen2={setIsCustomDrawColorPickerOpen2}
-          isCustomDrawColorPickerOpen2={isCustomDrawColorPickerOpen2}
           onShapeFillColorChange={onShapeFillColorChange}
           onShapeFillStyleChange={onShapeFillStyleChange}
           onShapeStrokeColorChange={onShapeStrokeColorChange}

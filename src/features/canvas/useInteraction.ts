@@ -68,7 +68,7 @@ import {
   getSmartGuidesForDrag,
   type GuidePointKind,
   type SmartGuide,
-} from "./alignmentGuides";
+} from "./selection/alignmentGuides";
 export const useInteraction = ({
   scene,
   setScene,

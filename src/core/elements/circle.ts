@@ -11,6 +11,7 @@ export interface CircleElement {
   fill: string;
   stroke: string;
   strokeWidth: number;
+  strokeStyle: "solid" | "dashed" | "none";
 
   text: string;
   fontFamily: string;

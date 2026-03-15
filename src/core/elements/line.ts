@@ -17,6 +17,7 @@ export interface LineElement {
   height: number;
   stroke: string;
   strokeWidth: number;
+  strokeStyle: "solid" | "dashed";
   startCap: LineCap;
   endCap: LineCap;
   controlPoint?: {

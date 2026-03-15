@@ -1,5 +1,6 @@
 import {
   useRef,
+  useState,
   type Dispatch,
   type RefObject,
   type SetStateAction,
@@ -20,8 +21,6 @@ import type { LocaleMessages } from "@shared/i18n";
 import {
   SHAPE_COLORS,
   STROKE_COLORS,
-  DRAW_STROKE_OPTIONS,
-  getClosestDrawStrokeOption,
 } from "@features/canvas/rendering/constants";
 import { parseColorForPicker } from "@features/canvas/rendering/color";
 import {
@@ -29,10 +28,14 @@ import {
   getSharedValue,
 } from "@features/canvas/selection/selectionState";
 import {
+  DashedLine01Icon,
   HachureIcon,
+  OctagonXIcon,
+  SolidLine01Icon,
   SquareFilledIcon,
   SquareUnfilledIcon,
 } from "@shared/ui/icons";
+import { OctagonXmark } from "@gravity-ui/icons";
 
 interface SelectionShapeControlsProps {
   scene: Scene;
@@ -40,10 +43,6 @@ interface SelectionShapeControlsProps {
   localeMessages: LocaleMessages;
   customDrawColorPickerWrapRef: RefObject<HTMLDivElement | null>;
   customDrawColorPickerContentRef: RefObject<HTMLDivElement | null>;
-  isCustomDrawColorPickerOpen1: boolean;
-  setIsCustomDrawColorPickerOpen1: Dispatch<SetStateAction<boolean>>;
-  isCustomDrawColorPickerOpen2: boolean;
-  setIsCustomDrawColorPickerOpen2: Dispatch<SetStateAction<boolean>>;
   customDrawColorPickerColor: string;
   setCustomDrawColorPickerColor: Dispatch<SetStateAction<string>>;
   onShapeFillColorChange: (ids: string[], fillColor: string) => void;
@@ -61,16 +60,11 @@ export const SelectionShapeControls = ({
   localeMessages,
   customDrawColorPickerWrapRef,
   customDrawColorPickerContentRef,
-  isCustomDrawColorPickerOpen1,
-  setIsCustomDrawColorPickerOpen1,
-  isCustomDrawColorPickerOpen2,
-  setIsCustomDrawColorPickerOpen2,
   customDrawColorPickerColor,
   setCustomDrawColorPickerColor,
   onShapeFillColorChange,
   onShapeFillStyleChange,
   onShapeStrokeColorChange,
-  onShapeStrokeWidthChange,
   uniColor,
   activeSelectId,
   setActiveSelectId,
@@ -127,24 +121,78 @@ export const SelectionShapeControls = ({
     ? sharedStrokeColor
     : "multi";
 
-  const sharedStrokeWidth = getSharedValue(
-    selectedShapeElements,
-    (element) => element.strokeWidth,
-  );
-  const selectedStrokeWidth = getClosestDrawStrokeOption(
-    sharedStrokeWidth ?? DRAW_STROKE_OPTIONS[0],
-  );
-
   const openCustomFillColorPicker = (initialColor: string) => {
     colorPickerModeRef.current = "fill";
+    setForcedCustomPickerMode("fill");
+    setActiveSelectId("shape-fill-color");
     setCustomDrawColorPickerColor(parseColorForPicker(initialColor));
-    setIsCustomDrawColorPickerOpen1(true);
   };
 
   const openCustomStrokeColorPicker = (initialColor: string) => {
     colorPickerModeRef.current = "stroke";
+    setForcedCustomPickerMode("stroke");
+    setActiveSelectId("shape-stroke-color");
     setCustomDrawColorPickerColor(parseColorForPicker(initialColor));
-    setIsCustomDrawColorPickerOpen2(true);
+  };
+
+  const keepFillSelectOpenOnNextCloseRef = useRef(false);
+  const keepStrokeSelectOpenOnNextCloseRef = useRef(false);
+  const [forcedCustomPickerMode, setForcedCustomPickerMode] = useState<
+    "fill" | "stroke" | null
+  >(null);
+
+  const fillPresetColors = [...SHAPE_COLORS[0], ...SHAPE_COLORS[1]].map(
+    (color) => color.toLowerCase(),
+  );
+  const isSharedFillPresetColor = fillPresetColors.includes(
+    sharedFillColor.toLowerCase(),
+  );
+
+  const strokePresetColors = STROKE_COLORS.map((color) => color.toLowerCase());
+  const isSharedStrokePresetColor = strokePresetColors.includes(
+    sharedStrokeColor.toLowerCase(),
+  );
+  const sharedStrokeStyle = getSharedValue(
+    selectedShapeElements,
+    (element) => element.strokeStyle,
+  );
+  const strokeStyleSelectValue =
+    sharedStrokeStyle === "solid" ||
+    sharedStrokeStyle === "dashed" ||
+    sharedStrokeStyle === "none"
+      ? sharedStrokeStyle
+      : "solid";
+
+  const handleFillSelectOpenChange = (isOpen: boolean) => {
+    if (isOpen) {
+      setForcedCustomPickerMode(null);
+      setActiveSelectId("shape-fill-color");
+    } else {
+      if (keepFillSelectOpenOnNextCloseRef.current) {
+        keepFillSelectOpenOnNextCloseRef.current = false;
+        return;
+      }
+      if (forcedCustomPickerMode === "fill") {
+        setForcedCustomPickerMode(null);
+      }
+      setActiveSelectId(null);
+    }
+  };
+
+  const handleStrokeSelectOpenChange = (isOpen: boolean) => {
+    if (isOpen) {
+      setForcedCustomPickerMode(null);
+      setActiveSelectId("shape-stroke-color");
+    } else {
+      if (keepStrokeSelectOpenOnNextCloseRef.current) {
+        keepStrokeSelectOpenOnNextCloseRef.current = false;
+        return;
+      }
+      if (forcedCustomPickerMode === "stroke") {
+        setForcedCustomPickerMode(null);
+      }
+      setActiveSelectId(null);
+    }
   };
 
   return (
@@ -154,23 +202,12 @@ export const SelectionShapeControls = ({
         style={{ position: "relative", display: "inline-flex" }}
       >
         <Select
-          open={
-            activeSelectId === "shape-fill-color" ||
-            isCustomDrawColorPickerOpen1 ||
-            undefined
-          }
-          onOpenChange={(isOpen) => {
-            if (isOpen) {
-              setActiveSelectId("shape-fill-color");
-            } else if (activeSelectId === "shape-fill-color") {
-              setActiveSelectId(null);
-            }
-          }}
+          open={activeSelectId === "shape-fill-color"}
+          onOpenChange={handleFillSelectOpenChange}
           value={String(fillColorSelectValue)}
           onValueChange={(value) => {
             if (["solid", "hachure", "none"].includes(value)) {
               onShapeFillStyleChange(selectedShapeIds, value);
-              setIsCustomDrawColorPickerOpen1(false);
               return;
             }
             if (value === "multi") {
@@ -178,7 +215,6 @@ export const SelectionShapeControls = ({
               return;
             }
 
-            setIsCustomDrawColorPickerOpen1(false);
             setActiveSelectId(null);
             onShapeFillColorChange(selectedShapeIds, value);
           }}
@@ -273,6 +309,7 @@ export const SelectionShapeControls = ({
                           ? (event) => {
                               event.preventDefault();
                               event.stopPropagation();
+                              keepFillSelectOpenOnNextCloseRef.current = true;
                               openCustomFillColorPicker(
                                 selectedFillPreviewColor,
                               );
@@ -283,6 +320,8 @@ export const SelectionShapeControls = ({
                         isMulti
                           ? (event) => {
                               event.preventDefault();
+                              event.stopPropagation();
+                              keepFillSelectOpenOnNextCloseRef.current = true;
                               openCustomFillColorPicker(
                                 selectedFillPreviewColor,
                               );
@@ -312,6 +351,7 @@ export const SelectionShapeControls = ({
                           ? (event) => {
                               event.preventDefault();
                               event.stopPropagation();
+                              keepFillSelectOpenOnNextCloseRef.current = true;
                               openCustomFillColorPicker(
                                 selectedFillPreviewColor,
                               );
@@ -322,6 +362,7 @@ export const SelectionShapeControls = ({
                         isMulti
                           ? (event) => {
                               event.preventDefault();
+                              keepFillSelectOpenOnNextCloseRef.current = true;
                               openCustomFillColorPicker(
                                 selectedFillPreviewColor,
                               );
@@ -339,7 +380,12 @@ export const SelectionShapeControls = ({
         </Select>
       </div>
 
-      <Tooltip open={isCustomDrawColorPickerOpen1}>
+      <Tooltip
+        open={
+          activeSelectId === "shape-fill-color" &&
+          (forcedCustomPickerMode === "fill" || !isSharedFillPresetColor)
+        }
+      >
         <TooltipTrigger asChild>
           <div className="selectionbar-separator" />
         </TooltipTrigger>
@@ -361,11 +407,7 @@ export const SelectionShapeControls = ({
                 }
 
                 setCustomDrawColorPickerColor(next);
-                if (colorPickerModeRef.current === "stroke") {
-                  onShapeStrokeColorChange(selectedShapeIds, next);
-                } else {
-                  onShapeFillColorChange(selectedShapeIds, next);
-                }
+                onShapeFillColorChange(selectedShapeIds, next);
               }}
             />
           </div>
@@ -374,25 +416,14 @@ export const SelectionShapeControls = ({
 
       {/* Stroke color */}
       <Select
-        open={
-          activeSelectId === "shape-stroke-color" ||
-          isCustomDrawColorPickerOpen2 ||
-          undefined
-        }
-        onOpenChange={(isOpen) => {
-          if (isOpen) {
-            setActiveSelectId("shape-stroke-color");
-          } else if (activeSelectId === "shape-stroke-color") {
-            setActiveSelectId(null);
-          }
-        }}
+        open={activeSelectId === "shape-stroke-color"}
+        onOpenChange={handleStrokeSelectOpenChange}
         value={String(strokeColorSelectValue)}
         onValueChange={(value) => {
           if (value === "multi") {
             openCustomStrokeColorPicker(selectedStrokePreviewColor);
             return;
           }
-          setIsCustomDrawColorPickerOpen2(false);
           setActiveSelectId(null);
           onShapeStrokeColorChange(selectedShapeIds, value);
         }}
@@ -431,40 +462,149 @@ export const SelectionShapeControls = ({
           </TooltipContent>
         </Tooltip>
         <SelectContent position="popper" className="drawo-colorselect-content">
-          <ColorSwatchPicker
-            colors={STROKE_COLORS}
-            currentColor={selectedStrokePreviewColor}
-            uniColor={uniColor}
-            renderItem={({ color, isMulti, swatch }) => (
-              <SelectItem
-                key={color}
-                value={color}
-                className="drawo-colorselect-item"
-                check={false}
-                onPointerDown={
-                  isMulti
-                    ? (event) => {
-                        event.preventDefault();
-                        event.stopPropagation();
-                        openCustomStrokeColorPicker(selectedStrokePreviewColor);
-                      }
-                    : undefined
-                }
-                onSelect={
-                  isMulti
-                    ? (event) => {
-                        event.preventDefault();
-                        openCustomStrokeColorPicker(selectedStrokePreviewColor);
-                      }
-                    : undefined
-                }
-              >
-                {swatch}
-              </SelectItem>
-            )}
-          />
+          <div className="drawo-colorstyle-container">
+            <SelectItem
+              className={
+                "drawo-colorstyle-optionitem" +
+                (strokeStyleSelectValue === "solid" ? " active" : "")
+              }
+              value="solid"
+            >
+              <SolidLine01Icon /> Sólido
+            </SelectItem>
+            <SelectItem
+              className={
+                "drawo-colorstyle-optionitem" +
+                (strokeStyleSelectValue === "dashed" ? " active" : "")
+              }
+              value="dashed"
+            >
+              <DashedLine01Icon /> Discontinuo
+            </SelectItem>
+            <SelectItem
+              className={
+                "drawo-colorstyle-optionitem" +
+                (strokeStyleSelectValue === "none" ? " active" : "")
+              }
+              value="none"
+            >
+              <OctagonXIcon /> Ninguno
+            </SelectItem>
+          </div>
+          <hr className="drawo-colorstyle-separator" />
+          <div
+            className={
+              "drawo-bigcolorpicker " +
+              (fillStyleSelectValue === "none" ? "disabled" : "")
+            }
+          >
+            <div>
+              <ColorSwatchPicker
+                colors={SHAPE_COLORS[0]}
+                currentColor={selectedFillPreviewColor}
+                uniColor={uniColor}
+                renderItem={({ color, isMulti, swatch }) => (
+                  <SelectItem
+                    key={color}
+                    value={color}
+                    className="drawo-colorselect-item"
+                    check={false}
+                    onPointerDown={
+                      isMulti
+                        ? (event) => {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            keepFillSelectOpenOnNextCloseRef.current = true;
+                            openCustomFillColorPicker(selectedFillPreviewColor);
+                          }
+                        : undefined
+                    }
+                    onSelect={
+                      isMulti
+                        ? (event) => {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            keepFillSelectOpenOnNextCloseRef.current = true;
+                            openCustomFillColorPicker(selectedFillPreviewColor);
+                          }
+                        : undefined
+                    }
+                  >
+                    {swatch}
+                  </SelectItem>
+                )}
+              />
+            </div>
+            <div>
+              <ColorSwatchPicker
+                colors={SHAPE_COLORS[1]}
+                realTotalColors={[...SHAPE_COLORS[0], ...SHAPE_COLORS[1]]}
+                currentColor={selectedFillPreviewColor}
+                uniColor={uniColor}
+                renderItem={({ color, isMulti, swatch }) => (
+                  <SelectItem
+                    key={color}
+                    value={color}
+                    className="drawo-colorselect-item"
+                    check={false}
+                    onPointerDown={
+                      isMulti
+                        ? (event) => {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            keepFillSelectOpenOnNextCloseRef.current = true;
+                            openCustomFillColorPicker(selectedFillPreviewColor);
+                          }
+                        : undefined
+                    }
+                    onSelect={
+                      isMulti
+                        ? (event) => {
+                            event.preventDefault();
+                            keepFillSelectOpenOnNextCloseRef.current = true;
+                            openCustomFillColorPicker(selectedFillPreviewColor);
+                          }
+                        : undefined
+                    }
+                  >
+                    {swatch}
+                  </SelectItem>
+                )}
+              />
+            </div>
+          </div>
         </SelectContent>
       </Select>
+      <Tooltip
+        open={
+          activeSelectId === "shape-stroke-color" &&
+          (forcedCustomPickerMode === "stroke" || !isSharedStrokePresetColor)
+        }
+      >
+        <TooltipTrigger asChild>
+          <div className="selectionbar-separator" />
+        </TooltipTrigger>
+        <TooltipContent
+          className="drawo-content-color drawo-ultrainferior-colorcontent"
+          side="bottom"
+          style={{ background: "transparent" }}
+        >
+          <div onPointerDown={(event) => event.stopPropagation()}>
+            <Chrome
+              color={customDrawColorPickerColor}
+              onChange={(color) => {
+                const next = color.hexa || color.hex;
+                if (!next) {
+                  return;
+                }
+
+                setCustomDrawColorPickerColor(next);
+                onShapeStrokeColorChange(selectedShapeIds, next);
+              }}
+            />
+          </div>
+        </TooltipContent>
+      </Tooltip>
 
       {/* Stroke width */}
       {/*
@@ -503,8 +643,6 @@ export const SelectionShapeControls = ({
             ))}
           </SelectContent>
         </Select> */}
-
-      <div className="selectionbar-separator" />
     </div>
   );
 };

@@ -448,7 +448,7 @@ html.dark .selection-toolbar {
     transform: translateY(-1px);
 }
 .drawo-ultrainferior-colorcontent {
-    transform: translateY(135px) translateX(18px) !important;
+    transform: translateY(138px) translateX(18px) !important;
 }
 .drawo-content-color [style="flex: 1 1 0%;"] .w-color-alpha-horizontal > * {
     border-radius: 4px !important;
