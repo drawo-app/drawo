@@ -23,6 +23,7 @@ interface TextEditorOverlayProps {
   editor: ReactEditorType;
   editingText: EditingTextState | null;
   editingDocument: RichTextDocument | null;
+  editorSessionKey: number;
   cameraZoom: number;
   setEditingDocument: Dispatch<SetStateAction<RichTextDocument | null>>;
   setEditingText: Dispatch<SetStateAction<EditingTextState | null>>;
@@ -38,6 +39,7 @@ export const TextEditorOverlay = ({
   editor,
   editingText,
   editingDocument,
+  editorSessionKey,
   cameraZoom,
   setEditingDocument,
   setEditingText,
@@ -172,7 +174,7 @@ export const TextEditorOverlay = ({
       }}
     >
       <Slate
-        key={editingText.id}
+        key={`${editingText.id}-${editorSessionKey}`}
         editor={editor}
         initialValue={
           (editingDocument ??

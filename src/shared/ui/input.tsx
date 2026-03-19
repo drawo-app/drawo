@@ -22,10 +22,8 @@ function NumberInput({
   onValueChange: (value: number) => void;
 }) {
   const [v, setV] = React.useState<number>(
-    typeof value === "number" && Number.isFinite(value) ? value : 0,
+    typeof value === "number" && Number.isFinite(value) ? value : 10,
   );
-  const timerRef = React.useRef<number | null>(null);
-  const didMountRef = React.useRef(false);
 
   React.useEffect(() => {
     if (typeof value === "number" && Number.isFinite(value)) {
@@ -33,36 +31,20 @@ function NumberInput({
     }
   }, [value]);
 
-  React.useEffect(() => {
-    if (!didMountRef.current) {
-      didMountRef.current = true;
+  const applyValue = (next: number) => {
+    if (!Number.isFinite(next)) {
       return;
     }
 
-    if (!Number.isFinite(v)) {
-      return;
-    }
-
-    if (timerRef.current !== null) {
-      clearTimeout(timerRef.current);
-    }
-
-    timerRef.current = window.setTimeout(() => {
-      onValueChange(v);
-    }, 100);
-
-    return () => {
-      if (timerRef.current !== null) {
-        clearTimeout(timerRef.current);
-      }
-    };
-  }, [onValueChange, v]);
+    setV(next);
+    onValueChange(next);
+  };
 
   return (
     <div className="drawo-numberinput-container">
       <button
         onClick={() => {
-          setV((current) => (Number.isFinite(current) ? current : 0) - 1);
+          applyValue((Number.isFinite(v) ? v : 10) - 1);
         }}
       >
         <Minus />
@@ -77,13 +59,13 @@ function NumberInput({
           const newValue = Number.parseInt(e.target.value, 10);
 
           if (Number.isFinite(newValue)) {
-            setV(newValue);
+            applyValue(newValue);
           }
         }}
       />
       <button
         onClick={() => {
-          setV((current) => (Number.isFinite(current) ? current : 0) + 1);
+          applyValue((Number.isFinite(v) ? v : 10) + 1);
         }}
       >
         <Plus />

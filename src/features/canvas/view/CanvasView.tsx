@@ -362,6 +362,7 @@ export const CanvasView = ({
   const [editingText, setEditingText] = useState<EditingTextState | null>(null);
   const [editingDocument, setEditingDocument] =
     useState<RichTextDocument | null>(null);
+  const [editorSessionKey, setEditorSessionKey] = useState(0);
   const editor = useMemo(() => withHistory(withReact(createEditor())), []);
   const imageCacheRef = useRef<Map<string, HTMLImageElement>>(new Map());
   const [canvasSize, setCanvasSize] = useState(() => ({
@@ -1581,6 +1582,8 @@ export const CanvasView = ({
         return;
       }
 
+      setEditorSessionKey((current) => current + 1);
+
       if (element.type === "text") {
         setEditingDocument(deserializeRichTextDocument(element.text));
         const measured = measureRichTextLayout(ctx, element.text, {
@@ -1716,6 +1719,11 @@ export const CanvasView = ({
     }
 
     const handleNativeWheel = (event: WheelEvent) => {
+      if (editingText) {
+        event.preventDefault();
+        return;
+      }
+
       const rect = canvas.getBoundingClientRect();
       const screenX = event.clientX - rect.left;
       const screenY = event.clientY - rect.top;
@@ -1744,7 +1752,7 @@ export const CanvasView = ({
     return () => {
       canvas.removeEventListener("wheel", handleNativeWheel);
     };
-  }, [onWheelPan, onWheelZoom]);
+  }, [editingText, onWheelPan, onWheelZoom]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -2618,14 +2626,30 @@ export const CanvasView = ({
     focusedEditingTextIdRef.current = editingText.id;
 
     requestAnimationFrame(() => {
-      ReactEditor.focus(editor);
-      const end = Editor.end(editor, []);
-      Transforms.select(editor, end);
+      try {
+        ReactEditor.focus(editor);
+        const end = Editor.end(editor, []);
+        Transforms.select(editor, end);
+      } catch (error) {
+        console.warn("Failed to focus text editor:", error);
+      }
     });
   }, [editor, editingText]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.target instanceof HTMLElement) {
+        const tagName = event.target.tagName.toLowerCase();
+        if (
+          event.target.isContentEditable ||
+          tagName === "input" ||
+          tagName === "textarea" ||
+          tagName === "select"
+        ) {
+          return;
+        }
+      }
+
       const key = event.key.toLowerCase();
 
       if (
@@ -3806,6 +3830,14 @@ export const CanvasView = ({
       return;
     }
 
+    if (editingText && editingText.id !== element.id) {
+      commitEditingText();
+      requestAnimationFrame(() => {
+        beginTextEditing(element);
+      });
+      return;
+    }
+
     beginTextEditing(element);
   };
 
@@ -3849,19 +3881,43 @@ export const CanvasView = ({
     });
   };
 
-  const handleEditorChange = (value: Descendant[]) => {
-    const nextDocument = value as RichTextDocument;
-    setEditingDocument(nextDocument);
-
-    const hasContentChange = editor.operations.some(
-      (operation) => operation.type !== "set_selection",
-    );
-
-    if (!hasContentChange) {
+  useEffect(() => {
+    if (!editingText) {
       return;
     }
 
-    syncEditingOverlayLayout(serializeRichTextDocument(nextDocument));
+    const serializedValue =
+      editingDocument !== null
+        ? serializeRichTextDocument(editingDocument)
+        : editingText.value;
+
+    syncEditingOverlayLayout(serializedValue);
+  }, [camera.x, camera.y, camera.zoom, editingDocument, editingText]);
+
+  const handleEditorChange = (value: Descendant[]) => {
+    try {
+      const nextDocument = value as RichTextDocument;
+
+      for (const node of nextDocument) {
+        if (!node || typeof node !== "object") {
+          return;
+        }
+      }
+
+      setEditingDocument(nextDocument);
+
+      const hasContentChange = editor.operations.some(
+        (operation) => operation.type !== "set_selection",
+      );
+
+      if (!hasContentChange) {
+        return;
+      }
+
+      syncEditingOverlayLayout(serializeRichTextDocument(nextDocument));
+    } catch (error) {
+      console.warn("Editor change failed:", error);
+    }
   };
 
   const toggleEditorMark = (mark: "bold" | "italic" | "strikethrough") => {
@@ -4033,6 +4089,7 @@ export const CanvasView = ({
         editor={editor}
         editingText={editingText}
         editingDocument={editingDocument}
+        editorSessionKey={editorSessionKey}
         cameraZoom={camera.zoom}
         setEditingDocument={setEditingDocument}
         setEditingText={setEditingText}
