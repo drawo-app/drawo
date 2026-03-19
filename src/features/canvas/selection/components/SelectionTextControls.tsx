@@ -103,6 +103,8 @@ export const SelectionTextControls = ({
     selectedTextElements,
     (element) => element.fontSize,
   );
+  const hasSharedFontSize =
+    typeof selectedFontSize === "number" && Number.isFinite(selectedFontSize);
   const selectedFontWeight = getSharedValue(
     selectedTextElements,
     (element) => element.fontWeight,
@@ -254,12 +256,18 @@ export const SelectionTextControls = ({
             setActiveSelectId(null);
           }
         }}
-        value={selectedFontSize + ""}
+        value={hasSharedFontSize ? String(selectedFontSize) : undefined}
         onValueChange={(value) => {
           setActiveSelectId(null);
+          const parsedValue = Number.parseInt(value, 10);
+
+          if (!Number.isFinite(parsedValue)) {
+            return;
+          }
+
           onTextFontSizeChange(
             selectedTextElements.map((element) => element.id),
-            parseInt(value),
+            parsedValue,
           );
           focusEditorIfEditing();
         }}
@@ -270,7 +278,7 @@ export const SelectionTextControls = ({
               <span style={{ width: "0px", overflow: "hidden" }}>
                 <SelectValue placeholder="" />
               </span>
-              {selectedFontSize ?? ""}
+              {hasSharedFontSize ? selectedFontSize : "-"}
             </SelectTrigger>
           </TooltipTrigger>
           <TooltipContent>
@@ -312,6 +320,10 @@ export const SelectionTextControls = ({
           <NumberInput
             value={selectedFontSize}
             onValueChange={(value) => {
+              if (!Number.isFinite(value)) {
+                return;
+              }
+
               onTextFontSizeChange(
                 selectedTextElements.map((element) => element.id),
                 value,

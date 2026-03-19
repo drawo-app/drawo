@@ -18,29 +18,51 @@ function NumberInput({
   onValueChange,
   ...props
 }: React.ComponentProps<"input"> & {
-  value: number;
+  value: number | undefined;
   onValueChange: (value: number) => void;
 }) {
-  const [v, setV] = React.useState<number>(value);
-  const [timer, setTimer] = React.useState(null);
-    
+  const [v, setV] = React.useState<number>(
+    typeof value === "number" && Number.isFinite(value) ? value : 0,
+  );
+  const timerRef = React.useRef<number | null>(null);
+  const didMountRef = React.useRef(false);
+
   React.useEffect(() => {
-    setV(value);
+    if (typeof value === "number" && Number.isFinite(value)) {
+      setV(value);
+    }
   }, [value]);
 
   React.useEffect(() => {
-    clearTimeout(timer);
-    setTimer(
-      setTimeout(() => {
-        onValueChange(v);
-      }, 100),
-    );
-  }, [v]);
+    if (!didMountRef.current) {
+      didMountRef.current = true;
+      return;
+    }
+
+    if (!Number.isFinite(v)) {
+      return;
+    }
+
+    if (timerRef.current !== null) {
+      clearTimeout(timerRef.current);
+    }
+
+    timerRef.current = window.setTimeout(() => {
+      onValueChange(v);
+    }, 100);
+
+    return () => {
+      if (timerRef.current !== null) {
+        clearTimeout(timerRef.current);
+      }
+    };
+  }, [onValueChange, v]);
+
   return (
     <div className="drawo-numberinput-container">
       <button
         onClick={() => {
-          setV((current) => current - 1);
+          setV((current) => (Number.isFinite(current) ? current : 0) - 1);
         }}
       >
         <Minus />
@@ -52,13 +74,16 @@ function NumberInput({
         {...props}
         value={v}
         onChange={(e) => {
-          const newValue = parseInt(e.target.value);
-          setV(newValue);
+          const newValue = Number.parseInt(e.target.value, 10);
+
+          if (Number.isFinite(newValue)) {
+            setV(newValue);
+          }
         }}
       />
       <button
         onClick={() => {
-          setV((current) => current + 1);
+          setV((current) => (Number.isFinite(current) ? current : 0) + 1);
         }}
       >
         <Plus />
