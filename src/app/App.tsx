@@ -157,6 +157,7 @@ export default function App() {
   const effectiveDrawingTool = isPresentationMode ? null : drawingTool;
   const clipboardRef = useRef<SceneElement[] | null>(null);
   const pasteOffsetRef = useRef(0);
+  const cursorPositionRef = useRef<{ x: number; y: number } | null>(null);
 
   const setInteractionModeGuarded: Dispatch<SetStateAction<"select" | "pan">> =
     useCallback(
@@ -289,9 +290,22 @@ export default function App() {
     dispatch,
     clipboardRef,
     pasteOffsetRef,
+    cursorPositionRef,
     setInteractionMode: setInteractionModeGuarded,
     setDrawingTool: setDrawingToolGuarded,
   });
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      cursorPositionRef.current = { x: e.clientX, y: e.clientY };
+    };
+
+    window.addEventListener("mousemove", handleMouseMove);
+
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+    };
+  }, [cursorPositionRef]);
 
   const {
     handlePointerDown,

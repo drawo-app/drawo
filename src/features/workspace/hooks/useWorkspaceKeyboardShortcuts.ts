@@ -70,95 +70,208 @@ const copyToSystemClipboard = async (
 const readFromSystemClipboard = async (): Promise<
   SceneElement[] | ImageElement[] | null
 > => {
-  if (!navigator.clipboard || !navigator.clipboard.read) {
-    return null;
-  }
+  if (navigator.clipboard && navigator.clipboard.read) {
+    try {
+      const items = await navigator.clipboard.read();
 
-  try {
-    const items = await navigator.clipboard.read();
-
-    for (const item of items) {
-      if (item.types.includes(DRAWO_MIME_TYPE)) {
-        const blob = await item.getType(DRAWO_MIME_TYPE);
-        const text = await blob.text();
-        const elements = deserializeElements(text);
-        if (elements && elements.length > 0) {
-          return elements;
+      for (const item of items) {
+        if (item.types.includes(DRAWO_MIME_TYPE)) {
+          const blob = await item.getType(DRAWO_MIME_TYPE);
+          const text = await blob.text();
+          const elements = deserializeElements(text);
+          if (elements && elements.length > 0) {
+            return elements;
+          }
         }
-      }
 
-      if (item.types.includes("image/png")) {
-        const blob = await item.getType("image/png");
-        const base64 = await new Promise<string>((resolve) => {
-          const reader = new FileReader();
-          reader.onloadend = () => {
-            const result = reader.result as string;
-            resolve(result.split(",")[1]);
-          };
-          reader.readAsDataURL(blob);
-        });
+        if (item.types.includes("image/png")) {
+          const blob = await item.getType("image/png");
+          const base64 = await new Promise<string>((resolve) => {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+              const result = reader.result as string;
+              resolve(result.split(",")[1]);
+            };
+            reader.readAsDataURL(blob);
+          });
 
-        const img = new Image();
-        await new Promise<void>((resolve, reject) => {
-          img.onload = () => resolve();
-          img.onerror = reject;
-          img.src = `data:image/png;base64,${base64}`;
-        });
+          const img = new Image();
+          await new Promise<void>((resolve, reject) => {
+            img.onload = () => resolve();
+            img.onerror = reject;
+            img.src = `data:image/png;base64,${base64}`;
+          });
 
-        const imageElement: ImageElement = {
-          id: createElementId("image"),
-          type: "image",
-          x: 100,
-          y: 100,
-          width: img.naturalWidth || 200,
-          height: img.naturalHeight || 200,
-          naturalWidth: img.naturalWidth || 200,
-          naturalHeight: img.naturalHeight || 200,
-          src: `data:image/png;base64,${base64}`,
-          rotation: 0,
-          flipX: false,
-          flipY: false,
-          opacity: 1,
-          frame: false,
-        };
-        return [imageElement];
-      }
-
-      if (item.types.includes("text/plain")) {
-        const blob = await item.getType("text/plain");
-        const text = await blob.text();
-
-        if (!deserializeElements(text)) {
-          const textElement = {
-            id: createElementId("text"),
-            type: "text" as const,
-            x: 100,
-            y: 100,
-            text,
-            fontSize: 24,
-            fontFamily: "Inter",
-            fontWeight: "400",
-            fontStyle: "normal" as const,
-            color: "#000000",
-            textAlign: "left" as const,
-            width: 200,
-            height: 40,
+          const imageElement: ImageElement = {
+            id: createElementId("image"),
+            type: "image",
+            x: 0,
+            y: 0,
+            width: img.naturalWidth || 200,
+            height: img.naturalHeight || 200,
+            naturalWidth: img.naturalWidth || 200,
+            naturalHeight: img.naturalHeight || 200,
+            src: `data:image/png;base64,${base64}`,
             rotation: 0,
             flipX: false,
             flipY: false,
             opacity: 1,
+            frame: false,
           };
-          return [textElement];
+          return [imageElement];
+        }
+
+        if (item.types.includes("text/plain")) {
+          const blob = await item.getType("text/plain");
+          const text = await blob.text();
+
+          if (!deserializeElements(text)) {
+            const textElement = {
+              id: createElementId("text"),
+              type: "text" as const,
+              x: 0,
+              y: 0,
+              text,
+              fontSize: 24,
+              fontFamily: "Inter",
+              fontWeight: "400",
+              fontStyle: "normal" as const,
+              color: "#000000",
+              textAlign: "left" as const,
+              width: 200,
+              height: 40,
+              rotation: 0,
+              flipX: false,
+              flipY: false,
+              opacity: 1,
+            };
+            return [textElement];
+          }
         }
       }
+    } catch (error) {
+      console.warn("Failed to read from system clipboard API:", error);
     }
-
-    return null;
-  } catch (error) {
-    console.warn("Failed to read from system clipboard:", error);
-    return null;
   }
+
+  if (navigator.clipboard && navigator.clipboard.readText) {
+    try {
+      const text = await navigator.clipboard.readText();
+      if (text && !deserializeElements(text)) {
+        const textElement = {
+          id: createElementId("text"),
+          type: "text" as const,
+          x: 0,
+          y: 0,
+          text,
+          fontSize: 24,
+          fontFamily: "Inter",
+          fontWeight: "400",
+          fontStyle: "normal" as const,
+          color: "#000000",
+          textAlign: "left" as const,
+          width: 200,
+          height: 40,
+          rotation: 0,
+          flipX: false,
+          flipY: false,
+          opacity: 1,
+        };
+        return [textElement];
+      }
+    } catch (error) {
+      console.warn("Failed to read text from clipboard:", error);
+    }
+  }
+
+  return null;
 };
+
+const readImageFromClipboardLegacy = async (): Promise<
+  ImageElement[] | null
+> => {
+  return new Promise((resolve) => {
+    const pasteArea = document.createElement("div");
+    pasteArea.style.position = "absolute";
+    pasteArea.style.left = "-9999px";
+    pasteArea.style.top = "-9999px";
+    pasteArea.contentEditable = "true";
+    document.body.appendChild(pasteArea);
+
+    const handlePaste = async (e: ClipboardEvent) => {
+      const items = e.clipboardData?.items;
+      if (!items) {
+        cleanup();
+        resolve(null);
+        return;
+      }
+
+      for (const item of items) {
+        if (item.type.startsWith("image/")) {
+          const blob = item.getAsFile();
+          if (!blob) {
+            cleanup();
+            resolve(null);
+            return;
+          }
+
+          const reader = new FileReader();
+          reader.onload = async () => {
+            const result = reader.result as string;
+            const base64 = result.split(",")[1];
+
+            const img = new Image();
+            img.onload = () => {
+              const imageElement: ImageElement = {
+                id: createElementId("image"),
+                type: "image",
+                x: 0,
+                y: 0,
+                width: img.naturalWidth || 200,
+                height: img.naturalHeight || 200,
+                naturalWidth: img.naturalWidth || 200,
+                naturalHeight: img.naturalHeight || 200,
+                src: result,
+                rotation: 0,
+                flipX: false,
+                flipY: false,
+                opacity: 1,
+                frame: false,
+              };
+              cleanup();
+              resolve([imageElement]);
+            };
+            img.onerror = () => {
+              cleanup();
+              resolve(null);
+            };
+            img.src = result;
+          };
+          reader.readAsDataURL(blob);
+          return;
+        }
+      }
+
+      cleanup();
+      resolve(null);
+    };
+
+    const cleanup = () => {
+      pasteArea.removeEventListener("paste", handlePaste);
+      document.removeEventListener("paste", handlePaste);
+    };
+
+    pasteArea.addEventListener("paste", handlePaste);
+    document.addEventListener("paste", handlePaste);
+
+    pasteArea.focus();
+    document.execCommand("paste");
+
+    setTimeout(cleanup, 1000);
+  });
+};
+
+
 
 const ELEMENT_KEYBOARD_MOVE_AMOUNT = 1;
 const ELEMENT_KEYBOARD_MOVE_AMOUNT_WITH_SHIFT = 10;
@@ -189,6 +302,7 @@ interface UseAppKeyboardShortcutsProps {
   dispatch: Dispatch<AppAction>;
   clipboardRef: MutableRefObject<SceneElement[] | null>;
   pasteOffsetRef: MutableRefObject<number>;
+  cursorPositionRef: MutableRefObject<{ x: number; y: number } | null>;
   setInteractionMode: Dispatch<SetStateAction<"select" | "pan">>;
   setDrawingTool: Dispatch<SetStateAction<NewElementType | "laser" | null>>;
 }
@@ -206,6 +320,7 @@ export const useWorkspaceKeyboardShortcuts = ({
   dispatch,
   clipboardRef,
   pasteOffsetRef,
+  cursorPositionRef,
   setInteractionMode,
   setDrawingTool,
 }: UseAppKeyboardShortcutsProps) => {
@@ -367,22 +482,39 @@ export const useWorkspaceKeyboardShortcuts = ({
         }
 
         if (!clipboardElements || clipboardElements.length === 0) {
+          const legacyImageData = await readImageFromClipboardLegacy();
+          if (legacyImageData && legacyImageData.length > 0) {
+            clipboardElements = legacyImageData;
+            clipboardRef.current = legacyImageData;
+          }
+        }
+
+        if (!clipboardElements || clipboardElements.length === 0) {
           return;
         }
 
         event.preventDefault();
-        pasteOffsetRef.current += 24;
-        const offset = pasteOffsetRef.current;
+
+        const cursorPos = cursorPositionRef.current;
+        const baseX = cursorPos ? cursorPos.x : 100;
+        const baseY = cursorPos ? cursorPos.y : 100;
 
         dispatch({
           type: "setScene",
           updater: (currentScene) => {
+            let minX = Infinity;
+            let minY = Infinity;
+            for (const el of clipboardElements!) {
+              minX = Math.min(minX, el.x);
+              minY = Math.min(minY, el.y);
+            }
+
             const pastedElements = clipboardElements!.map((element) => {
               const clonedElement: SceneElement = {
                 ...element,
                 id: createElementId(element.type),
-                x: element.x + offset,
-                y: element.y + offset,
+                x: baseX + (element.x - minX),
+                y: baseY + (element.y - minY),
               };
 
               return clonedElement;
