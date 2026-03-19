@@ -172,6 +172,7 @@ export const TextEditorOverlay = ({
       }}
     >
       <Slate
+        key={editingText.id}
         editor={editor}
         initialValue={
           (editingDocument ??
