@@ -1,10 +1,11 @@
 import {
   useEffect,
+  useCallback,
   type Dispatch,
   type MutableRefObject,
   type SetStateAction,
 } from "react";
-import type { SceneElement } from "@core/elements";
+import type { SceneElement, ImageElement } from "@core/elements";
 import {
   duplicateSelectedElements,
   groupSelectedElements,
@@ -23,6 +24,141 @@ import {
   MIN_CAMERA_ZOOM,
   ZOOM_SENSITIVITY,
 } from "@features/canvas/interaction/constants";
+
+const DRAWO_MIME_TYPE = "application/x-drawo";
+
+const serializeElements = (elements: SceneElement[]): string => {
+  return JSON.stringify(elements);
+};
+
+const deserializeElements = (data: string): SceneElement[] | null => {
+  try {
+    const parsed = JSON.parse(data);
+    if (Array.isArray(parsed)) {
+      return parsed;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+};
+
+const copyToSystemClipboard = async (
+  elements: SceneElement[],
+): Promise<boolean> => {
+  if (!navigator.clipboard || !navigator.clipboard.write) {
+    return false;
+  }
+
+  try {
+    const serialized = serializeElements(elements);
+    const blob = new Blob([serialized], { type: "text/plain" });
+
+    await navigator.clipboard.write([
+      new ClipboardItem({
+        [DRAWO_MIME_TYPE]: blob,
+        "text/plain": blob,
+      }),
+    ]);
+    return true;
+  } catch (error) {
+    console.warn("Failed to copy to system clipboard:", error);
+    return false;
+  }
+};
+
+const readFromSystemClipboard = async (): Promise<
+  SceneElement[] | ImageElement[] | null
+> => {
+  if (!navigator.clipboard || !navigator.clipboard.read) {
+    return null;
+  }
+
+  try {
+    const items = await navigator.clipboard.read();
+
+    for (const item of items) {
+      if (item.types.includes(DRAWO_MIME_TYPE)) {
+        const blob = await item.getType(DRAWO_MIME_TYPE);
+        const text = await blob.text();
+        const elements = deserializeElements(text);
+        if (elements && elements.length > 0) {
+          return elements;
+        }
+      }
+
+      if (item.types.includes("image/png")) {
+        const blob = await item.getType("image/png");
+        const base64 = await new Promise<string>((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            const result = reader.result as string;
+            resolve(result.split(",")[1]);
+          };
+          reader.readAsDataURL(blob);
+        });
+
+        const img = new Image();
+        await new Promise<void>((resolve, reject) => {
+          img.onload = () => resolve();
+          img.onerror = reject;
+          img.src = `data:image/png;base64,${base64}`;
+        });
+
+        const imageElement: ImageElement = {
+          id: createElementId("image"),
+          type: "image",
+          x: 100,
+          y: 100,
+          width: img.naturalWidth || 200,
+          height: img.naturalHeight || 200,
+          naturalWidth: img.naturalWidth || 200,
+          naturalHeight: img.naturalHeight || 200,
+          src: `data:image/png;base64,${base64}`,
+          rotation: 0,
+          flipX: false,
+          flipY: false,
+          opacity: 1,
+          frame: false,
+        };
+        return [imageElement];
+      }
+
+      if (item.types.includes("text/plain")) {
+        const blob = await item.getType("text/plain");
+        const text = await blob.text();
+
+        if (!deserializeElements(text)) {
+          const textElement = {
+            id: createElementId("text"),
+            type: "text" as const,
+            x: 100,
+            y: 100,
+            text,
+            fontSize: 24,
+            fontFamily: "Inter",
+            fontWeight: "400",
+            fontStyle: "normal" as const,
+            color: "#000000",
+            textAlign: "left" as const,
+            width: 200,
+            height: 40,
+            rotation: 0,
+            flipX: false,
+            flipY: false,
+            opacity: 1,
+          };
+          return [textElement];
+        }
+      }
+    }
+
+    return null;
+  } catch (error) {
+    console.warn("Failed to read from system clipboard:", error);
+    return null;
+  }
+};
 
 const ELEMENT_KEYBOARD_MOVE_AMOUNT = 1;
 const ELEMENT_KEYBOARD_MOVE_AMOUNT_WITH_SHIFT = 10;
@@ -91,7 +227,7 @@ export const useWorkspaceKeyboardShortcuts = ({
       return target.isContentEditable;
     };
 
-    const handleKeyDown = (event: KeyboardEvent) => {
+    const handleKeyDown = async (event: KeyboardEvent) => {
       if (isEditableTarget(event.target)) {
         return;
       }
@@ -187,10 +323,13 @@ export const useWorkspaceKeyboardShortcuts = ({
         }
 
         event.preventDefault();
-        clipboardRef.current = scene.elements
+        const elementsToCopy = scene.elements
           .filter((element) => selectedIds.includes(element.id))
           .map((element) => ({ ...element }));
+        clipboardRef.current = elementsToCopy;
         pasteOffsetRef.current = 0;
+
+        copyToSystemClipboard(elementsToCopy);
         return;
       }
 
@@ -201,10 +340,13 @@ export const useWorkspaceKeyboardShortcuts = ({
         }
 
         event.preventDefault();
-        clipboardRef.current = scene.elements
+        const elementsToCut = scene.elements
           .filter((element) => selectedIds.includes(element.id))
           .map((element) => ({ ...element }));
+        clipboardRef.current = elementsToCut;
         pasteOffsetRef.current = 0;
+
+        copyToSystemClipboard(elementsToCut);
 
         dispatch({
           type: "setScene",
@@ -214,7 +356,16 @@ export const useWorkspaceKeyboardShortcuts = ({
       }
 
       if (hasShortcutModifier && !event.altKey && key === "v") {
-        const clipboardElements = clipboardRef.current;
+        let clipboardElements = clipboardRef.current;
+
+        if (!clipboardElements || clipboardElements.length === 0) {
+          const systemClipboardData = await readFromSystemClipboard();
+          if (systemClipboardData && systemClipboardData.length > 0) {
+            clipboardElements = systemClipboardData;
+            clipboardRef.current = systemClipboardData;
+          }
+        }
+
         if (!clipboardElements || clipboardElements.length === 0) {
           return;
         }
@@ -226,7 +377,7 @@ export const useWorkspaceKeyboardShortcuts = ({
         dispatch({
           type: "setScene",
           updater: (currentScene) => {
-            const pastedElements = clipboardElements.map((element) => {
+            const pastedElements = clipboardElements!.map((element) => {
               const clonedElement: SceneElement = {
                 ...element,
                 id: createElementId(element.type),
