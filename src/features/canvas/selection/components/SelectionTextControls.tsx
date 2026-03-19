@@ -119,9 +119,17 @@ export const SelectionTextControls = ({
     selectedFontWeight === "800" ||
     selectedFontWeight === "900";
   const isItalicActive = selectedFontStyle === "italic";
-  const activeEditorMarks = editingText
-    ? ((Editor.marks(editor) as Record<string, unknown> | null) ?? null)
-    : null;
+  const activeEditorMarks = (() => {
+    if (!editingText) {
+      return null;
+    }
+
+    try {
+      return (Editor.marks(editor) as Record<string, unknown> | null) ?? null;
+    } catch {
+      return null;
+    }
+  })();
 
   const isEditingBaseBold =
     editingText &&
@@ -183,7 +191,11 @@ export const SelectionTextControls = ({
     }
 
     requestAnimationFrame(() => {
-      ReactEditor.focus(editor);
+      try {
+        ReactEditor.focus(editor);
+      } catch {
+        return;
+      }
     });
   };
 

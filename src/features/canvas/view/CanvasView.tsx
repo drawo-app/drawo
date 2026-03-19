@@ -363,7 +363,10 @@ export const CanvasView = ({
   const [editingDocument, setEditingDocument] =
     useState<RichTextDocument | null>(null);
   const [editorSessionKey, setEditorSessionKey] = useState(0);
-  const editor = useMemo(() => withHistory(withReact(createEditor())), []);
+  const editor = useMemo(
+    () => withHistory(withReact(createEditor())),
+    [editorSessionKey],
+  );
   const imageCacheRef = useRef<Map<string, HTMLImageElement>>(new Map());
   const [canvasSize, setCanvasSize] = useState(() => ({
     width: window.innerWidth,
@@ -1693,6 +1696,11 @@ export const CanvasView = ({
         : editingText.value);
 
     onTextCommit(editingText.id, serializedValue);
+    try {
+      Transforms.deselect(editor);
+    } catch {
+      // Ignore stale slate selection errors while closing editor.
+    }
     setEditingDocument(null);
     setEditingText(null);
   };
@@ -3850,6 +3858,10 @@ export const CanvasView = ({
       const canvas = canvasRef.current;
       const ctx = canvas?.getContext("2d");
       if (!ctx) {
+        if (current.value === serializedValue) {
+          return current;
+        }
+
         return { ...current, value: serializedValue };
       }
 
@@ -3869,6 +3881,17 @@ export const CanvasView = ({
         current.style.textAlign,
       );
       const nextScreen = worldToScreen(nextStartX, current.anchorY);
+      const nextHeight = measured.height * camera.zoom;
+
+      const isSameLayout =
+        Math.abs(current.left - nextScreen.x) < 0.001 &&
+        Math.abs(current.top - nextScreen.y) < 0.001 &&
+        Math.abs(current.width - boundedWidth) < 0.001 &&
+        Math.abs(current.height - nextHeight) < 0.001;
+
+      if (current.value === serializedValue && isSameLayout) {
+        return current;
+      }
 
       return {
         ...current,
@@ -3876,7 +3899,7 @@ export const CanvasView = ({
         left: nextScreen.x,
         top: nextScreen.y,
         width: boundedWidth,
-        height: measured.height * camera.zoom,
+        height: nextHeight,
       };
     });
   };
@@ -3892,10 +3915,19 @@ export const CanvasView = ({
         : editingText.value;
 
     syncEditingOverlayLayout(serializedValue);
-  }, [camera.x, camera.y, camera.zoom, editingDocument, editingText]);
+  }, [camera.x, camera.y, camera.zoom, editingDocument, editingText?.id]);
 
   const handleEditorChange = (value: Descendant[]) => {
     try {
+      if (editor.selection) {
+        try {
+          Editor.node(editor, editor.selection.anchor.path);
+          Editor.node(editor, editor.selection.focus.path);
+        } catch {
+          Transforms.deselect(editor);
+        }
+      }
+
       const nextDocument = value as RichTextDocument;
 
       for (const node of nextDocument) {
@@ -3921,7 +3953,12 @@ export const CanvasView = ({
   };
 
   const toggleEditorMark = (mark: "bold" | "italic" | "strikethrough") => {
-    const marks = Editor.marks(editor) as Record<string, unknown> | null;
+    let marks: Record<string, unknown> | null = null;
+    try {
+      marks = Editor.marks(editor) as Record<string, unknown> | null;
+    } catch {
+      return;
+    }
     const currentValue = marks?.[mark];
 
     if (mark === "bold" || mark === "italic") {
