@@ -182,7 +182,10 @@ const drawSmartGuides = (
   for (const guide of guides) {
     ctx.beginPath();
 
-    if (guide.axis === "x") {
+    if (guide.kind === "spacing" && guide.segmentStart && guide.segmentEnd) {
+      ctx.moveTo(guide.segmentStart.x, guide.segmentStart.y);
+      ctx.lineTo(guide.segmentEnd.x, guide.segmentEnd.y);
+    } else if (guide.axis === "x") {
       ctx.moveTo(guide.value, guide.start);
       ctx.lineTo(guide.value, guide.end);
     } else {
@@ -487,7 +490,10 @@ export const CanvasView = ({
   const isSingleElementWithinGroupSelected =
     selectedIds.length === 1 && Boolean(selectedElements[0]?.groupId);
   const camera = scene.camera;
-  const isDarkMode = scene.settings.theme === "dark";
+  const isDarkMode =
+    scene.settings.theme === "dark" ||
+    (scene.settings.theme === "system" &&
+      document.documentElement.classList.contains("dark"));
 
   const getActiveDrawStyle = (
     drawMode: "draw" | "marker" | "quill",

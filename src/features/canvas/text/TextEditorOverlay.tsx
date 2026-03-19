@@ -47,10 +47,27 @@ export const TextEditorOverlay = ({
   onCommitEditingText,
   onToggleEditorMark,
 }: TextEditorOverlayProps) => {
+  const shouldKeepTextEditing = (activeElement: Element | null): boolean => {
+    if (!(activeElement instanceof HTMLElement)) {
+      return false;
+    }
+
+    return Boolean(
+      activeElement.closest(".selection-toolbar") ||
+        activeElement.closest(".select-content") ||
+        activeElement.closest('[data-slot="select-content"]') ||
+        activeElement.closest('[data-slot="select-trigger"]'),
+    );
+  };
+
   const handleInputBlur = () => {
     requestAnimationFrame(() => {
       const activeElement = document.activeElement;
       if (editorWrapRef.current?.contains(activeElement)) {
+        return;
+      }
+
+      if (shouldKeepTextEditing(activeElement)) {
         return;
       }
 
@@ -163,6 +180,7 @@ export const TextEditorOverlay = ({
         onChange={onEditorChange}
       >
         <Editable
+          className="canvas-text-editor-input"
           renderLeaf={renderLeaf}
           onBlur={handleInputBlur}
           onKeyDown={handleInputKeyDown}
@@ -175,6 +193,9 @@ export const TextEditorOverlay = ({
             whiteSpace: "pre",
             wordBreak: "normal",
             background: "transparent",
+            color: "inherit",
+            WebkitTextFillColor: "currentColor",
+            caretColor: "currentColor",
           }}
         />
       </Slate>

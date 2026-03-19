@@ -25,7 +25,7 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@shared/ui/dropdown-menu";
-import { Moon, Sun } from "@solar-icons/react";
+import { MonitorSmartphone, Moon, Sun } from "@solar-icons/react";
 import {
   BroomMotion,
   BucketPaint,
@@ -401,6 +401,21 @@ export const MenuBar = ({
                     }}
                   >
                     <Moon size={16} weight="Bold" />
+                  </div>
+                  <div
+                    className={
+                      "theme-option " +
+                      (scene.settings.theme === "system" ? "active" : "")
+                    }
+                    onClick={() => {
+                      setScene((currentScene) =>
+                        updateSceneSettings(currentScene, {
+                          theme: "system",
+                        }),
+                      );
+                    }}
+                  >
+                    <MonitorSmartphone size={16} weight="Bold" />
                   </div>
                 </div>
               </div>

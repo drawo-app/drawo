@@ -138,11 +138,20 @@ export default function App() {
     undefined,
     createInitialAppState,
   );
+  const [systemPrefersDark, setSystemPrefersDark] = useState(() => {
+    if (typeof window === "undefined") {
+      return false;
+    }
+
+    return window.matchMedia("(prefers-color-scheme: dark)").matches;
+  });
   const scene = state.present;
   const canUndo = state.past.length > 0;
   const canRedo = state.future.length > 0;
   const messages = LOCALES[locale];
-  const isDarkMode = scene.settings.theme === "dark";
+  const isDarkMode =
+    scene.settings.theme === "dark" ||
+    (scene.settings.theme === "system" && systemPrefersDark);
   const isPresentationMode = scene.settings.presentationMode;
   const effectiveInteractionMode = isPresentationMode ? "pan" : interactionMode;
   const effectiveDrawingTool = isPresentationMode ? null : drawingTool;
@@ -495,6 +504,27 @@ export default function App() {
     },
     [setScene],
   );
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+    const handleChange = (event: MediaQueryListEvent) => {
+      setSystemPrefersDark(event.matches);
+    };
+
+    if (typeof mediaQuery.addEventListener === "function") {
+      mediaQuery.addEventListener("change", handleChange);
+
+      return () => {
+        mediaQuery.removeEventListener("change", handleChange);
+      };
+    }
+
+    mediaQuery.addListener(handleChange);
+
+    return () => {
+      mediaQuery.removeListener(handleChange);
+    };
+  }, []);
 
   useEffect(() => {
     const rootElement = document.documentElement;

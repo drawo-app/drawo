@@ -175,6 +175,16 @@ export const SelectionTextControls = ({
     }
   };
 
+  const focusEditorIfEditing = () => {
+    if (!editingText) {
+      return;
+    }
+
+    requestAnimationFrame(() => {
+      ReactEditor.focus(editor);
+    });
+  };
+
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
       <Select
@@ -193,6 +203,7 @@ export const SelectionTextControls = ({
             selectedTextElements.map((element) => element.id),
             value,
           );
+          focusEditorIfEditing();
         }}
       >
         <Tooltip>
@@ -250,6 +261,7 @@ export const SelectionTextControls = ({
             selectedTextElements.map((element) => element.id),
             parseInt(value),
           );
+          focusEditorIfEditing();
         }}
       >
         <Tooltip>
@@ -304,6 +316,7 @@ export const SelectionTextControls = ({
                 selectedTextElements.map((element) => element.id),
                 value,
               );
+              focusEditorIfEditing();
             }}
             placeholder={localeMessages.fontSizes.placeholder}
             type="number"
@@ -428,6 +441,7 @@ export const SelectionTextControls = ({
             onTextAlignChange(targetIds, nextTextAlign);
 
             if (!editingText || !targetIds.includes(editingText.id)) {
+              focusEditorIfEditing();
               return;
             }
 
@@ -463,6 +477,8 @@ export const SelectionTextControls = ({
                 },
               };
             });
+
+            focusEditorIfEditing();
           }}
         >
           <Tooltip>

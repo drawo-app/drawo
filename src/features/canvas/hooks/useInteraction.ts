@@ -341,16 +341,8 @@ export const useInteraction = ({
               ? selectedIds
               : hitGroupIds;
 
-          if (shiftKey && !internalSelectKey) {
+          if (shiftKey && !internalSelectKey && !hasFullHitSelection) {
             dragStateRef.current = null;
-
-            if (hasFullHitSelection) {
-              const hitIdSet = new Set(hitGroupIds);
-              return selectElements(
-                currentScene,
-                selectedIds.filter((id) => !hitIdSet.has(id)),
-              );
-            }
 
             return selectElements(currentScene, [
               ...selectedIds,

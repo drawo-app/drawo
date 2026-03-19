@@ -12,6 +12,7 @@ export interface SmartGuide {
   value: number;
   start: number;
   end: number;
+  kind?: "alignment" | "spacing";
   movingKind: GuidePointKind;
   targetKind: GuidePointKind;
   movingPoint: {
@@ -19,6 +20,14 @@ export interface SmartGuide {
     y: number;
   };
   targetPoint: {
+    x: number;
+    y: number;
+  };
+  segmentStart?: {
+    x: number;
+    y: number;
+  };
+  segmentEnd?: {
     x: number;
     y: number;
   };
@@ -222,6 +231,7 @@ const buildGuide = (
       value,
       start: guideStart,
       end: guideEnd,
+      kind: "alignment",
       movingKind,
       targetKind,
       movingPoint: getGuidePointCoordinates(axis, movingBounds, movingKind),
@@ -244,11 +254,269 @@ const buildGuide = (
     value,
     start: guideStart,
     end: guideEnd,
+    kind: "alignment",
     movingKind,
     targetKind,
     movingPoint: getGuidePointCoordinates(axis, movingBounds, movingKind),
     targetPoint: getGuidePointCoordinates(axis, target.bounds, targetKind),
   };
+};
+
+const rangesOverlap = (
+  startA: number,
+  endA: number,
+  startB: number,
+  endB: number,
+  padding = 0,
+) => {
+  return endA + padding >= startB && endB + padding >= startA;
+};
+
+const getAxisValueFromKind = (
+  axis: "x" | "y",
+  bounds: Bounds,
+  kind: GuidePointKind,
+) => {
+  if (axis === "x") {
+    if (kind === "start") {
+      return bounds.x;
+    }
+
+    if (kind === "center") {
+      return bounds.x + bounds.width / 2;
+    }
+
+    return bounds.x + bounds.width;
+  }
+
+  if (kind === "start") {
+    return bounds.y;
+  }
+
+  if (kind === "center") {
+    return bounds.y + bounds.height / 2;
+  }
+
+  return bounds.y + bounds.height;
+};
+
+const getMidpointOnOverlap = (
+  movingBounds: Bounds,
+  targetBounds: Bounds,
+  axis: "x" | "y",
+) => {
+  if (axis === "x") {
+    const overlapStart = Math.max(movingBounds.y, targetBounds.y);
+    const overlapEnd = Math.min(
+      movingBounds.y + movingBounds.height,
+      targetBounds.y + targetBounds.height,
+    );
+
+    if (overlapEnd >= overlapStart) {
+      return (overlapStart + overlapEnd) / 2;
+    }
+
+    return (
+      movingBounds.y +
+      movingBounds.height / 2 +
+      targetBounds.y +
+      targetBounds.height / 2
+    ) / 2;
+  }
+
+  const overlapStart = Math.max(movingBounds.x, targetBounds.x);
+  const overlapEnd = Math.min(
+    movingBounds.x + movingBounds.width,
+    targetBounds.x + targetBounds.width,
+  );
+
+  if (overlapEnd >= overlapStart) {
+    return (overlapStart + overlapEnd) / 2;
+  }
+
+  return (
+    movingBounds.x +
+    movingBounds.width / 2 +
+    targetBounds.x +
+    targetBounds.width / 2
+  ) / 2;
+};
+
+const createSpacingGuide = (
+  axis: "x" | "y",
+  movingBounds: Bounds,
+  targetBounds: Bounds,
+  delta: number,
+  movingKind: GuidePointKind,
+  targetKind: GuidePointKind,
+): SmartGuide => {
+  const nextMovingBounds =
+    axis === "x"
+      ? { ...movingBounds, x: movingBounds.x + delta }
+      : { ...movingBounds, y: movingBounds.y + delta };
+  const movingValue = getAxisValueFromKind(axis, nextMovingBounds, movingKind);
+  const targetValue = getAxisValueFromKind(axis, targetBounds, targetKind);
+  const segmentMid = getMidpointOnOverlap(nextMovingBounds, targetBounds, axis);
+
+  if (axis === "x") {
+    const segmentStart = {
+      x: Math.min(movingValue, targetValue),
+      y: segmentMid,
+    };
+    const segmentEnd = {
+      x: Math.max(movingValue, targetValue),
+      y: segmentMid,
+    };
+
+    return {
+      axis,
+      value: segmentMid,
+      start: segmentStart.x,
+      end: segmentEnd.x,
+      kind: "spacing",
+      movingKind,
+      targetKind,
+      movingPoint: { x: movingValue, y: segmentMid },
+      targetPoint: { x: targetValue, y: segmentMid },
+      segmentStart,
+      segmentEnd,
+    };
+  }
+
+  const segmentStart = {
+    x: segmentMid,
+    y: Math.min(movingValue, targetValue),
+  };
+  const segmentEnd = {
+    x: segmentMid,
+    y: Math.max(movingValue, targetValue),
+  };
+
+  return {
+    axis,
+    value: segmentMid,
+    start: segmentStart.y,
+    end: segmentEnd.y,
+    kind: "spacing",
+    movingKind,
+    targetKind,
+    movingPoint: { x: segmentMid, y: movingValue },
+    targetPoint: { x: segmentMid, y: targetValue },
+    segmentStart,
+    segmentEnd,
+  };
+};
+
+const findBestSpacingGuide = (
+  axis: "x" | "y",
+  movingBounds: Bounds,
+  targets: Bounds[],
+  threshold: number,
+): { delta: number; guide: SmartGuide } | null => {
+  if (targets.length < 2) {
+    return null;
+  }
+
+  const sortedTargets = [...targets].sort((a, b) =>
+    axis === "x" ? a.x - b.x : a.y - b.y,
+  );
+  let bestMatch: { delta: number; guide: SmartGuide } | null = null;
+
+  for (let index = 0; index < sortedTargets.length - 1; index += 1) {
+    const first = sortedTargets[index];
+    const second = sortedTargets[index + 1];
+
+    if (!first || !second) {
+      continue;
+    }
+
+    const firstEnd = axis === "x" ? first.x + first.width : first.y + first.height;
+    const secondStart = axis === "x" ? second.x : second.y;
+    const gap = secondStart - firstEnd;
+
+    if (gap <= 0) {
+      continue;
+    }
+
+    const sameLane =
+      axis === "x"
+        ? rangesOverlap(
+            first.y,
+            first.y + first.height,
+            second.y,
+            second.y + second.height,
+            threshold,
+          )
+        : rangesOverlap(
+            first.x,
+            first.x + first.width,
+            second.x,
+            second.x + second.width,
+            threshold,
+          );
+
+    if (!sameLane) {
+      continue;
+    }
+
+    const candidates =
+      axis === "x"
+        ? [
+            {
+              position: first.x - gap - movingBounds.width,
+              targetBounds: first,
+              movingKind: "end" as GuidePointKind,
+              targetKind: "start" as GuidePointKind,
+            },
+            {
+              position: second.x + second.width + gap,
+              targetBounds: second,
+              movingKind: "start" as GuidePointKind,
+              targetKind: "end" as GuidePointKind,
+            },
+          ]
+        : [
+            {
+              position: first.y - gap - movingBounds.height,
+              targetBounds: first,
+              movingKind: "end" as GuidePointKind,
+              targetKind: "start" as GuidePointKind,
+            },
+            {
+              position: second.y + second.height + gap,
+              targetBounds: second,
+              movingKind: "start" as GuidePointKind,
+              targetKind: "end" as GuidePointKind,
+            },
+          ];
+
+    for (const candidate of candidates) {
+      const delta =
+        axis === "x"
+          ? candidate.position - movingBounds.x
+          : candidate.position - movingBounds.y;
+
+      if (Math.abs(delta) > threshold) {
+        continue;
+      }
+
+      if (!bestMatch || Math.abs(delta) < Math.abs(bestMatch.delta)) {
+        bestMatch = {
+          delta,
+          guide: createSpacingGuide(
+            axis,
+            movingBounds,
+            candidate.targetBounds,
+            delta,
+            candidate.movingKind,
+            candidate.targetKind,
+          ),
+        };
+      }
+    }
+  }
+
+  return bestMatch;
 };
 
 const findBestGuide = (
@@ -349,9 +617,67 @@ export const getSmartGuidesForDrag = (
     return [getTranslatedBounds(element, dragItem.x + dx, dragItem.y + dy)];
   });
 
-  return getSmartGuidesForBounds(
+  const movingBounds = getCombinedBounds(movingBoundsList);
+  if (!movingBounds) {
+    return {
+      offsetX: 0,
+      offsetY: 0,
+      guides: [],
+    };
+  }
+
+  const selectedIdSet = new Set(dragItems.map((item) => item.id));
+  const targetBounds = scene.elements
+    .filter((element) => !selectedIdSet.has(element.id))
+    .map((element) => getSnapBounds(element));
+  const threshold = SMART_GUIDE_SCREEN_THRESHOLD / scene.camera.zoom;
+
+  const baseResult = getSmartGuidesForBounds(
     scene,
-    getCombinedBounds(movingBoundsList),
+    movingBounds,
     dragItems.map((item) => item.id),
   );
+  const baseGuideX = baseResult.guides.find((guide) => guide.axis === "x");
+  const baseGuideY = baseResult.guides.find((guide) => guide.axis === "y");
+
+  const spacingGuideX = findBestSpacingGuide(
+    "x",
+    movingBounds,
+    targetBounds,
+    threshold,
+  );
+  const spacingGuideY = findBestSpacingGuide(
+    "y",
+    movingBounds,
+    targetBounds,
+    threshold,
+  );
+
+  const useSpacingGuideX = Boolean(
+    spacingGuideX &&
+      (!baseGuideX || Math.abs(spacingGuideX.delta) < Math.abs(baseResult.offsetX)),
+  );
+  const useSpacingGuideY = Boolean(
+    spacingGuideY &&
+      (!baseGuideY || Math.abs(spacingGuideY.delta) < Math.abs(baseResult.offsetY)),
+  );
+
+  const nextGuides: SmartGuide[] = [];
+
+  const nextGuideX = useSpacingGuideX ? spacingGuideX?.guide : baseGuideX;
+  const nextGuideY = useSpacingGuideY ? spacingGuideY?.guide : baseGuideY;
+
+  if (nextGuideX) {
+    nextGuides.push(nextGuideX);
+  }
+
+  if (nextGuideY) {
+    nextGuides.push(nextGuideY);
+  }
+
+  return {
+    offsetX: useSpacingGuideX ? (spacingGuideX?.delta ?? 0) : baseResult.offsetX,
+    offsetY: useSpacingGuideY ? (spacingGuideY?.delta ?? 0) : baseResult.offsetY,
+    guides: nextGuides,
+  };
 };

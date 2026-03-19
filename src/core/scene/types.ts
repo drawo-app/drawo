@@ -13,7 +13,7 @@ export interface SceneSettings {
   smartGuides: boolean;
   quillDrawOptimizations: boolean;
   gridSize: number;
-  theme: "light" | "dark";
+  theme: "light" | "dark" | "system";
   zenMode: boolean;
   presentationMode: boolean;
   drawDefaults: {

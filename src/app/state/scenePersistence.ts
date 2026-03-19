@@ -153,7 +153,7 @@ const normalizeElement = (element: SceneElement): SceneElement => {
 };
 
 const isValidTheme = (value: unknown): value is SceneSettings["theme"] => {
-  return value === "light" || value === "dark";
+  return value === "light" || value === "dark" || value === "system";
 };
 
 const isValidGridStyle = (
