@@ -291,6 +291,7 @@ export const addImageElementToScene = (
   scene: Scene,
   image: {
     src: string;
+    assetId?: string | null;
     naturalWidth: number;
     naturalHeight: number;
   },
@@ -319,6 +320,7 @@ export const addImageElementToScene = (
     frame: false,
     opacity: 100,
     src: image.src,
+    assetId: image.assetId ?? null,
     naturalWidth: image.naturalWidth,
     naturalHeight: image.naturalHeight,
   };

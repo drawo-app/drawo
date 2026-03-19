@@ -16,6 +16,7 @@ const normalizeElement = (element: SceneElement): SceneElement => {
     return {
       ...element,
       groupId: normalizeGroupId(element.groupId),
+      assetId: normalizeGroupId(element.assetId),
       flipX: element.flipX === true,
       flipY: element.flipY === true,
       src: typeof element.src === "string" ? element.src : "",

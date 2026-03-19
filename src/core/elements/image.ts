@@ -1,6 +1,7 @@
 export interface ImageElement {
   id: string;
   groupId?: string | null;
+  assetId?: string | null;
   type: "image";
   rotation: number;
   flipX: boolean;

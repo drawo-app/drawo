@@ -39,6 +39,14 @@ import {
   TIMER_STORAGE_KEY,
   TOPBAR_OPEN_PANEL_STORAGE_KEY,
 } from "@app/state/constants";
+import {
+  blobToDataUrl,
+  getStoredImageBlob,
+  optimizeImageBlob,
+  prepareAndStoreImageFile,
+  sourceToBlob,
+  storeImageBlob,
+} from "@app/state/imageStorage";
 import { appReducer, createInitialAppState } from "@app/state/reducer";
 import "./App.css";
 import { Timer } from "@features/timer/components/Timer";
@@ -88,60 +96,74 @@ const isDrawoProjectFile = (value: unknown): value is DrawoProjectFile => {
 
 type LoadedImageFile = {
   src: string;
+  assetId: string;
   naturalWidth: number;
   naturalHeight: number;
 };
 
-const readFileAsDataUrl = (file: File): Promise<string> =>
-  new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result === "string") {
-        resolve(reader.result);
-        return;
-      }
-
-      reject(new Error("Unable to read image file"));
-    };
-    reader.onerror = () => reject(reader.error ?? new Error("File read error"));
-    reader.readAsDataURL(file);
-  });
-
-const loadImageDimensions = (
-  src: string,
-): Promise<Pick<LoadedImageFile, "naturalWidth" | "naturalHeight">> =>
-  new Promise((resolve, reject) => {
-    const image = new window.Image();
-    image.onload = () => {
-      resolve({
-        naturalWidth: image.naturalWidth,
-        naturalHeight: image.naturalHeight,
-      });
-    };
-    image.onerror = () => reject(new Error("Image load error"));
-    image.src = src;
-  });
-
 const loadImageFiles = async (files: File[]): Promise<LoadedImageFile[]> => {
-  const loaded = await Promise.all(
+  const loaded = await Promise.allSettled(
     files
       .filter((file) => file.type.startsWith("image/"))
-      .map(async (file) => {
-        const src = await readFileAsDataUrl(file);
-        const { naturalWidth, naturalHeight } = await loadImageDimensions(src);
-
-        return {
-          src,
-          naturalWidth,
-          naturalHeight,
-        };
-      }),
+      .map((file) => prepareAndStoreImageFile(file)),
   );
 
   return loaded.filter(
-    (image): image is LoadedImageFile =>
-      image.naturalWidth > 0 && image.naturalHeight > 0,
+    (result): result is PromiseFulfilledResult<LoadedImageFile> =>
+      result.status === "fulfilled" &&
+      result.value.naturalWidth > 0 &&
+      result.value.naturalHeight > 0,
+  ).map((result) => result.value);
+};
+
+const toPersistableScene = (scene: Scene): Scene => {
+  return {
+    ...scene,
+    elements: scene.elements.map((element) => {
+      if (element.type !== "image" || !element.assetId) {
+        return element;
+      }
+
+      return {
+        ...element,
+        src: "",
+      };
+    }),
+  };
+};
+
+const toExportableScene = async (scene: Scene): Promise<Scene> => {
+  const nextElements = await Promise.all(
+    scene.elements.map(async (element) => {
+      if (element.type !== "image") {
+        return element;
+      }
+
+      if (element.src && element.src.length > 0) {
+        return element;
+      }
+
+      if (!element.assetId) {
+        return element;
+      }
+
+      const blob = await getStoredImageBlob(element.assetId);
+      if (!blob) {
+        return element;
+      }
+
+      const src = await blobToDataUrl(blob);
+      return {
+        ...element,
+        src,
+      };
+    }),
   );
+
+  return {
+    ...scene,
+    elements: nextElements,
+  };
 };
 
 export default function App() {
@@ -193,6 +215,11 @@ export default function App() {
   const effectiveDrawingTool = isPresentationMode ? null : drawingTool;
   const clipboardRef = useRef<SceneElement[] | null>(null);
   const cursorPositionRef = useRef<{ x: number; y: number } | null>(null);
+  const scenePersistenceQuotaWarnedRef = useRef(false);
+  const imageObjectUrlsRef = useRef<Map<string, string>>(new Map());
+  const loadingImageAssetsRef = useRef<Set<string>>(new Set());
+  const missingImageAssetsRef = useRef<Set<string>>(new Set());
+  const migratingLegacyImageIdsRef = useRef<Set<string>>(new Set());
 
   const setInteractionModeGuarded: Dispatch<SetStateAction<"select" | "pan">> =
     useCallback(
@@ -242,21 +269,235 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    localStorage.setItem(SCENE_STORAGE_KEY, JSON.stringify(scene));
-    localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(scene.settings));
-  }, [scene]);
+    return () => {
+      for (const objectUrl of imageObjectUrlsRef.current.values()) {
+        URL.revokeObjectURL(objectUrl);
+      }
+      imageObjectUrlsRef.current.clear();
+    };
+  }, []);
 
   useEffect(() => {
-    localStorage.setItem(LOCALE_STORAGE_KEY, locale);
-  }, [locale]);
+    const candidates = scene.elements.filter(
+      (element): element is Extract<SceneElement, { type: "image" }> =>
+        element.type === "image" &&
+        Boolean(element.assetId) &&
+        !element.src &&
+        !loadingImageAssetsRef.current.has(element.assetId ?? "") &&
+        !missingImageAssetsRef.current.has(element.assetId ?? ""),
+    );
 
-  useEffect(() => {
-    if (openTopbarPanel) {
-      localStorage.setItem(TOPBAR_OPEN_PANEL_STORAGE_KEY, openTopbarPanel);
+    if (candidates.length === 0) {
       return;
     }
 
-    localStorage.removeItem(TOPBAR_OPEN_PANEL_STORAGE_KEY);
+    let cancelled = false;
+
+    void (async () => {
+      const resolved = await Promise.all(
+        candidates.map(async (element) => {
+          const assetId = element.assetId;
+          if (!assetId) {
+            return null;
+          }
+
+          loadingImageAssetsRef.current.add(assetId);
+
+          try {
+            const blob = await getStoredImageBlob(assetId);
+            if (!blob) {
+              missingImageAssetsRef.current.add(assetId);
+              return null;
+            }
+
+            const previousUrl = imageObjectUrlsRef.current.get(assetId);
+            if (previousUrl) {
+              URL.revokeObjectURL(previousUrl);
+            }
+
+            const objectUrl = URL.createObjectURL(blob);
+            imageObjectUrlsRef.current.set(assetId, objectUrl);
+
+            return {
+              id: element.id,
+              src: objectUrl,
+            };
+          } catch {
+            missingImageAssetsRef.current.add(assetId);
+            return null;
+          } finally {
+            loadingImageAssetsRef.current.delete(assetId);
+          }
+        }),
+      );
+
+      if (cancelled) {
+        return;
+      }
+
+      const updates = resolved.filter(
+        (item): item is { id: string; src: string } => item !== null,
+      );
+
+      if (updates.length === 0) {
+        return;
+      }
+
+      const updatesById = new Map(updates.map((item) => [item.id, item.src]));
+      setSceneWithoutHistory((currentScene) => ({
+        ...currentScene,
+        elements: currentScene.elements.map((element) => {
+          if (element.type !== "image") {
+            return element;
+          }
+
+          const nextSrc = updatesById.get(element.id);
+          if (!nextSrc) {
+            return element;
+          }
+
+          return {
+            ...element,
+            src: nextSrc,
+          };
+        }),
+      }));
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [scene.elements, setSceneWithoutHistory]);
+
+  useEffect(() => {
+    const legacyImages = scene.elements.filter(
+      (element): element is Extract<SceneElement, { type: "image" }> =>
+        element.type === "image" &&
+        !element.assetId &&
+        Boolean(element.src) &&
+        !migratingLegacyImageIdsRef.current.has(element.id),
+    );
+
+    if (legacyImages.length === 0) {
+      return;
+    }
+
+    let cancelled = false;
+
+    void (async () => {
+      const updates: Array<{
+        id: string;
+        assetId: string;
+        src: string;
+        naturalWidth: number;
+        naturalHeight: number;
+      }> = [];
+
+      for (const image of legacyImages) {
+        migratingLegacyImageIdsRef.current.add(image.id);
+
+        try {
+          const sourceBlob = await sourceToBlob(image.src);
+          const optimized = await optimizeImageBlob(sourceBlob);
+          const assetId = await storeImageBlob(optimized.blob);
+
+          const previousUrl = imageObjectUrlsRef.current.get(assetId);
+          if (previousUrl) {
+            URL.revokeObjectURL(previousUrl);
+          }
+
+          const objectUrl = URL.createObjectURL(optimized.blob);
+          imageObjectUrlsRef.current.set(assetId, objectUrl);
+
+          updates.push({
+            id: image.id,
+            assetId,
+            src: objectUrl,
+            naturalWidth: optimized.naturalWidth,
+            naturalHeight: optimized.naturalHeight,
+          });
+        } catch {
+        } finally {
+          migratingLegacyImageIdsRef.current.delete(image.id);
+        }
+      }
+
+      if (cancelled || updates.length === 0) {
+        return;
+      }
+
+      const updatesById = new Map(updates.map((item) => [item.id, item]));
+
+      setSceneWithoutHistory((currentScene) => ({
+        ...currentScene,
+        elements: currentScene.elements.map((element) => {
+          if (element.type !== "image") {
+            return element;
+          }
+
+          const nextImage = updatesById.get(element.id);
+          if (!nextImage) {
+            return element;
+          }
+
+          return {
+            ...element,
+            assetId: nextImage.assetId,
+            src: nextImage.src,
+            naturalWidth: nextImage.naturalWidth,
+            naturalHeight: nextImage.naturalHeight,
+          };
+        }),
+      }));
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [scene.elements, setSceneWithoutHistory]);
+
+  useEffect(() => {
+    const sceneToPersist = toPersistableScene(scene);
+
+    try {
+      localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(scene.settings));
+    } catch {
+      return;
+    }
+
+    try {
+      localStorage.setItem(SCENE_STORAGE_KEY, JSON.stringify(sceneToPersist));
+      scenePersistenceQuotaWarnedRef.current = false;
+    } catch (error) {
+      if (!scenePersistenceQuotaWarnedRef.current) {
+        console.warn(
+          "Scene autosave disabled because browser storage quota was exceeded.",
+          error,
+        );
+        scenePersistenceQuotaWarnedRef.current = true;
+      }
+    }
+  }, [scene]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(LOCALE_STORAGE_KEY, locale);
+    } catch {
+      return;
+    }
+  }, [locale]);
+
+  useEffect(() => {
+    try {
+      if (openTopbarPanel) {
+        localStorage.setItem(TOPBAR_OPEN_PANEL_STORAGE_KEY, openTopbarPanel);
+        return;
+      }
+
+      localStorage.removeItem(TOPBAR_OPEN_PANEL_STORAGE_KEY);
+    } catch {
+      return;
+    }
   }, [openTopbarPanel]);
 
   useEffect(() => {
@@ -419,12 +660,13 @@ export default function App() {
     [setScene],
   );
 
-  const handleExportProject = useCallback(() => {
+  const handleExportProject = useCallback(async () => {
+    const exportableScene = await toExportableScene(scene);
     const payload: DrawoProjectFile = {
       format: DRAWO_PROJECT_FORMAT,
       version: DRAWO_PROJECT_VERSION,
       exportedAt: new Date().toISOString(),
-      scene,
+      scene: exportableScene,
       locale,
       openTopbarPanel,
       timerState: localStorage.getItem(TIMER_STORAGE_KEY),
@@ -456,26 +698,73 @@ export default function App() {
       throw new Error("invalid-project-file");
     }
 
-    localStorage.setItem(SCENE_STORAGE_KEY, JSON.stringify(parsed.scene));
-    localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(parsed.scene.settings));
-    localStorage.setItem(LOCALE_STORAGE_KEY, parsed.locale);
+    const preparedElements = await Promise.all(
+      parsed.scene.elements.map(async (element) => {
+        if (element.type !== "image") {
+          return element;
+        }
 
-    if (parsed.openTopbarPanel) {
-      localStorage.setItem(TOPBAR_OPEN_PANEL_STORAGE_KEY, parsed.openTopbarPanel);
-    } else {
-      localStorage.removeItem(TOPBAR_OPEN_PANEL_STORAGE_KEY);
-    }
+        if (!element.src || element.src.length === 0) {
+          return element;
+        }
 
-    if (parsed.timerState) {
-      localStorage.setItem(TIMER_STORAGE_KEY, parsed.timerState);
-    } else {
-      localStorage.removeItem(TIMER_STORAGE_KEY);
-    }
+        try {
+          const sourceBlob = await sourceToBlob(element.src);
+          const optimized = await optimizeImageBlob(sourceBlob);
+          const assetId = await storeImageBlob(
+            optimized.blob,
+            element.assetId ?? undefined,
+          );
 
-    if (parsed.musicBarState) {
-      localStorage.setItem(MUSIC_BAR_STORAGE_KEY, parsed.musicBarState);
-    } else {
-      localStorage.removeItem(MUSIC_BAR_STORAGE_KEY);
+          return {
+            ...element,
+            assetId,
+            src: URL.createObjectURL(optimized.blob),
+            naturalWidth: optimized.naturalWidth,
+            naturalHeight: optimized.naturalHeight,
+          };
+        } catch {
+          return element;
+        }
+      }),
+    );
+
+    const importedScene: Scene = {
+      ...parsed.scene,
+      elements: preparedElements,
+    };
+    const sceneToPersist = toPersistableScene(importedScene);
+
+    try {
+      localStorage.setItem(SCENE_STORAGE_KEY, JSON.stringify(sceneToPersist));
+      localStorage.setItem(
+        SETTINGS_STORAGE_KEY,
+        JSON.stringify(importedScene.settings),
+      );
+      localStorage.setItem(LOCALE_STORAGE_KEY, parsed.locale);
+
+      if (parsed.openTopbarPanel) {
+        localStorage.setItem(
+          TOPBAR_OPEN_PANEL_STORAGE_KEY,
+          parsed.openTopbarPanel,
+        );
+      } else {
+        localStorage.removeItem(TOPBAR_OPEN_PANEL_STORAGE_KEY);
+      }
+
+      if (parsed.timerState) {
+        localStorage.setItem(TIMER_STORAGE_KEY, parsed.timerState);
+      } else {
+        localStorage.removeItem(TIMER_STORAGE_KEY);
+      }
+
+      if (parsed.musicBarState) {
+        localStorage.setItem(MUSIC_BAR_STORAGE_KEY, parsed.musicBarState);
+      } else {
+        localStorage.removeItem(MUSIC_BAR_STORAGE_KEY);
+      }
+    } catch {
+      throw new Error("storage-quota-exceeded");
     }
 
     window.location.reload();
