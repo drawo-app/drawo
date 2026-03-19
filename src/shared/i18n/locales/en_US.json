@@ -11,6 +11,8 @@
     "language": "Language",
     "quickActions": "Quick actions",
     "clearCanvas": "Clear canvas",
+    "exportProject": "Export (.drawo)",
+    "openProject": "Open (.drawo)",
     "zenMode": "Zen mode",
     "presentationMode": "View mode",
     "colorProfile": "Color profile",
@@ -37,6 +39,14 @@
       "description": "This will remove all elements and cannot be undone.",
       "confirm": "Clear",
       "cancel": "Cancel"
+    },
+    "openProject": {
+      "title": "Open project?",
+      "description": "This will replace the current project and discard unsaved changes.",
+      "confirm": "Open and replace",
+      "cancel": "Cancel",
+      "invalidExtension": "Only .drawo files can be opened",
+      "invalidFile": "The .drawo file is invalid"
     }
   },
   "localeNames": {

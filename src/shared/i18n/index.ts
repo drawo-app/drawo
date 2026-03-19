@@ -16,6 +16,8 @@ export interface LocaleMessages {
     language: string;
     quickActions: string;
     clearCanvas: string;
+    exportProject: string;
+    openProject: string;
     zenMode: string;
     presentationMode: string;
     colorProfile: string;
@@ -42,6 +44,14 @@ export interface LocaleMessages {
       description: string;
       confirm: string;
       cancel: string;
+    };
+    openProject: {
+      title: string;
+      description: string;
+      confirm: string;
+      cancel: string;
+      invalidExtension: string;
+      invalidFile: string;
     };
   };
   localeNames: {

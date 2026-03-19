@@ -5,7 +5,7 @@ import {
   type MutableRefObject,
   type SetStateAction,
 } from "react";
-import type { SceneElement, ImageElement } from "@core/elements";
+import type { SceneElement, ImageElement, TextElement } from "@core/elements";
 import {
   duplicateSelectedElements,
   groupSelectedElements,
@@ -43,232 +43,132 @@ const deserializeElements = (data: string): SceneElement[] | null => {
   }
 };
 
-const copyToSystemClipboard = async (
-  elements: SceneElement[],
-): Promise<boolean> => {
-  if (!navigator.clipboard || !navigator.clipboard.write) {
-    return false;
-  }
+const createTextElement = (text: string): TextElement => {
+  return {
+    id: createElementId("text"),
+    type: "text",
+    x: 0,
+    y: 0,
+    text,
+    fontSize: 24,
+    fontFamily: "Inter",
+    fontWeight: "400",
+    fontStyle: "normal",
+    color: "#000000",
+    textAlign: "left",
+    rotation: 0,
+  };
+};
 
+const readFileAsDataUrl = (file: Blob): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === "string") {
+        resolve(reader.result);
+        return;
+      }
+
+      reject(new Error("Unable to read clipboard image"));
+    };
+    reader.onerror = () => reject(reader.error ?? new Error("File read error"));
+    reader.readAsDataURL(file);
+  });
+};
+
+const loadImageDimensions = (
+  src: string,
+): Promise<{ width: number; height: number }> => {
+  return new Promise((resolve, reject) => {
+    const image = new window.Image();
+    image.onload = () => {
+      resolve({
+        width: image.naturalWidth || 200,
+        height: image.naturalHeight || 200,
+      });
+    };
+    image.onerror = () => reject(new Error("Image load error"));
+    image.src = src;
+  });
+};
+
+const createImageElementFromBlob = async (
+  blob: Blob,
+): Promise<ImageElement | null> => {
   try {
-    const serialized = serializeElements(elements);
-    const blob = new Blob([serialized], { type: "text/plain" });
-
-    await navigator.clipboard.write([
-      new ClipboardItem({
-        [DRAWO_MIME_TYPE]: blob,
-        "text/plain": blob,
-      }),
-    ]);
-    return true;
-  } catch (error) {
-    console.warn("Failed to copy to system clipboard:", error);
-    return false;
+    const src = await readFileAsDataUrl(blob);
+    const { width, height } = await loadImageDimensions(src);
+    return {
+      id: createElementId("image"),
+      type: "image",
+      x: 0,
+      y: 0,
+      width,
+      height,
+      naturalWidth: width,
+      naturalHeight: height,
+      src,
+      rotation: 0,
+      flipX: false,
+      flipY: false,
+      opacity: 1,
+      frame: false,
+    };
+  } catch {
+    return null;
   }
 };
 
-const readFromSystemClipboard = async (): Promise<
-  SceneElement[] | ImageElement[] | null
-> => {
-  if (navigator.clipboard && navigator.clipboard.read) {
-    try {
-      const items = await navigator.clipboard.read();
-
-      for (const item of items) {
-        if (item.types.includes(DRAWO_MIME_TYPE)) {
-          const blob = await item.getType(DRAWO_MIME_TYPE);
-          const text = await blob.text();
-          const elements = deserializeElements(text);
-          if (elements && elements.length > 0) {
-            return elements;
-          }
-        }
-
-        if (item.types.includes("image/png")) {
-          const blob = await item.getType("image/png");
-          const base64 = await new Promise<string>((resolve) => {
-            const reader = new FileReader();
-            reader.onloadend = () => {
-              const result = reader.result as string;
-              resolve(result.split(",")[1]);
-            };
-            reader.readAsDataURL(blob);
-          });
-
-          const img = new Image();
-          await new Promise<void>((resolve, reject) => {
-            img.onload = () => resolve();
-            img.onerror = reject;
-            img.src = `data:image/png;base64,${base64}`;
-          });
-
-          const imageElement: ImageElement = {
-            id: createElementId("image"),
-            type: "image",
-            x: 0,
-            y: 0,
-            width: img.naturalWidth || 200,
-            height: img.naturalHeight || 200,
-            naturalWidth: img.naturalWidth || 200,
-            naturalHeight: img.naturalHeight || 200,
-            src: `data:image/png;base64,${base64}`,
-            rotation: 0,
-            flipX: false,
-            flipY: false,
-            opacity: 1,
-            frame: false,
-          };
-          return [imageElement];
-        }
-
-        if (item.types.includes("text/plain")) {
-          const blob = await item.getType("text/plain");
-          const text = await blob.text();
-
-          if (!deserializeElements(text)) {
-            const textElement = {
-              id: createElementId("text"),
-              type: "text" as const,
-              x: 0,
-              y: 0,
-              text,
-              fontSize: 24,
-              fontFamily: "Inter",
-              fontWeight: "400",
-              fontStyle: "normal" as const,
-              color: "#000000",
-              textAlign: "left" as const,
-              width: 200,
-              height: 40,
-              rotation: 0,
-              flipX: false,
-              flipY: false,
-              opacity: 1,
-            };
-            return [textElement];
-          }
-        }
-      }
-    } catch (error) {
-      console.warn("Failed to read from system clipboard API:", error);
+const extractElementsFromClipboardData = async (
+  clipboardData: DataTransfer,
+): Promise<SceneElement[] | null> => {
+  const drawoPayload = clipboardData.getData(DRAWO_MIME_TYPE);
+  if (drawoPayload) {
+    const parsed = deserializeElements(drawoPayload);
+    if (parsed && parsed.length > 0) {
+      return parsed;
     }
   }
 
-  if (navigator.clipboard && navigator.clipboard.readText) {
-    try {
-      const text = await navigator.clipboard.readText();
-      if (text && !deserializeElements(text)) {
-        const textElement = {
-          id: createElementId("text"),
-          type: "text" as const,
-          x: 0,
-          y: 0,
-          text,
-          fontSize: 24,
-          fontFamily: "Inter",
-          fontWeight: "400",
-          fontStyle: "normal" as const,
-          color: "#000000",
-          textAlign: "left" as const,
-          width: 200,
-          height: 40,
-          rotation: 0,
-          flipX: false,
-          flipY: false,
-          opacity: 1,
-        };
-        return [textElement];
-      }
-    } catch (error) {
-      console.warn("Failed to read text from clipboard:", error);
+  const plainText = clipboardData.getData("text/plain");
+  if (plainText) {
+    const parsed = deserializeElements(plainText);
+    if (parsed && parsed.length > 0) {
+      return parsed;
     }
+  }
+
+  const items = Array.from(clipboardData.items ?? []);
+  for (const item of items) {
+    if (!item.type.startsWith("image/")) {
+      continue;
+    }
+
+    const file = item.getAsFile();
+    if (!file) {
+      continue;
+    }
+
+    const imageElement = await createImageElementFromBlob(file);
+    if (imageElement) {
+      return [imageElement];
+    }
+  }
+
+  if (plainText) {
+    return [createTextElement(plainText)];
   }
 
   return null;
 };
 
-const readImageFromClipboardLegacy = async (): Promise<
-  ImageElement[] | null
-> => {
-  return new Promise((resolve) => {
-    const pasteArea = document.createElement("div");
-    pasteArea.style.position = "absolute";
-    pasteArea.style.left = "-9999px";
-    pasteArea.style.top = "-9999px";
-    pasteArea.contentEditable = "true";
-    document.body.appendChild(pasteArea);
-
-    const handlePaste = async (e: ClipboardEvent) => {
-      const items = e.clipboardData?.items;
-      if (!items) {
-        cleanup();
-        resolve(null);
-        return;
-      }
-
-      for (const item of items) {
-        if (item.type.startsWith("image/")) {
-          const blob = item.getAsFile();
-          if (!blob) {
-            cleanup();
-            resolve(null);
-            return;
-          }
-
-          const reader = new FileReader();
-          reader.onload = async () => {
-            const result = reader.result as string;
-            const base64 = result.split(",")[1];
-
-            const img = new Image();
-            img.onload = () => {
-              const imageElement: ImageElement = {
-                id: createElementId("image"),
-                type: "image",
-                x: 0,
-                y: 0,
-                width: img.naturalWidth || 200,
-                height: img.naturalHeight || 200,
-                naturalWidth: img.naturalWidth || 200,
-                naturalHeight: img.naturalHeight || 200,
-                src: result,
-                rotation: 0,
-                flipX: false,
-                flipY: false,
-                opacity: 1,
-                frame: false,
-              };
-              cleanup();
-              resolve([imageElement]);
-            };
-            img.onerror = () => {
-              cleanup();
-              resolve(null);
-            };
-            img.src = result;
-          };
-          reader.readAsDataURL(blob);
-          return;
-        }
-      }
-
-      cleanup();
-      resolve(null);
-    };
-
-    const cleanup = () => {
-      pasteArea.removeEventListener("paste", handlePaste);
-      document.removeEventListener("paste", handlePaste);
-    };
-
-    pasteArea.addEventListener("paste", handlePaste);
-    document.addEventListener("paste", handlePaste);
-
-    pasteArea.focus();
-    document.execCommand("paste");
-
-    setTimeout(cleanup, 1000);
-  });
+const writeElementsToClipboardData = (
+  clipboardData: DataTransfer,
+  elements: SceneElement[],
+): void => {
+  const serialized = serializeElements(elements);
+  clipboardData.setData(DRAWO_MIME_TYPE, serialized);
+  clipboardData.setData("text/plain", serialized);
 };
 
 
@@ -301,7 +201,6 @@ interface UseAppKeyboardShortcutsProps {
   scene: Scene;
   dispatch: Dispatch<AppAction>;
   clipboardRef: MutableRefObject<SceneElement[] | null>;
-  pasteOffsetRef: MutableRefObject<number>;
   cursorPositionRef: MutableRefObject<{ x: number; y: number } | null>;
   setInteractionMode: Dispatch<SetStateAction<"select" | "pan">>;
   setDrawingTool: Dispatch<SetStateAction<NewElementType | "laser" | null>>;
@@ -319,7 +218,6 @@ export const useWorkspaceKeyboardShortcuts = ({
   scene,
   dispatch,
   clipboardRef,
-  pasteOffsetRef,
   cursorPositionRef,
   setInteractionMode,
   setDrawingTool,
@@ -379,6 +277,7 @@ export const useWorkspaceKeyboardShortcuts = ({
           event.preventDefault();
           dispatch({
             type: "setScene",
+            trackHistory: false,
             updater: (currentScene) =>
               updateSceneSettings(currentScene, {
                 zenMode: !currentScene.settings.zenMode,
@@ -391,6 +290,7 @@ export const useWorkspaceKeyboardShortcuts = ({
           event.preventDefault();
           dispatch({
             type: "setScene",
+            trackHistory: false,
             updater: (currentScene) =>
               updateSceneSettings(currentScene, {
                 presentationMode: !currentScene.settings.presentationMode,
@@ -427,106 +327,6 @@ export const useWorkspaceKeyboardShortcuts = ({
               currentScene,
               currentScene.elements.map((element) => element.id),
             ),
-        });
-        return;
-      }
-
-      if (hasShortcutModifier && !event.altKey && key === "c") {
-        const selectedIds = getSelectedIds(scene);
-        if (selectedIds.length === 0) {
-          return;
-        }
-
-        event.preventDefault();
-        const elementsToCopy = scene.elements
-          .filter((element) => selectedIds.includes(element.id))
-          .map((element) => ({ ...element }));
-        clipboardRef.current = elementsToCopy;
-        pasteOffsetRef.current = 0;
-
-        copyToSystemClipboard(elementsToCopy);
-        return;
-      }
-
-      if (hasShortcutModifier && !event.altKey && key === "x") {
-        const selectedIds = getSelectedIds(scene);
-        if (selectedIds.length === 0) {
-          return;
-        }
-
-        event.preventDefault();
-        const elementsToCut = scene.elements
-          .filter((element) => selectedIds.includes(element.id))
-          .map((element) => ({ ...element }));
-        clipboardRef.current = elementsToCut;
-        pasteOffsetRef.current = 0;
-
-        copyToSystemClipboard(elementsToCut);
-
-        dispatch({
-          type: "setScene",
-          updater: (currentScene) => removeSelectedElement(currentScene),
-        });
-        return;
-      }
-
-      if (hasShortcutModifier && !event.altKey && key === "v") {
-        let clipboardElements = clipboardRef.current;
-
-        if (!clipboardElements || clipboardElements.length === 0) {
-          const systemClipboardData = await readFromSystemClipboard();
-          if (systemClipboardData && systemClipboardData.length > 0) {
-            clipboardElements = systemClipboardData;
-            clipboardRef.current = systemClipboardData;
-          }
-        }
-
-        if (!clipboardElements || clipboardElements.length === 0) {
-          const legacyImageData = await readImageFromClipboardLegacy();
-          if (legacyImageData && legacyImageData.length > 0) {
-            clipboardElements = legacyImageData;
-            clipboardRef.current = legacyImageData;
-          }
-        }
-
-        if (!clipboardElements || clipboardElements.length === 0) {
-          return;
-        }
-
-        event.preventDefault();
-
-        const cursorPos = cursorPositionRef.current;
-        const baseX = cursorPos ? cursorPos.x : 100;
-        const baseY = cursorPos ? cursorPos.y : 100;
-
-        dispatch({
-          type: "setScene",
-          updater: (currentScene) => {
-            let minX = Infinity;
-            let minY = Infinity;
-            for (const el of clipboardElements!) {
-              minX = Math.min(minX, el.x);
-              minY = Math.min(minY, el.y);
-            }
-
-            const pastedElements = clipboardElements!.map((element) => {
-              const clonedElement: SceneElement = {
-                ...element,
-                id: createElementId(element.type),
-                x: baseX + (element.x - minX),
-                y: baseY + (element.y - minY),
-              };
-
-              return clonedElement;
-            });
-
-            return {
-              ...currentScene,
-              elements: [...currentScene.elements, ...pastedElements],
-              selectedId: pastedElements[0]?.id ?? null,
-              selectedIds: pastedElements.map((element) => element.id),
-            };
-          },
         });
         return;
       }
@@ -770,17 +570,125 @@ export const useWorkspaceKeyboardShortcuts = ({
       }
     };
 
+    const pasteElementsAtCursor = (clipboardElements: SceneElement[]) => {
+      if (clipboardElements.length === 0) {
+        return;
+      }
+
+      const cursorPos = cursorPositionRef.current;
+      const baseX = cursorPos ? cursorPos.x : 100;
+      const baseY = cursorPos ? cursorPos.y : 100;
+
+      dispatch({
+        type: "setScene",
+        updater: (currentScene) => {
+          let minX = Infinity;
+          let minY = Infinity;
+          for (const el of clipboardElements) {
+            minX = Math.min(minX, el.x);
+            minY = Math.min(minY, el.y);
+          }
+
+          const pastedElements = clipboardElements.map((element) => {
+            const clonedElement: SceneElement = {
+              ...element,
+              id: createElementId(element.type),
+              x: baseX + (element.x - minX),
+              y: baseY + (element.y - minY),
+            };
+
+            return clonedElement;
+          });
+
+          return {
+            ...currentScene,
+            elements: [...currentScene.elements, ...pastedElements],
+            selectedId: pastedElements[0]?.id ?? null,
+            selectedIds: pastedElements.map((element) => element.id),
+          };
+        },
+      });
+    };
+
+    const handleCopy = (event: ClipboardEvent) => {
+      if (isEditableTarget(event.target)) {
+        return;
+      }
+
+      const selectedIds = getSelectedIds(scene);
+      if (selectedIds.length === 0 || !event.clipboardData) {
+        return;
+      }
+
+      const elementsToCopy = scene.elements
+        .filter((element) => selectedIds.includes(element.id))
+        .map((element) => ({ ...element }));
+      clipboardRef.current = elementsToCopy;
+      writeElementsToClipboardData(event.clipboardData, elementsToCopy);
+      event.preventDefault();
+    };
+
+    const handleCut = (event: ClipboardEvent) => {
+      if (isEditableTarget(event.target)) {
+        return;
+      }
+
+      const selectedIds = getSelectedIds(scene);
+      if (selectedIds.length === 0 || !event.clipboardData) {
+        return;
+      }
+
+      const elementsToCut = scene.elements
+        .filter((element) => selectedIds.includes(element.id))
+        .map((element) => ({ ...element }));
+      clipboardRef.current = elementsToCut;
+      writeElementsToClipboardData(event.clipboardData, elementsToCut);
+      event.preventDefault();
+      dispatch({
+        type: "setScene",
+        updater: (currentScene) => removeSelectedElement(currentScene),
+      });
+    };
+
+    const handlePaste = (event: ClipboardEvent) => {
+      if (isEditableTarget(event.target) || !event.clipboardData) {
+        return;
+      }
+
+      event.preventDefault();
+      void extractElementsFromClipboardData(event.clipboardData).then(
+        (clipboardElements) => {
+          if (clipboardElements && clipboardElements.length > 0) {
+            clipboardRef.current = clipboardElements;
+            pasteElementsAtCursor(clipboardElements);
+            return;
+          }
+
+          const fallbackElements = clipboardRef.current;
+          if (fallbackElements && fallbackElements.length > 0) {
+            pasteElementsAtCursor(fallbackElements);
+          }
+        },
+      );
+    };
+
     window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("copy", handleCopy);
+    window.addEventListener("cut", handleCut);
+    window.addEventListener("paste", handlePaste);
 
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("copy", handleCopy);
+      window.removeEventListener("cut", handleCut);
+      window.removeEventListener("paste", handlePaste);
     };
   }, [
     clipboardRef,
     dispatch,
-    pasteOffsetRef,
     scene,
     setDrawingTool,
     setInteractionMode,
+    cursorPositionRef,
   ]);
 };

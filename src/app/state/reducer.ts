@@ -72,7 +72,8 @@ export const appReducer = (state: AppState, action: AppAction): AppState => {
     return state;
   }
 
-  if (action.trackHistory === false) {
+  const shouldTrackByDefault = nextScene.elements !== state.present.elements;
+  if (action.trackHistory === false || !shouldTrackByDefault) {
     return {
       ...state,
       present: nextScene,

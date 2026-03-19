@@ -33,8 +33,10 @@ import { MusicBar } from "@features/music/components/MusicBar";
 import { useWorkspaceKeyboardShortcuts } from "@features/workspace/hooks/useWorkspaceKeyboardShortcuts";
 import {
   LOCALE_STORAGE_KEY,
+  MUSIC_BAR_STORAGE_KEY,
   SCENE_STORAGE_KEY,
   SETTINGS_STORAGE_KEY,
+  TIMER_STORAGE_KEY,
   TOPBAR_OPEN_PANEL_STORAGE_KEY,
 } from "@app/state/constants";
 import { appReducer, createInitialAppState } from "@app/state/reducer";
@@ -49,6 +51,40 @@ import {
 } from "@features/canvas/interaction/constants";
 
 const DRAWO_VERSION = "1.1.2";
+const DRAWO_PROJECT_FORMAT = "drawo-project";
+const DRAWO_PROJECT_VERSION = 1;
+
+interface DrawoProjectFile {
+  format: typeof DRAWO_PROJECT_FORMAT;
+  version: number;
+  exportedAt: string;
+  scene: Scene;
+  locale: LocaleCode;
+  openTopbarPanel: "music" | "timer" | null;
+  timerState: string | null;
+  musicBarState: string | null;
+}
+
+const isDrawoProjectFile = (value: unknown): value is DrawoProjectFile => {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const candidate = value as Partial<DrawoProjectFile>;
+  return (
+    candidate.format === DRAWO_PROJECT_FORMAT &&
+    typeof candidate.version === "number" &&
+    typeof candidate.exportedAt === "string" &&
+    Boolean(candidate.scene) &&
+    (candidate.locale === "es_ES" || candidate.locale === "en_US") &&
+    (candidate.openTopbarPanel === "music" ||
+      candidate.openTopbarPanel === "timer" ||
+      candidate.openTopbarPanel === null) &&
+    (typeof candidate.timerState === "string" || candidate.timerState === null) &&
+    (typeof candidate.musicBarState === "string" ||
+      candidate.musicBarState === null)
+  );
+};
 
 type LoadedImageFile = {
   src: string;
@@ -156,7 +192,6 @@ export default function App() {
   const effectiveInteractionMode = isPresentationMode ? "pan" : interactionMode;
   const effectiveDrawingTool = isPresentationMode ? null : drawingTool;
   const clipboardRef = useRef<SceneElement[] | null>(null);
-  const pasteOffsetRef = useRef(0);
   const cursorPositionRef = useRef<{ x: number; y: number } | null>(null);
 
   const setInteractionModeGuarded: Dispatch<SetStateAction<"select" | "pan">> =
@@ -289,7 +324,6 @@ export default function App() {
     scene,
     dispatch,
     clipboardRef,
-    pasteOffsetRef,
     cursorPositionRef,
     setInteractionMode: setInteractionModeGuarded,
     setDrawingTool: setDrawingToolGuarded,
@@ -371,7 +405,6 @@ export default function App() {
     clipboardRef.current = scene.elements
       .filter((element) => selectedIds.includes(element.id))
       .map((element) => ({ ...element }));
-    pasteOffsetRef.current = 0;
   }, [scene]);
 
   const handleCutSelection = useCallback(() => {
@@ -385,6 +418,68 @@ export default function App() {
     },
     [setScene],
   );
+
+  const handleExportProject = useCallback(() => {
+    const payload: DrawoProjectFile = {
+      format: DRAWO_PROJECT_FORMAT,
+      version: DRAWO_PROJECT_VERSION,
+      exportedAt: new Date().toISOString(),
+      scene,
+      locale,
+      openTopbarPanel,
+      timerState: localStorage.getItem(TIMER_STORAGE_KEY),
+      musicBarState: localStorage.getItem(MUSIC_BAR_STORAGE_KEY),
+    };
+
+    const blob = new Blob([JSON.stringify(payload, null, 2)], {
+      type: "application/json",
+    });
+    const url = URL.createObjectURL(blob);
+    const now = new Date();
+    const pad = (value: number) => String(value).padStart(2, "0");
+    const filename = `project-${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(
+      now.getDate(),
+    )}-${pad(now.getHours())}${pad(now.getMinutes())}.drawo`;
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  }, [locale, openTopbarPanel, scene]);
+
+  const handleOpenProject = useCallback(async (file: File) => {
+    const rawText = await file.text();
+    const parsed: unknown = JSON.parse(rawText);
+    if (!isDrawoProjectFile(parsed)) {
+      throw new Error("invalid-project-file");
+    }
+
+    localStorage.setItem(SCENE_STORAGE_KEY, JSON.stringify(parsed.scene));
+    localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(parsed.scene.settings));
+    localStorage.setItem(LOCALE_STORAGE_KEY, parsed.locale);
+
+    if (parsed.openTopbarPanel) {
+      localStorage.setItem(TOPBAR_OPEN_PANEL_STORAGE_KEY, parsed.openTopbarPanel);
+    } else {
+      localStorage.removeItem(TOPBAR_OPEN_PANEL_STORAGE_KEY);
+    }
+
+    if (parsed.timerState) {
+      localStorage.setItem(TIMER_STORAGE_KEY, parsed.timerState);
+    } else {
+      localStorage.removeItem(TIMER_STORAGE_KEY);
+    }
+
+    if (parsed.musicBarState) {
+      localStorage.setItem(MUSIC_BAR_STORAGE_KEY, parsed.musicBarState);
+    } else {
+      localStorage.removeItem(MUSIC_BAR_STORAGE_KEY);
+    }
+
+    window.location.reload();
+  }, []);
 
   const handlePasteAt = useCallback(
     (x: number, y: number) => {
@@ -573,6 +668,9 @@ export default function App() {
               messages={messages}
               setLocale={setLocale}
               setScene={setScene}
+              setSceneWithoutHistory={setSceneWithoutHistory}
+              onExportProject={handleExportProject}
+              onOpenProject={handleOpenProject}
             />
           </div>
           <div className="drawo-topbar-right">

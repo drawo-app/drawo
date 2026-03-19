@@ -11,6 +11,8 @@
     "language": "Idioma",
     "quickActions": "Acciones rápidas",
     "clearCanvas": "Vaciar canvas",
+    "exportProject": "Exportar (.drawo)",
+    "openProject": "Abrir (.drawo)",
     "zenMode": "Modo zen",
     "presentationMode": "Modo presentación",
     "colorProfile": "Perfil de color",
@@ -37,6 +39,14 @@
       "description": "Esta acción eliminará todos los elementos y no se puede deshacer.",
       "confirm": "Vaciar",
       "cancel": "Cancelar"
+    },
+    "openProject": {
+      "title": "¿Abrir proyecto?",
+      "description": "Se reemplazará el proyecto actual y se perderán los cambios no guardados.",
+      "confirm": "Abrir y reemplazar",
+      "cancel": "Cancelar",
+      "invalidExtension": "Solo se pueden abrir archivos .drawo",
+      "invalidFile": "El archivo .drawo no es válido"
     }
   },
   "localeNames": {

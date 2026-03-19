@@ -1,5 +1,7 @@
 import {
+  type ChangeEvent,
   useCallback,
+  useRef,
   useState,
   type Dispatch,
   type SetStateAction,
@@ -73,6 +75,9 @@ interface MenuBarProps {
   messages: LocaleMessages;
   setLocale: Dispatch<SetStateAction<LocaleCode>>;
   setScene: Dispatch<SetStateAction<Scene>>;
+  setSceneWithoutHistory: Dispatch<SetStateAction<Scene>>;
+  onExportProject: () => void;
+  onOpenProject: (file: File) => Promise<void>;
 }
 
 export const MenuBar = ({
@@ -81,9 +86,15 @@ export const MenuBar = ({
   messages,
   setLocale,
   setScene,
+  setSceneWithoutHistory,
+  onExportProject,
+  onOpenProject,
 }: MenuBarProps) => {
   const [isClearDialogOpen, setIsClearDialogOpen] = useState(false);
   const [isLaserPointerOpen, setIsLaserPointerOpen] = useState(false);
+  const [isOpenProjectConfirmOpen, setIsOpenProjectConfirmOpen] = useState(false);
+  const [pendingProjectFile, setPendingProjectFile] = useState<File | null>(null);
+  const projectInputRef = useRef<HTMLInputElement | null>(null);
   const hasElements = scene.elements.length > 0;
   const selectedCount =
     scene.selectedIds.length > 0
@@ -113,8 +124,62 @@ export const MenuBar = ({
     setIsClearDialogOpen(false);
   }, [setScene]);
 
+  const applyOpenProject = useCallback(
+    async (file: File) => {
+      try {
+        await onOpenProject(file);
+      } catch {
+        window.alert(messages.dialogs.openProject.invalidFile);
+      }
+    },
+    [messages.dialogs.openProject.invalidFile, onOpenProject],
+  );
+
+  const handleOpenProjectFileChange = useCallback(
+    (event: ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0] ?? null;
+      event.currentTarget.value = "";
+      if (!file) {
+        return;
+      }
+
+      if (!file.name.toLowerCase().endsWith(".drawo")) {
+        window.alert(messages.dialogs.openProject.invalidExtension);
+        return;
+      }
+
+      if (hasElements) {
+        setPendingProjectFile(file);
+        setIsOpenProjectConfirmOpen(true);
+        return;
+      }
+
+      void applyOpenProject(file);
+    },
+    [applyOpenProject, hasElements, messages.dialogs.openProject.invalidExtension],
+  );
+
+  const handleConfirmOpenProject = useCallback(() => {
+    if (!pendingProjectFile) {
+      setIsOpenProjectConfirmOpen(false);
+      return;
+    }
+
+    const nextFile = pendingProjectFile;
+    setPendingProjectFile(null);
+    setIsOpenProjectConfirmOpen(false);
+    void applyOpenProject(nextFile);
+  }, [applyOpenProject, pendingProjectFile]);
+
   return (
     <div className="settings-bar">
+      <input
+        ref={projectInputRef}
+        type="file"
+        accept=".drawo"
+        hidden
+        onChange={handleOpenProjectFileChange}
+      />
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <button type="button" className={`tool-item`} onClick={() => {}}>
@@ -131,10 +196,21 @@ export const MenuBar = ({
               <File />
               {messages.menu.file}
             </DropdownMenuSubTrigger>
-            <DropdownMenuSubContent>
-              <DropdownMenuItem
-                onClick={() => setIsClearDialogOpen(true)}
-                disabled={!hasElements}
+              <DropdownMenuSubContent>
+                <DropdownMenuItem onClick={onExportProject}>
+                  <File /> {messages.menu.exportProject}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => {
+                    projectInputRef.current?.click();
+                  }}
+                >
+                  <File /> {messages.menu.openProject}
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={() => setIsClearDialogOpen(true)}
+                  disabled={!hasElements}
               >
                 <BroomMotion /> {messages.menu.clearCanvas}
               </DropdownMenuItem>
@@ -156,7 +232,7 @@ export const MenuBar = ({
               <DropdownMenuCheckboxItem
                 checked={scene.settings.showGrid}
                 onClick={() => {
-                  setScene((currentScene) =>
+                  setSceneWithoutHistory((currentScene) =>
                     updateSceneSettings(currentScene, {
                       showGrid: !currentScene.settings.showGrid,
                     }),
@@ -179,7 +255,7 @@ export const MenuBar = ({
                         return;
                       }
 
-                      setScene((currentScene) =>
+                      setSceneWithoutHistory((currentScene) =>
                         updateSceneSettings(currentScene, {
                           gridStyle: value,
                         }),
@@ -202,7 +278,7 @@ export const MenuBar = ({
               <DropdownMenuCheckboxItem
                 checked={scene.settings.zenMode}
                 onClick={() => {
-                  setScene((currentScene) =>
+                  setSceneWithoutHistory((currentScene) =>
                     updateSceneSettings(currentScene, {
                       zenMode: !currentScene.settings.zenMode,
                     }),
@@ -217,7 +293,7 @@ export const MenuBar = ({
               <DropdownMenuCheckboxItem
                 checked={scene.settings.presentationMode}
                 onClick={() => {
-                  setScene((currentScene) =>
+                  setSceneWithoutHistory((currentScene) =>
                     updateSceneSettings(currentScene, {
                       presentationMode: !currentScene.settings.presentationMode,
                     }),
@@ -233,7 +309,7 @@ export const MenuBar = ({
               <DropdownMenuCheckboxItem
                 checked={scene.settings.quillDrawOptimizations}
                 onClick={() => {
-                  setScene((currentScene) =>
+                  setSceneWithoutHistory((currentScene) =>
                     updateSceneSettings(currentScene, {
                       quillDrawOptimizations:
                         !currentScene.settings.quillDrawOptimizations,
@@ -344,7 +420,7 @@ export const MenuBar = ({
               <DropdownMenuCheckboxItem
                 checked={scene.settings.snapToGrid}
                 onClick={() => {
-                  setScene((currentScene) =>
+                  setSceneWithoutHistory((currentScene) =>
                     updateSceneSettings(currentScene, {
                       snapToGrid: !currentScene.settings.snapToGrid,
                     }),
@@ -356,7 +432,7 @@ export const MenuBar = ({
               <DropdownMenuCheckboxItem
                 checked={scene.settings.smartGuides}
                 onClick={() => {
-                  setScene((currentScene) =>
+                  setSceneWithoutHistory((currentScene) =>
                     updateSceneSettings(currentScene, {
                       smartGuides: !currentScene.settings.smartGuides,
                     }),
@@ -378,7 +454,7 @@ export const MenuBar = ({
                       (scene.settings.theme === "light" ? "active" : "")
                     }
                     onClick={() => {
-                      setScene((currentScene) =>
+                      setSceneWithoutHistory((currentScene) =>
                         updateSceneSettings(currentScene, {
                           theme: "light",
                         }),
@@ -393,7 +469,7 @@ export const MenuBar = ({
                       (scene.settings.theme === "dark" ? "active" : "")
                     }
                     onClick={() => {
-                      setScene((currentScene) =>
+                      setSceneWithoutHistory((currentScene) =>
                         updateSceneSettings(currentScene, {
                           theme: "dark",
                         }),
@@ -408,7 +484,7 @@ export const MenuBar = ({
                       (scene.settings.theme === "system" ? "active" : "")
                     }
                     onClick={() => {
-                      setScene((currentScene) =>
+                      setSceneWithoutHistory((currentScene) =>
                         updateSceneSettings(currentScene, {
                           theme: "system",
                         }),
@@ -531,6 +607,41 @@ export const MenuBar = ({
                 onClick={handleClearCanvas}
               >
                 {messages.dialogs.clearCanvas.confirm}
+              </button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog
+        open={isOpenProjectConfirmOpen}
+        onOpenChange={setIsOpenProjectConfirmOpen}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{messages.dialogs.openProject.title}</DialogTitle>
+            <DialogDescription>
+              {messages.dialogs.openProject.description}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <div className="drawo-dialog-actions">
+              <DialogClose asChild>
+                <button
+                  type="button"
+                  className="drawo-btn-secondary"
+                  onClick={() => {
+                    setPendingProjectFile(null);
+                  }}
+                >
+                  {messages.dialogs.openProject.cancel}
+                </button>
+              </DialogClose>
+              <button
+                type="button"
+                className="drawo-btn-danger"
+                onClick={handleConfirmOpenProject}
+              >
+                {messages.dialogs.openProject.confirm}
               </button>
             </div>
           </DialogFooter>
