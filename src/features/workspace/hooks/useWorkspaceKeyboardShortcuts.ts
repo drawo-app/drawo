@@ -575,13 +575,19 @@ export const useWorkspaceKeyboardShortcuts = ({
         return;
       }
 
-      const cursorPos = cursorPositionRef.current;
-      const baseX = cursorPos ? cursorPos.x : 100;
-      const baseY = cursorPos ? cursorPos.y : 100;
-
       dispatch({
         type: "setScene",
         updater: (currentScene) => {
+          const cursorPos = cursorPositionRef.current;
+          const baseX = cursorPos
+            ? cursorPos.x / currentScene.camera.zoom + currentScene.camera.x
+            : currentScene.camera.x +
+              window.innerWidth / (2 * currentScene.camera.zoom);
+          const baseY = cursorPos
+            ? cursorPos.y / currentScene.camera.zoom + currentScene.camera.y
+            : currentScene.camera.y +
+              window.innerHeight / (2 * currentScene.camera.zoom);
+
           let minX = Infinity;
           let minY = Infinity;
           for (const el of clipboardElements) {
