@@ -613,6 +613,49 @@ export const CanvasView = ({
     [],
   );
 
+  const textLayoutCacheRef = useRef<
+    Map<
+      string,
+      {
+        cacheKey: string;
+        layout: {
+          lines: ReturnType<typeof parseRichText>;
+          lineWidths: number[];
+          width: number;
+          height: number;
+          lineHeight: number;
+        };
+      }
+    >
+  >(new Map());
+
+  const getCachedRichTextLayout = (
+    ctx: CanvasRenderingContext2D,
+    cacheId: string,
+    value: string,
+    style: Pick<
+      TextElement,
+      "fontFamily" | "fontSize" | "fontWeight" | "fontStyle"
+    >,
+  ) => {
+    const cacheKey = `${value}::${style.fontFamily}::${style.fontSize}::${style.fontWeight}::${style.fontStyle}`;
+    const cached = textLayoutCacheRef.current.get(cacheId);
+    if (cached && cached.cacheKey === cacheKey) {
+      return cached.layout;
+    }
+
+    const layout = measureRichTextLayout(ctx, value, style);
+    textLayoutCacheRef.current.set(cacheId, { cacheKey, layout });
+    if (textLayoutCacheRef.current.size > 6000) {
+      const oldestKey = textLayoutCacheRef.current.keys().next().value;
+      if (typeof oldestKey === "string") {
+        textLayoutCacheRef.current.delete(oldestKey);
+      }
+    }
+
+    return layout;
+  };
+
   const drawRichText = (
     ctx: CanvasRenderingContext2D,
     value: string,
@@ -622,8 +665,11 @@ export const CanvasView = ({
       TextElement,
       "fontFamily" | "fontSize" | "fontWeight" | "fontStyle" | "textAlign"
     >,
+    cacheId?: string,
   ) => {
-    const layout = measureRichTextLayout(ctx, value, style);
+    const layout = cacheId
+      ? getCachedRichTextLayout(ctx, cacheId, value, style)
+      : measureRichTextLayout(ctx, value, style);
 
     layout.lines.forEach((line, lineIndex) => {
       const lineWidth = layout.lineWidths[lineIndex] ?? 0;
@@ -677,8 +723,11 @@ export const CanvasView = ({
       TextElement,
       "fontFamily" | "fontSize" | "fontWeight" | "fontStyle" | "textAlign"
     >,
+    cacheId?: string,
   ) => {
-    const layout = measureRichTextLayout(ctx, value, style);
+    const layout = cacheId
+      ? getCachedRichTextLayout(ctx, cacheId, value, style)
+      : measureRichTextLayout(ctx, value, style);
     const topY = centerY - layout.height / 2;
 
     layout.lines.forEach((line, lineIndex) => {
@@ -1898,20 +1947,69 @@ export const CanvasView = ({
       }
     }
 
+    const selectedIdSet = new Set(selectedIds);
+    const marqueePreviewIdSet =
+      marqueeSelection !== null ? new Set(marqueePreviewIds) : null;
+    const viewportPadding = Math.max(160 / camera.zoom, 48);
+    const viewportBounds = {
+      x: camera.x - viewportPadding,
+      y: camera.y - viewportPadding,
+      width: canvas.width / camera.zoom + viewportPadding * 2,
+      height: canvas.height / camera.zoom + viewportPadding * 2,
+    };
+
+    const intersectsViewport = (bounds: ElementBounds): boolean => {
+      return !(
+        bounds.x + bounds.width < viewportBounds.x ||
+        bounds.x > viewportBounds.x + viewportBounds.width ||
+        bounds.y + bounds.height < viewportBounds.y ||
+        bounds.y > viewportBounds.y + viewportBounds.height
+      );
+    };
+
     for (const element of scene.elements) {
-      const isSelected = selectedIds.includes(element.id);
+      const isSelected = selectedIdSet.has(element.id);
       const shouldShowElementSelection =
         isSelected && (!isWholeGroupSelected || selectedIds.length === 1);
       const isMarqueePreview =
         marqueeSelection !== null &&
-        marqueePreviewIds.includes(element.id) &&
+        marqueePreviewIdSet?.has(element.id) &&
         !isSelected;
       const isMultiSelection = selectedIds.length > 1;
       const rotationRadians = (element.rotation * Math.PI) / 180;
 
+      if (!isSelected && !isMarqueePreview && editingText?.id !== element.id) {
+        let cullBounds: ElementBounds | null = null;
+
+        if (
+          element.type === "draw" ||
+          element.type === "image" ||
+          element.type === "rectangle" ||
+          element.type === "circle"
+        ) {
+          cullBounds = {
+            x: element.x,
+            y: element.y,
+            width: element.width,
+            height: element.height,
+          };
+        } else if (element.type === "line") {
+          cullBounds = getLineSelectionBounds(element);
+        }
+
+        if (cullBounds && !intersectsViewport(cullBounds)) {
+          continue;
+        }
+      }
+
       if (element.type === "draw") {
         const drawMode = element.drawMode ?? "draw";
-        const bounds = measureElementBounds(element);
+        const bounds = {
+          x: element.x,
+          y: element.y,
+          width: element.width,
+          height: element.height,
+        };
         const localSelectionBounds = {
           x: bounds.x - element.x,
           y: bounds.y - element.y,
@@ -2225,6 +2323,7 @@ export const CanvasView = ({
               fontStyle: shapeTextElement.fontStyle,
               textAlign: shapeTextElement.textAlign,
             },
+            `shape:${element.id}`,
           );
           ctx.restore();
         }
@@ -2321,12 +2420,17 @@ export const CanvasView = ({
         continue;
       }
 
-      const textMetrics = measureRichTextLayout(ctx, element.text, {
-        fontFamily: element.fontFamily,
-        fontSize: element.fontSize,
-        fontWeight: element.fontWeight,
-        fontStyle: element.fontStyle,
-      });
+      const textMetrics = getCachedRichTextLayout(
+        ctx,
+        `text:${element.id}`,
+        element.text,
+        {
+          fontFamily: element.fontFamily,
+          fontSize: element.fontSize,
+          fontWeight: element.fontWeight,
+          fontStyle: element.fontStyle,
+        },
+      );
       const textWidth = textMetrics.width;
       const textBoundsWithoutPadding = {
         x: getAlignedStartX(element.x, textWidth, element.textAlign),
@@ -2350,7 +2454,7 @@ export const CanvasView = ({
         fontWeight: element.fontWeight,
         fontStyle: element.fontStyle,
         textAlign: element.textAlign,
-      });
+      }, `text:${element.id}`);
 
       if (shouldShowElementSelection) {
         const textBounds = getElementBounds(element.id, ctx, true);
