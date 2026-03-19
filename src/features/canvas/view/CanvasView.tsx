@@ -2781,6 +2781,7 @@ export const CanvasView = ({
     }
 
     const margin = 24;
+    const panTolerancePx = 1;
     const rightOverflow =
       editingText.left + editingText.width - canvasSize.width;
     const leftOverflow = -editingText.left;
@@ -2791,16 +2792,24 @@ export const CanvasView = ({
     let panX = 0;
     let panY = 0;
 
-    if (rightOverflow > -margin) {
+    if (rightOverflow > -margin + panTolerancePx) {
       panX = rightOverflow + margin;
-    } else if (leftOverflow > -margin) {
+    } else if (leftOverflow > -margin + panTolerancePx) {
       panX = -(leftOverflow + margin);
     }
 
-    if (bottomOverflow > -margin) {
+    if (bottomOverflow > -margin + panTolerancePx) {
       panY = bottomOverflow + margin;
-    } else if (topOverflow > -margin) {
+    } else if (topOverflow > -margin + panTolerancePx) {
       panY = -(topOverflow + margin);
+    }
+
+    if (Math.abs(panX) <= panTolerancePx) {
+      panX = 0;
+    }
+
+    if (Math.abs(panY) <= panTolerancePx) {
+      panY = 0;
     }
 
     if (panX !== 0 || panY !== 0) {
@@ -3199,6 +3208,21 @@ export const CanvasView = ({
       });
       setCanvasCursor("default");
       canvas.setPointerCapture(e.pointerId);
+      return;
+    }
+
+    if (
+      e.shiftKey &&
+      selectedIds.length > 1 &&
+      selectedIds.includes(hitId)
+    ) {
+      onSelectElements(selectedIds.filter((id) => id !== hitId));
+      setActiveRotatingHandle(null);
+      setActiveResizeHandle(null);
+      setIsDraggingElement(false);
+      setIsDuplicateDragging(false);
+      setMarqueeSelection(null);
+      setCanvasCursor("default");
       return;
     }
 
