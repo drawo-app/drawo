@@ -121,6 +121,7 @@ interface FlipPreviewState {
 }
 
 const FLIP_ANIMATION_DURATION_MS = 220;
+const SHIFT_CLICK_DESELECT_DRAG_THRESHOLD_PX = 4;
 
 const isFlippableSceneElement = (
   element: SceneElement,
@@ -452,6 +453,13 @@ export const CanvasView = ({
   const contextMenuPointRef = useRef<{ x: number; y: number } | null>(null);
   const panStateRef = useRef<{ screenX: number; screenY: number } | null>(null);
   const isMiddleMousePanningRef = useRef(false);
+  const shiftClickDeselectCandidateRef = useRef<{
+    hitId: string;
+    selectedIds: string[];
+    startScreenX: number;
+    startScreenY: number;
+    shouldDeselect: boolean;
+  } | null>(null);
   const selectedIds = getSelectedIds(scene);
   const hasSelection = selectedIds.length > 0;
   const canTransformSelection = selectedIds.length === 1;
@@ -2448,13 +2456,20 @@ export const CanvasView = ({
       ctx.fillStyle = toThemeColor(element.color);
       ctx.textAlign = "left";
       ctx.textBaseline = "alphabetic";
-      drawRichText(ctx, element.text, element.x, element.y, {
-        fontFamily: element.fontFamily,
-        fontSize: element.fontSize,
-        fontWeight: element.fontWeight,
-        fontStyle: element.fontStyle,
-        textAlign: element.textAlign,
-      }, `text:${element.id}`);
+      drawRichText(
+        ctx,
+        element.text,
+        element.x,
+        element.y,
+        {
+          fontFamily: element.fontFamily,
+          fontSize: element.fontSize,
+          fontWeight: element.fontWeight,
+          fontStyle: element.fontStyle,
+          textAlign: element.textAlign,
+        },
+        `text:${element.id}`,
+      );
 
       if (shouldShowElementSelection) {
         const textBounds = getElementBounds(element.id, ctx, true);
@@ -2991,6 +3006,7 @@ export const CanvasView = ({
     const screenY = e.clientY - rect.top;
     const pointer = screenToWorld(screenX, screenY);
     lastPointerRef.current = pointer;
+    shiftClickDeselectCandidateRef.current = null;
 
     if (e.button === 1) {
       e.preventDefault();
@@ -3317,17 +3333,17 @@ export const CanvasView = ({
 
     if (
       e.shiftKey &&
+      !e.altKey &&
       selectedIds.length > 1 &&
       selectedIds.includes(hitId)
     ) {
-      onSelectElements(selectedIds.filter((id) => id !== hitId));
-      setActiveRotatingHandle(null);
-      setActiveResizeHandle(null);
-      setIsDraggingElement(false);
-      setIsDuplicateDragging(false);
-      setMarqueeSelection(null);
-      setCanvasCursor("default");
-      return;
+      shiftClickDeselectCandidateRef.current = {
+        hitId,
+        selectedIds: [...selectedIds],
+        startScreenX: screenX,
+        startScreenY: screenY,
+        shouldDeselect: true,
+      };
     }
 
     const dragging = Boolean(hitId);
@@ -3363,6 +3379,21 @@ export const CanvasView = ({
     const screenY = e.clientY - rect.top;
     const pointer = screenToWorld(screenX, screenY);
     lastPointerRef.current = pointer;
+
+    const shiftClickDeselectCandidate = shiftClickDeselectCandidateRef.current;
+    if (shiftClickDeselectCandidate?.shouldDeselect) {
+      const movedDistance = Math.hypot(
+        screenX - shiftClickDeselectCandidate.startScreenX,
+        screenY - shiftClickDeselectCandidate.startScreenY,
+      );
+
+      if (movedDistance > SHIFT_CLICK_DESELECT_DRAG_THRESHOLD_PX) {
+        shiftClickDeselectCandidateRef.current = {
+          ...shiftClickDeselectCandidate,
+          shouldDeselect: false,
+        };
+      }
+    }
 
     if (isMiddleMousePanningRef.current) {
       const panState = panStateRef.current;
@@ -3683,6 +3714,9 @@ export const CanvasView = ({
       canvas.releasePointerCapture(e.pointerId);
     }
 
+    const shiftClickDeselectCandidate = shiftClickDeselectCandidateRef.current;
+    shiftClickDeselectCandidateRef.current = null;
+
     if (interactionMode === "pan") {
       panStateRef.current = null;
       setActiveRadiusElementId(null);
@@ -3822,6 +3856,37 @@ export const CanvasView = ({
       setMarqueePreviewIds([]);
       setActiveRotatingHandle(null);
       setActiveResizeHandle(null);
+      setIsDraggingElement(false);
+      setIsDuplicateDragging(false);
+
+      const rect = canvas?.getBoundingClientRect();
+      if (rect) {
+        const screenX = e.clientX - rect.left;
+        const screenY = e.clientY - rect.top;
+        const pointer = screenToWorld(screenX, screenY);
+        lastPointerRef.current = pointer;
+        setCanvasCursor(resolveIdleCursor(pointer.x, pointer.y, e.altKey));
+      } else {
+        setCanvasCursor("default");
+      }
+
+      return;
+    }
+
+    if (shiftClickDeselectCandidate?.shouldDeselect && !e.altKey) {
+      onPointerUp();
+      onSelectElements(
+        shiftClickDeselectCandidate.selectedIds.filter(
+          (id) => id !== shiftClickDeselectCandidate.hitId,
+        ),
+      );
+
+      setActiveRotatingHandle(null);
+      setActiveResizeHandle(null);
+      setHoveredResizeHandle(null);
+      lineHandleDragRef.current = null;
+      setActiveLineHandle(null);
+      setHoveredLineHandle(null);
       setIsDraggingElement(false);
       setIsDuplicateDragging(false);
 
