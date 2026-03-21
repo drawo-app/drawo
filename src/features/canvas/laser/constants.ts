@@ -19,4 +19,4 @@ export const LASER_MIN_WIDTH_PX = 0.3;
 /**
  * Laser stroke color used consistently across the feature.
  */
-export const LASER_COLOR = "#ff1424";
+export const LASER_COLOR = "#FF1A28";

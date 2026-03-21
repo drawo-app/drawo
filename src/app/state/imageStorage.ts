@@ -23,7 +23,10 @@ const toDataError = (error: unknown, fallbackMessage: string) =>
   error instanceof Error ? error : new Error(fallbackMessage);
 
 const generateImageAssetId = () => {
-  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+  if (
+    typeof crypto !== "undefined" &&
+    typeof crypto.randomUUID === "function"
+  ) {
     return crypto.randomUUID();
   }
 

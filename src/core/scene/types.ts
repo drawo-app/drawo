@@ -24,6 +24,13 @@ export interface SceneSettings {
     markerStrokeWidth: number;
     quillStrokeWidth: number;
   };
+  laserSettings: {
+    lifetime: number;
+    baseWidth: number;
+    minWidth: number;
+    shadow: boolean;
+    color: string;
+  };
 }
 
 export interface Scene {
@@ -79,6 +86,13 @@ export const initScene = (): Scene => ({
       drawStrokeWidth: 2,
       markerStrokeWidth: 18,
       quillStrokeWidth: 2,
+    },
+    laserSettings: {
+      lifetime: 600,
+      baseWidth: 11,
+      minWidth: 0.3,
+      shadow: false,
+      color: "#FF1A28",
     },
   },
 });

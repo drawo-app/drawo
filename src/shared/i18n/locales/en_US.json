@@ -11,7 +11,8 @@
     "language": "Language",
     "quickActions": "Quick actions",
     "clearCanvas": "Clear canvas",
-    "exportProject": "Export (.drawo)",
+    "saveProject": "Save to... (.drawo)",
+    "exportProject": "Export image",
     "openProject": "Open (.drawo)",
     "zenMode": "Zen mode",
     "presentationMode": "View mode",
@@ -24,6 +25,7 @@
     "text": "Text",
     "organize": "Organize",
     "settings": "Settings",
+    "donate": "Donate",
     "organizeActions": {
       "alignLeft": "Align left",
       "alignCenter": "Align center",
@@ -34,6 +36,19 @@
     }
   },
   "dialogs": {
+    "laserCanvas": {
+      "label": "Laser pointer configuration...",
+      "title": "Laser pointer configuration",
+      "description": "Configure the laser pointer settings.",
+      "enableShadows": "Enable shadows",
+      "color": "Color",
+      "lifetime": "Stroke duration (ms)",
+      "baseWidth": "Base width (px)",
+      "minWidth": "Minimum width (px)",
+      "reset": "Reset",
+      "save": "Save",
+      "cancel": "Cancel"
+    },
     "clearCanvas": {
       "title": "Clear the canvas?",
       "description": "This will remove all elements and cannot be undone.",

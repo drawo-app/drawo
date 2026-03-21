@@ -11,7 +11,8 @@
     "language": "Idioma",
     "quickActions": "Acciones rápidas",
     "clearCanvas": "Vaciar canvas",
-    "exportProject": "Exportar (.drawo)",
+    "saveProject": "Guardar en... (.drawo)",
+    "exportProject": "Exportar imagen",
     "openProject": "Abrir (.drawo)",
     "zenMode": "Modo zen",
     "presentationMode": "Modo presentación",
@@ -24,6 +25,7 @@
     "text": "Texto",
     "organize": "Organizar",
     "settings": "Preferencias",
+    "donate": "Donar",
     "organizeActions": {
       "alignLeft": "Alinear a la izquierda",
       "alignCenter": "Centrar horizontalmente",
@@ -34,6 +36,19 @@
     }
   },
   "dialogs": {
+    "laserCanvas": {
+      "label": "Configuración del puntero láser...",
+      "title": "Configuración del puntero láser",
+      "description": "Configurar el puntero láser",
+      "color": "Color",
+      "lifetime": "Duración del trazo (ms)",
+      "baseWidth": "Ancho inicial (px)",
+      "minWidth": "Ancho mínimo (px)",
+      "enableShadows": "Activar sombras",
+      "reset": "Reiniciar",
+      "save": "Guardar",
+      "cancel": "Cancelar"
+    },
     "clearCanvas": {
       "title": "¿Vaciar el canvas?",
       "description": "Esta acción eliminará todos los elementos y no se puede deshacer.",

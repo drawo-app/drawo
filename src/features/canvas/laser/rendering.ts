@@ -1,42 +1,46 @@
-import { clamp01 } from "../rendering/color";
-import {
-  LASER_BASE_WIDTH_PX,
-  LASER_COLOR,
-  LASER_LIFETIME_MS,
-  LASER_MIN_WIDTH_PX,
-} from "./constants";
+import { clamp01, parseColor } from "../rendering/color";
 import type { LaserTrailPoint } from "./types";
 
-/**
- * Converts point age into a width attenuation factor.
- *
- * The easing exponent makes the trail stay visible near the head, then taper
- * faster near the end for a cleaner laser look.
- */
-const getLaserWidthFactor = (ageMs: number): number => {
-  const normalized = clamp01(1 - ageMs / LASER_LIFETIME_MS);
+export interface LaserSettings {
+  lifetime: number;
+  baseWidth: number;
+  minWidth: number;
+  shadow: boolean;
+  color: string;
+}
+
+const getLaserWidthFactor = (ageMs: number, lifetime: number): number => {
+  const normalized = clamp01(1 - ageMs / lifetime);
   return Math.pow(normalized, 1.3);
 };
 
-/**
- * Draws one laser trail using Catmull-Rom interpolation.
- *
- * A segment-by-segment stroke is used instead of one large path so each sample
- * can have its own width based on age.
- */
-export const drawLaserTrail = (
+const withAlpha = (color: string, alphaMultiplier: number) => {
+  const parsed = parseColor(color);
+  if (!parsed) {
+    return color;
+  }
+
+  return `rgba(${parsed.r}, ${parsed.g}, ${parsed.b}, ${clamp01(parsed.a * alphaMultiplier)})`;
+};
+
+const renderLaserPass = (
   ctx: CanvasRenderingContext2D,
   points: LaserTrailPoint[],
   now: number,
   camera: { zoom: number },
+  settings: LaserSettings,
+  pass: {
+    widthMultiplier: number;
+    strokeColor: string;
+    shadowColor: string;
+    shadowBlurPx: number;
+  },
 ) => {
-  if (points.length < 2) {
-    return;
-  }
-
-  ctx.lineJoin = "round";
-  ctx.lineCap = "round";
-  ctx.strokeStyle = LASER_COLOR;
+  ctx.strokeStyle = pass.strokeColor;
+  ctx.shadowColor = pass.shadowColor;
+  ctx.shadowBlur = pass.shadowBlurPx / camera.zoom;
+  ctx.shadowOffsetX = 0;
+  ctx.shadowOffsetY = 0;
 
   const resolution = 5;
   let firstPoint = true;
@@ -68,13 +72,13 @@ export const drawLaserTrail = (
         (2 * (p1.y - p2.y) + v0y + v1y) * t3;
 
       const pointT = p1.t + (p2.t - p1.t) * t;
-      const widthFactor = getLaserWidthFactor(now - pointT);
+      const widthFactor = getLaserWidthFactor(now - pointT, settings.lifetime);
       const widthPx = Math.max(
-        LASER_MIN_WIDTH_PX,
-        LASER_BASE_WIDTH_PX * widthFactor,
+        settings.minWidth,
+        settings.baseWidth * widthFactor * pass.widthMultiplier,
       );
 
-      if (widthPx > LASER_MIN_WIDTH_PX + 0.01) {
+      if (widthPx > settings.minWidth + 0.01) {
         if (firstPoint) {
           ctx.beginPath();
           ctx.moveTo(x, y);
@@ -89,4 +93,41 @@ export const drawLaserTrail = (
       }
     }
   }
+};
+
+export const drawLaserTrail = (
+  ctx: CanvasRenderingContext2D,
+  points: LaserTrailPoint[],
+  now: number,
+  camera: { zoom: number },
+  settings: LaserSettings,
+) => {
+  if (points.length < 2) {
+    return;
+  }
+
+  ctx.lineJoin = "round";
+  ctx.lineCap = "round";
+  if (settings.shadow) {
+    renderLaserPass(ctx, points, now, camera, settings, {
+      widthMultiplier: 2.8,
+      strokeColor: withAlpha(settings.color, 0.2),
+      shadowColor: withAlpha(settings.color, 0.8),
+      shadowBlurPx: 28,
+    });
+
+    renderLaserPass(ctx, points, now, camera, settings, {
+      widthMultiplier: 1.85,
+      strokeColor: withAlpha(settings.color, 0.35),
+      shadowColor: withAlpha(settings.color, 0.95),
+      shadowBlurPx: 14,
+    });
+  }
+
+  renderLaserPass(ctx, points, now, camera, settings, {
+    widthMultiplier: 1,
+    strokeColor: settings.color,
+    shadowColor: "rgba(0, 0, 0, 0)",
+    shadowBlurPx: 0,
+  });
 };

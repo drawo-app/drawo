@@ -93,7 +93,6 @@ import type {
 } from "@features/canvas/types";
 import type { SmartGuide } from "@features/canvas/selection/alignmentGuides";
 import {
-  LASER_COLOR,
   drawLaserTrail,
   useLaserTrails,
 } from "@features/canvas/laser";
@@ -2724,14 +2723,15 @@ export const CanvasView = ({
 
     if (laserTrails.length > 0) {
       ctx.save();
-      ctx.fillStyle = LASER_COLOR;
+      const laserSettings = scene.settings.laserSettings;
+      ctx.fillStyle = laserSettings.color;
 
       for (const trail of laserTrails) {
         if (trail.points.length === 0) {
           continue;
         }
 
-        drawLaserTrail(ctx, trail.points, laserNow, camera);
+        drawLaserTrail(ctx, trail.points, laserNow, camera, laserSettings);
       }
 
       ctx.restore();

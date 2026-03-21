@@ -16,6 +16,7 @@ export interface LocaleMessages {
     language: string;
     quickActions: string;
     clearCanvas: string;
+    saveProject: string;
     exportProject: string;
     openProject: string;
     zenMode: string;
@@ -29,6 +30,7 @@ export interface LocaleMessages {
     text: string;
     organize: string;
     settings: string;
+    donate: string;
     organizeActions: {
       alignLeft: string;
       alignCenter: string;
@@ -43,6 +45,19 @@ export interface LocaleMessages {
       title: string;
       description: string;
       confirm: string;
+      cancel: string;
+    };
+    laserCanvas: {
+      label: string;
+      title: string;
+      description: string;
+      color: string;
+      lifetime: string;
+      baseWidth: string;
+      minWidth: string;
+      enableShadows: string;
+      reset: string;
+      save: string;
       cancel: string;
     };
     openProject: {

@@ -29,17 +29,21 @@ import {
 } from "@shared/ui/dropdown-menu";
 import { MonitorSmartphone, Moon, Sun } from "@solar-icons/react";
 import {
+  ArrowDownToSquare,
   BroomMotion,
   BucketPaint,
   ChevronsExpandUpRight,
+  CrownDiamond,
   Cup,
   Dots9,
   Eye,
   File,
+  FolderOpen,
   Gear,
   Globe,
   LayoutCells,
   LayoutHeaderCursor,
+  LogoGithub,
   Molecule,
   ObjectsAlignBottom,
   ObjectsAlignCenterHorizontal,
@@ -65,9 +69,10 @@ import {
   DialogTitle,
 } from "@shared/ui/dialog";
 import { Alt } from "@shared/lib/platform/macShortcuts";
-import { LaserPointerStylusIcon } from "@shared/ui/icons";
+import { DiscordIcon, LaserPointerStylusIcon } from "@shared/ui/icons";
 import { ColorSwatchPicker } from "@shared/ui/ColorSwatchPicker";
-import { invertLightnessPreservingHue } from "@features/canvas/rendering/color";
+import { Slider } from "@shared/ui/slider";
+import { Switch } from "@shared/ui/switch";
 
 interface MenuBarProps {
   scene: Scene;
@@ -92,8 +97,14 @@ export const MenuBar = ({
 }: MenuBarProps) => {
   const [isClearDialogOpen, setIsClearDialogOpen] = useState(false);
   const [isLaserPointerOpen, setIsLaserPointerOpen] = useState(false);
-  const [isOpenProjectConfirmOpen, setIsOpenProjectConfirmOpen] = useState(false);
-  const [pendingProjectFile, setPendingProjectFile] = useState<File | null>(null);
+  const [isOpenProjectConfirmOpen, setIsOpenProjectConfirmOpen] =
+    useState(false);
+  const [pendingProjectFile, setPendingProjectFile] = useState<File | null>(
+    null,
+  );
+  const [laserSettings, setLaserSettings] = useState(
+    scene.settings.laserSettings,
+  );
   const projectInputRef = useRef<HTMLInputElement | null>(null);
   const hasElements = scene.elements.length > 0;
   const selectedCount =
@@ -103,10 +114,31 @@ export const MenuBar = ({
         ? 1
         : 0;
 
-  const uniColor = (color: string) =>
-    document.documentElement.classList.contains("dark")
-      ? invertLightnessPreservingHue(color)
-      : color;
+  const handleLaserDialogOpen = (open: boolean) => {
+    setIsLaserPointerOpen(open);
+    if (open) {
+      setLaserSettings(scene.settings.laserSettings);
+    }
+  };
+
+  const handleLaserSave = () => {
+    setSceneWithoutHistory((currentScene) =>
+      updateSceneSettings(currentScene, {
+        laserSettings: laserSettings,
+      }),
+    );
+    setIsLaserPointerOpen(false);
+  };
+
+  const handleLaserReset = () => {
+    setLaserSettings({
+      lifetime: 600,
+      baseWidth: 11,
+      shadow: false,
+      minWidth: 0.3,
+      color: "#FF1A28",
+    });
+  };
 
   const handleClearCanvas = useCallback(() => {
     setScene((currentScene) => {
@@ -156,7 +188,11 @@ export const MenuBar = ({
 
       void applyOpenProject(file);
     },
-    [applyOpenProject, hasElements, messages.dialogs.openProject.invalidExtension],
+    [
+      applyOpenProject,
+      hasElements,
+      messages.dialogs.openProject.invalidExtension,
+    ],
   );
 
   const handleConfirmOpenProject = useCallback(() => {
@@ -196,21 +232,21 @@ export const MenuBar = ({
               <File />
               {messages.menu.file}
             </DropdownMenuSubTrigger>
-              <DropdownMenuSubContent>
-                <DropdownMenuItem onClick={onExportProject}>
-                  <File /> {messages.menu.exportProject}
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => {
-                    projectInputRef.current?.click();
-                  }}
-                >
-                  <File /> {messages.menu.openProject}
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  onClick={() => setIsClearDialogOpen(true)}
-                  disabled={!hasElements}
+            <DropdownMenuSubContent>
+              <DropdownMenuItem
+                onClick={() => {
+                  projectInputRef.current?.click();
+                }}
+              >
+                <FolderOpen /> {messages.menu.openProject}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={onExportProject}>
+                <ArrowDownToSquare /> {messages.menu.saveProject}
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => setIsClearDialogOpen(true)}
+                disabled={!hasElements}
               >
                 <BroomMotion /> {messages.menu.clearCanvas}
               </DropdownMenuItem>
@@ -349,7 +385,7 @@ export const MenuBar = ({
                   );
                 }}
               >
-              <ObjectsAlignLeft />
+                <ObjectsAlignLeft />
                 {messages.menu.organizeActions.alignLeft}
               </DropdownMenuItem>
               <DropdownMenuItem
@@ -371,7 +407,7 @@ export const MenuBar = ({
                   );
                 }}
               >
-                <ObjectsAlignRight/>
+                <ObjectsAlignRight />
                 {messages.menu.organizeActions.alignRight}
               </DropdownMenuItem>
               <DropdownMenuSeparator />
@@ -394,7 +430,7 @@ export const MenuBar = ({
                   );
                 }}
               >
-                <ObjectsAlignCenterVertical/>
+                <ObjectsAlignCenterVertical />
                 {messages.menu.organizeActions.alignMiddle}
               </DropdownMenuItem>
               <DropdownMenuItem
@@ -410,6 +446,25 @@ export const MenuBar = ({
               </DropdownMenuItem>
             </DropdownMenuSubContent>
           </DropdownMenuSub>
+
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            onClick={() => {
+              window.open("https://github.com/drawo-app/drawo", "_blank");
+            }}
+          >
+            <LogoGithub /> Github
+          </DropdownMenuItem>
+          <DropdownMenuItem disabled>
+            <DiscordIcon /> Discord
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onClick={() => {
+              window.open("https://buymeacoffee.com/pico190_", "_blank");
+            }}
+          >
+            <CrownDiamond /> {messages.menu.donate}
+          </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuSub>
             <DropdownMenuSubTrigger>
@@ -521,25 +576,25 @@ export const MenuBar = ({
               </DropdownMenuSub>
               <DropdownMenuItem
                 onClick={() => {
-                  setIsLaserPointerOpen(!isLaserPointerOpen);
+                  handleLaserDialogOpen(true);
                 }}
               >
-                <LaserPointerStylusIcon /> Laser pointer configuration...
+                <LaserPointerStylusIcon /> {messages.dialogs.laserCanvas.label}
               </DropdownMenuItem>
             </DropdownMenuSubContent>
           </DropdownMenuSub>
         </DropdownMenuContent>
       </DropdownMenu>
 
-      <Dialog open={isLaserPointerOpen} onOpenChange={setIsLaserPointerOpen}>
+      <Dialog open={isLaserPointerOpen} onOpenChange={handleLaserDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Laser pointer configuration</DialogTitle>
+            <DialogTitle>{messages.dialogs.laserCanvas.title}</DialogTitle>
             <DialogDescription>
-              Configure the laser pointer settings.
+              {messages.dialogs.laserCanvas.description}
             </DialogDescription>
           </DialogHeader>
-          <p className="label">Color</p>
+          <p className="label">{messages.dialogs.laserCanvas.color}</p>
           <div className="colorswatch-dialog">
             <ColorSwatchPicker
               colors={[
@@ -548,40 +603,96 @@ export const MenuBar = ({
                 "#FFD400",
                 "#00E05A",
                 "#008CFF",
-                "#9B3DFF",
+                "#7c5cff",
                 "#FF2BD6",
                 "#00E5FF",
               ]}
-              currentColor={"#FF1A28"}
-              uniColor={uniColor}
+              currentColor={laserSettings.color}
+              uniColor={(color) => color}
               renderItem={({ color, swatch }) => (
                 <div
                   key={color}
                   className="drawo-colorselect-item"
-                  onPointerDown={undefined}
-                  onSelect={undefined}
+                  onPointerDown={() => {
+                    setLaserSettings((prev) => ({ ...prev, color }));
+                  }}
                 >
                   {swatch}
                 </div>
               )}
             />
           </div>
-          <p className="label">Duración del trazo</p>
+          <p className="label">{messages.dialogs.laserCanvas.lifetime}</p>
+          <Slider
+            value={[laserSettings.lifetime]}
+            onValueChange={(val) => {
+              setLaserSettings((prev) => ({ ...prev, lifetime: val[0] }));
+            }}
+            max={2000}
+            min={100}
+            step={10}
+          />
+          <p className="label">{messages.dialogs.laserCanvas.baseWidth}</p>
+          <Slider
+            value={[laserSettings.baseWidth]}
+            onValueChange={(val) => {
+              setLaserSettings((prev) => ({ ...prev, baseWidth: val[0] }));
+            }}
+            max={30}
+            min={1}
+            step={0.5}
+          />
+          <p className="label">{messages.dialogs.laserCanvas.minWidth}</p>
+          <Slider
+            value={[laserSettings.minWidth]}
+            onValueChange={(val) => {
+              setLaserSettings((prev) => ({ ...prev, minWidth: val[0] }));
+            }}
+            max={5}
+            min={0.1}
+            step={0.1}
+          />
+          <div className="drawo-checkbox-section">
+            <Switch
+              checked={laserSettings.shadow}
+              onCheckedChange={(e) => {
+                setLaserSettings((prev) => ({
+                  ...prev,
+                  shadow: e,
+                }));
+              }}
+            />
+            <span className="text-flex">
+              {messages.dialogs.laserCanvas.enableShadows}{" "}
+              <span className="drawo-keybind">BETA</span>
+            </span>
+          </div>
 
           <DialogFooter>
-            <div className="drawo-dialog-actions">
-              <DialogClose asChild>
-                <button type="button" className="drawo-btn-secondary">
-                  Cerrar
+            <div className="drawo-dialog-actions drawo-dialog-actions-separated">
+              <div className="drawo-dialog-actions-section">
+                <button
+                  type="button"
+                  className="drawo-btn-secondary"
+                  onClick={handleLaserReset}
+                >
+                  {messages.dialogs.laserCanvas.reset}
                 </button>
-              </DialogClose>
-              <button
-                type="button"
-                className="drawo-btn-primary"
-                onClick={() => {}}
-              >
-                Guardar
-              </button>
+              </div>
+              <div className="drawo-dialog-actions-section">
+                <DialogClose asChild>
+                  <button type="button" className="drawo-btn-secondary">
+                    {messages.dialogs.laserCanvas.cancel}
+                  </button>
+                </DialogClose>
+                <button
+                  type="button"
+                  className="drawo-btn-primary"
+                  onClick={handleLaserSave}
+                >
+                  {messages.dialogs.laserCanvas.save}
+                </button>
+              </div>
             </div>
           </DialogFooter>
         </DialogContent>

@@ -88,7 +88,8 @@ const isDrawoProjectFile = (value: unknown): value is DrawoProjectFile => {
     (candidate.openTopbarPanel === "music" ||
       candidate.openTopbarPanel === "timer" ||
       candidate.openTopbarPanel === null) &&
-    (typeof candidate.timerState === "string" || candidate.timerState === null) &&
+    (typeof candidate.timerState === "string" ||
+      candidate.timerState === null) &&
     (typeof candidate.musicBarState === "string" ||
       candidate.musicBarState === null)
   );
@@ -108,12 +109,14 @@ const loadImageFiles = async (files: File[]): Promise<LoadedImageFile[]> => {
       .map((file) => prepareAndStoreImageFile(file)),
   );
 
-  return loaded.filter(
-    (result): result is PromiseFulfilledResult<LoadedImageFile> =>
-      result.status === "fulfilled" &&
-      result.value.naturalWidth > 0 &&
-      result.value.naturalHeight > 0,
-  ).map((result) => result.value);
+  return loaded
+    .filter(
+      (result): result is PromiseFulfilledResult<LoadedImageFile> =>
+        result.status === "fulfilled" &&
+        result.value.naturalWidth > 0 &&
+        result.value.naturalHeight > 0,
+    )
+    .map((result) => result.value);
 };
 
 const toPersistableScene = (scene: Scene): Scene => {
@@ -460,7 +463,10 @@ export default function App() {
     const sceneToPersist = toPersistableScene(scene);
 
     try {
-      localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(scene.settings));
+      localStorage.setItem(
+        SETTINGS_STORAGE_KEY,
+        JSON.stringify(scene.settings),
+      );
     } catch {
       return;
     }
