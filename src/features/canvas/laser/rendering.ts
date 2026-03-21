@@ -23,27 +23,30 @@ const withAlpha = (color: string, alphaMultiplier: number) => {
   return `rgba(${parsed.r}, ${parsed.g}, ${parsed.b}, ${clamp01(parsed.a * alphaMultiplier)})`;
 };
 
-const renderLaserPass = (
-  ctx: CanvasRenderingContext2D,
+interface LaserSample {
+  x: number;
+  y: number;
+  widthPx: number;
+}
+
+interface LaserSampleSet {
+  samples: LaserSample[];
+  maxWidthPx: number;
+  avgWidthPx: number;
+}
+
+const isFirefoxRuntime =
+  typeof navigator !== "undefined" && /firefox/i.test(navigator.userAgent);
+
+const sampleLaserTrail = (
   points: LaserTrailPoint[],
   now: number,
-  camera: { zoom: number },
   settings: LaserSettings,
-  pass: {
-    widthMultiplier: number;
-    strokeColor: string;
-    shadowColor: string;
-    shadowBlurPx: number;
-  },
-) => {
-  ctx.strokeStyle = pass.strokeColor;
-  ctx.shadowColor = pass.shadowColor;
-  ctx.shadowBlur = pass.shadowBlurPx / camera.zoom;
-  ctx.shadowOffsetX = 0;
-  ctx.shadowOffsetY = 0;
-
-  const resolution = 5;
-  let firstPoint = true;
+): LaserSampleSet => {
+  const resolution = 3;
+  const samples: LaserSample[] = [];
+  let widthSum = 0;
+  let maxWidthPx = 0;
 
   for (let index = 0; index < points.length - 1; index++) {
     const p0 = points[index === 0 ? 0 : index - 1];
@@ -75,24 +78,78 @@ const renderLaserPass = (
       const widthFactor = getLaserWidthFactor(now - pointT, settings.lifetime);
       const widthPx = Math.max(
         settings.minWidth,
-        settings.baseWidth * widthFactor * pass.widthMultiplier,
+        settings.baseWidth * widthFactor,
       );
 
-      if (widthPx > settings.minWidth + 0.01) {
-        if (firstPoint) {
-          ctx.beginPath();
-          ctx.moveTo(x, y);
-          firstPoint = false;
-        } else {
-          ctx.lineWidth = widthPx / camera.zoom;
-          ctx.lineTo(x, y);
-          ctx.stroke();
-          ctx.beginPath();
-          ctx.moveTo(x, y);
-        }
+      if (widthPx <= settings.minWidth + 0.01) {
+        continue;
       }
+
+      const previous = samples[samples.length - 1];
+      if (previous && previous.x === x && previous.y === y) {
+        continue;
+      }
+
+      samples.push({ x, y, widthPx });
+      widthSum += widthPx;
+      maxWidthPx = Math.max(maxWidthPx, widthPx);
     }
   }
+
+  return {
+    samples,
+    maxWidthPx,
+    avgWidthPx:
+      samples.length > 0 ? widthSum / samples.length : settings.minWidth,
+  };
+};
+
+const buildLaserPath = (samples: LaserSample[]): Path2D => {
+  const path = new Path2D();
+  path.moveTo(samples[0].x, samples[0].y);
+
+  for (let index = 1; index < samples.length; index++) {
+    const sample = samples[index];
+    path.lineTo(sample.x, sample.y);
+  }
+
+  return path;
+};
+
+const drawBlurGlowPass = (
+  ctx: CanvasRenderingContext2D,
+  path: Path2D,
+  camera: { zoom: number },
+  pass: {
+    strokeColor: string;
+    shadowColor: string;
+    widthPx: number;
+    shadowBlurPx: number;
+  },
+) => {
+  ctx.strokeStyle = pass.strokeColor;
+  ctx.lineWidth = pass.widthPx / camera.zoom;
+  ctx.shadowColor = pass.shadowColor;
+  ctx.shadowBlur = pass.shadowBlurPx / camera.zoom;
+  ctx.shadowOffsetX = 0;
+  ctx.shadowOffsetY = 0;
+  ctx.stroke(path);
+};
+
+const drawCorePass = (
+  ctx: CanvasRenderingContext2D,
+  path: Path2D,
+  camera: { zoom: number },
+  color: string,
+  widthPx: number,
+) => {
+  ctx.shadowBlur = 0;
+  ctx.shadowColor = "rgba(0, 0, 0, 0)";
+  ctx.shadowOffsetX = 0;
+  ctx.shadowOffsetY = 0;
+  ctx.strokeStyle = color;
+  ctx.lineWidth = widthPx / camera.zoom;
+  ctx.stroke(path);
 };
 
 export const drawLaserTrail = (
@@ -106,28 +163,62 @@ export const drawLaserTrail = (
     return;
   }
 
-  ctx.lineJoin = "round";
-  ctx.lineCap = "round";
-  if (settings.shadow) {
-    renderLaserPass(ctx, points, now, camera, settings, {
-      widthMultiplier: 2.8,
-      strokeColor: withAlpha(settings.color, 0.2),
-      shadowColor: withAlpha(settings.color, 0.8),
-      shadowBlurPx: 28,
-    });
-
-    renderLaserPass(ctx, points, now, camera, settings, {
-      widthMultiplier: 1.85,
-      strokeColor: withAlpha(settings.color, 0.35),
-      shadowColor: withAlpha(settings.color, 0.95),
-      shadowBlurPx: 14,
-    });
+  const { samples, maxWidthPx, avgWidthPx } = sampleLaserTrail(
+    points,
+    now,
+    settings,
+  );
+  if (samples.length < 2) {
+    return;
   }
 
-  renderLaserPass(ctx, points, now, camera, settings, {
-    widthMultiplier: 1,
-    strokeColor: settings.color,
-    shadowColor: "rgba(0, 0, 0, 0)",
-    shadowBlurPx: 0,
-  });
+  const path = buildLaserPath(samples);
+
+  ctx.lineJoin = "round";
+  ctx.lineCap = "round";
+
+  if (settings.shadow) {
+    // Key insight: shadowBlur intensity scales with the drawn stroke area.
+    // Use full-width strokes so the gaussian has enough "ink" to cast a big halo.
+    // The core pass draws on top afterwards covering these glow strokes cleanly.
+    const corePx = Math.max(settings.minWidth, avgWidthPx);
+
+    if (isFirefoxRuntime) {
+      // Firefox: single pass, moderate blur to preserve FPS
+      drawBlurGlowPass(ctx, path, camera, {
+        strokeColor: withAlpha(settings.color, 1.0),
+        shadowColor: withAlpha(settings.color, 1.0),
+        widthPx: corePx,
+        shadowBlurPx: Math.max(18, maxWidthPx * 2.5),
+      });
+    } else {
+      // Chromium: three passes – outer mega-halo, mid glow, tight inner corona
+      drawBlurGlowPass(ctx, path, camera, {
+        strokeColor: withAlpha(settings.color, 1.0),
+        shadowColor: withAlpha(settings.color, 0.75),
+        widthPx: corePx,
+        shadowBlurPx: Math.max(60, maxWidthPx * 7),
+      });
+      drawBlurGlowPass(ctx, path, camera, {
+        strokeColor: withAlpha(settings.color, 1.0),
+        shadowColor: withAlpha(settings.color, 0.9),
+        widthPx: corePx,
+        shadowBlurPx: Math.max(30, maxWidthPx * 3.5),
+      });
+      drawBlurGlowPass(ctx, path, camera, {
+        strokeColor: withAlpha(settings.color, 1.0),
+        shadowColor: "rgba(255, 255, 255, 0.55)",
+        widthPx: corePx,
+        shadowBlurPx: Math.max(12, maxWidthPx * 1.2),
+      });
+    }
+  }
+
+  drawCorePass(
+    ctx,
+    path,
+    camera,
+    settings.color,
+    Math.max(settings.minWidth, avgWidthPx),
+  );
 };
