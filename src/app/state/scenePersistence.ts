@@ -188,6 +188,145 @@ const isValidDrawDefaults = (
   );
 };
 
+const isValidLaserSettings = (
+  value: unknown,
+): value is SceneSettings["laserSettings"] => {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const laserSettings = value as SceneSettings["laserSettings"];
+  return (
+    typeof laserSettings.lifetime === "number" &&
+    Number.isFinite(laserSettings.lifetime) &&
+    laserSettings.lifetime > 0 &&
+    typeof laserSettings.baseWidth === "number" &&
+    Number.isFinite(laserSettings.baseWidth) &&
+    laserSettings.baseWidth > 0 &&
+    typeof laserSettings.minWidth === "number" &&
+    Number.isFinite(laserSettings.minWidth) &&
+    laserSettings.minWidth >= 0 &&
+    typeof laserSettings.shadow === "boolean" &&
+    typeof laserSettings.color === "string" &&
+    laserSettings.color.trim().length > 0
+  );
+};
+
+const isPlainObject = (value: unknown): value is Record<string, unknown> => {
+  return !!value && typeof value === "object" && !Array.isArray(value);
+};
+
+const mergeByShape = <T extends Record<string, unknown>>(
+  defaults: T,
+  source: unknown,
+): Partial<T> => {
+  if (!isPlainObject(source)) {
+    return {};
+  }
+
+  const merged: Partial<T> = {};
+
+  for (const key of Object.keys(defaults) as Array<keyof T>) {
+    const defaultValue = defaults[key];
+    const sourceValue = source[key as string];
+
+    if (typeof sourceValue === "undefined") {
+      continue;
+    }
+
+    if (typeof defaultValue === "number") {
+      if (typeof sourceValue === "number" && Number.isFinite(sourceValue)) {
+        merged[key] = sourceValue as T[keyof T];
+      }
+      continue;
+    }
+
+    if (typeof defaultValue === "boolean") {
+      if (typeof sourceValue === "boolean") {
+        merged[key] = sourceValue as T[keyof T];
+      }
+      continue;
+    }
+
+    if (typeof defaultValue === "string") {
+      if (typeof sourceValue === "string") {
+        merged[key] = sourceValue as T[keyof T];
+      }
+      continue;
+    }
+
+    if (isPlainObject(defaultValue)) {
+      const nested = mergeByShape(
+        defaultValue as Record<string, unknown>,
+        sourceValue,
+      );
+
+      if (Object.keys(nested).length > 0) {
+        merged[key] = nested as T[keyof T];
+      }
+    }
+  }
+
+  return merged;
+};
+
+const normalizeSceneSettings = (
+  value: unknown,
+  baseSettings: SceneSettings,
+): Partial<SceneSettings> => {
+  const nextSettings = mergeByShape(
+    baseSettings as unknown as Record<string, unknown>,
+    value,
+  ) as Partial<SceneSettings>;
+  const source = isPlainObject(value) ? value : null;
+
+  if (
+    typeof nextSettings.theme !== "undefined" &&
+    !isValidTheme(nextSettings.theme)
+  ) {
+    delete nextSettings.theme;
+  }
+
+  if (
+    typeof nextSettings.gridStyle !== "undefined" &&
+    !isValidGridStyle(nextSettings.gridStyle)
+  ) {
+    delete nextSettings.gridStyle;
+  }
+
+  if (source && Object.prototype.hasOwnProperty.call(source, "drawDefaults")) {
+    if (isValidDrawDefaults(source.drawDefaults)) {
+      const mergedDrawDefaults = mergeByShape(
+        baseSettings.drawDefaults as unknown as Record<string, unknown>,
+        source.drawDefaults,
+      ) as Partial<SceneSettings["drawDefaults"]>;
+      nextSettings.drawDefaults = {
+        ...baseSettings.drawDefaults,
+        ...mergedDrawDefaults,
+      };
+    } else {
+      delete nextSettings.drawDefaults;
+    }
+  }
+
+  if (source && Object.prototype.hasOwnProperty.call(source, "laserSettings")) {
+    if (isValidLaserSettings(source.laserSettings)) {
+      const mergedLaserSettings = mergeByShape(
+        baseSettings.laserSettings as unknown as Record<string, unknown>,
+        source.laserSettings,
+      ) as Partial<SceneSettings["laserSettings"]>;
+      nextSettings.laserSettings = {
+        ...baseSettings.laserSettings,
+        ...mergedLaserSettings,
+      };
+    } else {
+      delete nextSettings.laserSettings;
+    }
+  }
+
+  return nextSettings;
+};
+
 export const loadInitialScene = (): Scene => {
   const baseScene = initScene();
 
@@ -196,61 +335,10 @@ export const loadInitialScene = (): Scene => {
     if (rawScene) {
       const parsed = JSON.parse(rawScene) as Partial<Scene>;
       const camera = parsed.camera;
-      const parsedSettings = parsed.settings;
-      const nextSettings: Partial<SceneSettings> = {};
-
-      if (parsedSettings && typeof parsedSettings.showGrid === "boolean") {
-        nextSettings.showGrid = parsedSettings.showGrid;
-      }
-      if (parsedSettings && isValidGridStyle(parsedSettings.gridStyle)) {
-        nextSettings.gridStyle = parsedSettings.gridStyle;
-      }
-      if (parsedSettings && typeof parsedSettings.snapToGrid === "boolean") {
-        nextSettings.snapToGrid = parsedSettings.snapToGrid;
-      }
-      if (parsedSettings && typeof parsedSettings.smartGuides === "boolean") {
-        nextSettings.smartGuides = parsedSettings.smartGuides;
-      }
-      if (
-        parsedSettings &&
-        typeof parsedSettings.quillDrawOptimizations === "boolean"
-      ) {
-        nextSettings.quillDrawOptimizations =
-          parsedSettings.quillDrawOptimizations;
-      }
-      if (
-        parsedSettings &&
-        typeof parsedSettings.gridSize === "number" &&
-        Number.isFinite(parsedSettings.gridSize)
-      ) {
-        nextSettings.gridSize = parsedSettings.gridSize;
-      }
-      if (parsedSettings && isValidTheme(parsedSettings.theme)) {
-        nextSettings.theme = parsedSettings.theme;
-      }
-      if (parsedSettings && isValidDrawDefaults(parsedSettings.drawDefaults)) {
-        nextSettings.drawDefaults = {
-          drawStroke: parsedSettings.drawDefaults.drawStroke,
-          markerStroke: parsedSettings.drawDefaults.markerStroke,
-          quillStroke:
-            typeof parsedSettings.drawDefaults.quillStroke === "string" &&
-            parsedSettings.drawDefaults.quillStroke.trim().length > 0
-              ? parsedSettings.drawDefaults.quillStroke
-              : "#2f3b52",
-          drawStrokeWidth:
-            typeof parsedSettings.drawDefaults.drawStrokeWidth === "number"
-              ? parsedSettings.drawDefaults.drawStrokeWidth
-              : 2,
-          quillStrokeWidth:
-            typeof parsedSettings.drawDefaults.quillStrokeWidth === "number"
-              ? parsedSettings.drawDefaults.quillStrokeWidth
-              : 2,
-          markerStrokeWidth:
-            typeof parsedSettings.drawDefaults.markerStrokeWidth === "number"
-              ? parsedSettings.drawDefaults.markerStrokeWidth
-              : 18,
-        };
-      }
+      const nextSettings = normalizeSceneSettings(
+        parsed.settings,
+        baseScene.settings,
+      );
 
       const nextScene: Scene = {
         ...baseScene,
@@ -289,56 +377,8 @@ export const loadInitialScene = (): Scene => {
       return baseScene;
     }
 
-    const parsed = JSON.parse(rawSettings) as Partial<SceneSettings>;
-    const nextSettings: Partial<SceneSettings> = {};
-
-    if (typeof parsed.showGrid === "boolean") {
-      nextSettings.showGrid = parsed.showGrid;
-    }
-    if (isValidGridStyle(parsed.gridStyle)) {
-      nextSettings.gridStyle = parsed.gridStyle;
-    }
-    if (typeof parsed.snapToGrid === "boolean") {
-      nextSettings.snapToGrid = parsed.snapToGrid;
-    }
-    if (typeof parsed.smartGuides === "boolean") {
-      nextSettings.smartGuides = parsed.smartGuides;
-    }
-    if (typeof parsed.quillDrawOptimizations === "boolean") {
-      nextSettings.quillDrawOptimizations = parsed.quillDrawOptimizations;
-    }
-    if (
-      typeof parsed.gridSize === "number" &&
-      Number.isFinite(parsed.gridSize)
-    ) {
-      nextSettings.gridSize = parsed.gridSize;
-    }
-    if (isValidTheme(parsed.theme)) {
-      nextSettings.theme = parsed.theme;
-    }
-    if (isValidDrawDefaults(parsed.drawDefaults)) {
-      nextSettings.drawDefaults = {
-        drawStroke: parsed.drawDefaults.drawStroke,
-        markerStroke: parsed.drawDefaults.markerStroke,
-        quillStroke:
-          typeof parsed.drawDefaults.quillStroke === "string" &&
-          parsed.drawDefaults.quillStroke.trim().length > 0
-            ? parsed.drawDefaults.quillStroke
-            : "#2f3b52",
-        drawStrokeWidth:
-          typeof parsed.drawDefaults.drawStrokeWidth === "number"
-            ? parsed.drawDefaults.drawStrokeWidth
-            : 2,
-        quillStrokeWidth:
-          typeof parsed.drawDefaults.quillStrokeWidth === "number"
-            ? parsed.drawDefaults.quillStrokeWidth
-            : 2,
-        markerStrokeWidth:
-          typeof parsed.drawDefaults.markerStrokeWidth === "number"
-            ? parsed.drawDefaults.markerStrokeWidth
-            : 18,
-      };
-    }
+    const parsed = JSON.parse(rawSettings) as unknown;
+    const nextSettings = normalizeSceneSettings(parsed, baseScene.settings);
 
     return updateSceneSettings(baseScene, nextSettings);
   } catch {
