@@ -182,6 +182,7 @@ export const drawLaserTrail = (
     // Use full-width strokes so the gaussian has enough "ink" to cast a big halo.
     // The core pass draws on top afterwards covering these glow strokes cleanly.
     const corePx = Math.max(settings.minWidth, avgWidthPx);
+    const isDark = document.querySelector("html")?.classList.contains("dark");
 
     if (isFirefoxRuntime) {
       // Firefox: single pass, moderate blur to preserve FPS
@@ -207,7 +208,7 @@ export const drawLaserTrail = (
       });
       drawBlurGlowPass(ctx, path, camera, {
         strokeColor: withAlpha(settings.color, 1.0),
-        shadowColor: "rgba(255, 255, 255, 0.55)",
+        shadowColor: isDark ? "rgba(0,0,0,0.55)" : "rgba(255, 255, 255, 0.55)",
         widthPx: corePx,
         shadowBlurPx: Math.max(12, maxWidthPx * 1.2),
       });
