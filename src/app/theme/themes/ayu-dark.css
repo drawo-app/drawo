@@ -1,5 +1,4 @@
-[data-theme="ayu-dark"],
-[data-theme="ayu-dark"] * {
+[data-theme="ayu-dark"] {
   --accent-dark: #e0b7667c;
   --accent: #e0b866;
   --logoduotone-firstcolor: #e0b7667f;

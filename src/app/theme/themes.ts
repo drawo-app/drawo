@@ -115,7 +115,7 @@ export const SCHEME_PRESETS: Record<ColorScheme, SchemePresets> = {
       shapeDefaults: {
         fill: "#2a2a2a",
         stroke: "#4a4a4a",
-        textColor: "#d7def0",
+        textColor: "#1f2024",
         lineStroke: "#d7def0",
       },
       strokeColors: makeStrokeColors([

@@ -1,5 +1,4 @@
-[data-theme="dracula-dark"],
-[data-theme="dracula-dark"] * {
+[data-theme="dracula-dark"] {
   --accent-dark: #bd93f9;
   --accent: #bd93f9;
   --logoduotone-firstcolor: #bd93f9;

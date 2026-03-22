@@ -1,5 +1,4 @@
-[data-theme="kanagawa-dark"],
-[data-theme="kanagawa-dark"] * {
+[data-theme="kanagawa-dark"] {
   --accent: #7e9cd8;
   --accent-dark: #45619a;
   --logoduotone-firstcolor: var(--accent);

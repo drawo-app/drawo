@@ -1,5 +1,4 @@
-[data-theme="solarized-dark"],
-[data-theme="solarized-dark"] * {
+[data-theme="solarized-dark"] {
   --accent: #2aa198;
   --accent-dark: #2aa198;
   --logoduotone-firstcolor: #41b4c3;

@@ -141,6 +141,7 @@ const drawLinePathEditHandles = (
 interface RenderLineElementOptions {
   ctx: CanvasRenderingContext2D;
   lineElement: LineElement;
+  elementOpacity: number;
   zoom: number;
   accentColor: string;
   accentSelectionColor: string;
@@ -158,6 +159,7 @@ interface RenderLineElementOptions {
 export const renderLineElement = ({
   ctx,
   lineElement,
+  elementOpacity,
   zoom,
   accentColor,
   accentSelectionColor,
@@ -329,6 +331,8 @@ export const renderLineElement = ({
     ctx.rotate((lineElement.rotation * Math.PI) / 180);
     ctx.translate(-centerX, -centerY);
   }
+  const previousAlpha = ctx.globalAlpha;
+  ctx.globalAlpha *= elementOpacity;
 
   ctx.strokeStyle = toThemeColor(lineElement.stroke);
   ctx.lineWidth = lineElement.strokeWidth;
@@ -389,6 +393,7 @@ export const renderLineElement = ({
 
   renderLineCap(lineElement.startCap, start.x, start.y, startAngle, false);
   renderLineCap(lineElement.endCap, end.x, end.y, endAngle, true);
+  ctx.globalAlpha = previousAlpha;
 
   if (shouldShowElementSelection) {
     if (isMultiSelection) {

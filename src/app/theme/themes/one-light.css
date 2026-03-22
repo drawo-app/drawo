@@ -1,6 +1,6 @@
-[data-theme="one-light"],
-[data-theme="one-light"] * {
+[data-theme="one-light"] {
   --accent: #4078f2;
+  --accent-dark: var(--accent);
   --logoduotone-secondcolor: #0184bc;
   --logocolor: #383a42;
   --accent-rgb: 64, 120, 242;

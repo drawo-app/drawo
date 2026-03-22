@@ -52,6 +52,7 @@ const createTextElement = (text: string): TextElement => {
     text,
     fontSize: 24,
     fontFamily: "Inter",
+    opacity: 100,
     fontWeight: "400",
     fontStyle: "normal",
     color: "#000000",
@@ -111,7 +112,7 @@ const createImageElementFromBlob = async (
       rotation: 0,
       flipX: false,
       flipY: false,
-      opacity: 1,
+      opacity: 100,
       frame: false,
     };
   } catch {

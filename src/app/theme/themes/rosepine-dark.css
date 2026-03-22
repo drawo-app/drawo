@@ -1,5 +1,4 @@
-[data-theme="rosepine-dark"],
-[data-theme="rosepine-dark"] * {
+[data-theme="rosepine-dark"] {
   --accent: #ea9a97;
   --accent-dark: rgb(98, 88, 164);
   --logoduotone-firstcolor: #eb6f92;

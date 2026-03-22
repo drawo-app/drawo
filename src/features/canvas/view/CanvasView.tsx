@@ -352,6 +352,7 @@ export const CanvasView = ({
   onDrawStrokeColorChange,
   onShapeFillColorChange,
   onShapeFillStyleChange,
+  onElementsOpacityChange,
   onShapeStrokeColorChange,
   onShapeStrokeWidthChange,
   onShapeStrokeStyleChange,
@@ -505,6 +506,23 @@ export const CanvasView = ({
   const selectedElements = scene.elements.filter((element) =>
     selectedIds.includes(element.id),
   );
+  const getElementOpacity = (element: SceneElement) => {
+    const rawOpacity = (element as { opacity?: number }).opacity;
+    if (typeof rawOpacity !== "number" || !Number.isFinite(rawOpacity)) {
+      return 100;
+    }
+
+    return Math.max(0, Math.min(100, rawOpacity));
+  };
+  const selectedOpacityValues = selectedElements.map(getElementOpacity);
+  const selectedOpacity =
+    selectedOpacityValues.length === 0
+      ? 100
+      : selectedOpacityValues.every(
+            (value) => value === selectedOpacityValues[0],
+          )
+        ? selectedOpacityValues[0]
+        : null;
   const canFlipSelection = selectedElements.some((element) =>
     isFlippableSceneElement(element),
   );
@@ -1845,6 +1863,7 @@ export const CanvasView = ({
         y: element.y + element.height / 2,
         text: element.text,
         fontFamily: element.fontFamily,
+        opacity: 100,
         fontSize: element.fontSize,
         fontWeight: element.fontWeight,
         fontStyle: element.fontStyle,
@@ -2138,6 +2157,7 @@ export const CanvasView = ({
         !isSelected;
       const isMultiSelection = selectedIds.length > 1;
       const rotationRadians = (element.rotation * Math.PI) / 180;
+      const elementOpacity = getElementOpacity(element) / 100;
 
       if (!isSelected && !isMarqueePreview && editingText?.id !== element.id) {
         let cullBounds: ElementBounds | null = null;
@@ -2191,7 +2211,7 @@ export const CanvasView = ({
           const previousComposite = ctx.globalCompositeOperation;
           const previousAlpha = ctx.globalAlpha;
           ctx.globalCompositeOperation = renderStyle.compositeOperation;
-          ctx.globalAlpha *= renderStyle.opacity;
+          ctx.globalAlpha *= renderStyle.opacity * elementOpacity;
 
           const visibleStrokeWidth = getVisibleStrokeWidth(element.strokeWidth);
           ctx.strokeStyle = toThemeColor(element.stroke);
@@ -2289,7 +2309,9 @@ export const CanvasView = ({
           height: imageElement.height,
         };
         const center = getBoundsCenter(bounds);
-        const image = imageElement.src ? getCachedImage(imageElement.src) : null;
+        const image = imageElement.src
+          ? getCachedImage(imageElement.src)
+          : null;
         const cornerRadius = Math.min(
           16 / camera.zoom,
           Math.min(imageElement.width, imageElement.height) / 6,
@@ -2300,6 +2322,8 @@ export const CanvasView = ({
         ctx.translate(center.x, center.y);
         ctx.rotate(rotationRadians);
         ctx.translate(-center.x, -center.y);
+        const previousAlpha = ctx.globalAlpha;
+        ctx.globalAlpha *= elementOpacity;
 
         if (imageElement.flipX || imageElement.flipY) {
           ctx.translate(center.x, center.y);
@@ -2368,6 +2392,7 @@ export const CanvasView = ({
           cornerRadius,
         );
         ctx.stroke();
+        ctx.globalAlpha = previousAlpha;
 
         if (shouldShowElementSelection) {
           ctx.strokeStyle = isMultiSelection
@@ -2423,6 +2448,8 @@ export const CanvasView = ({
         ctx.translate(center.x, center.y);
         ctx.rotate(rotationRadians);
         ctx.translate(-center.x, -center.y);
+        const previousAlpha = ctx.globalAlpha;
+        ctx.globalAlpha *= elementOpacity;
 
         fillShape(ctx, element, rectangleRadius, toThemeColor);
 
@@ -2437,6 +2464,7 @@ export const CanvasView = ({
             y: element.y + element.height / 2,
             text: element.text,
             fontFamily: element.fontFamily,
+            opacity: 100,
             fontSize: element.fontSize,
             fontWeight: element.fontWeight,
             fontStyle: element.fontStyle,
@@ -2489,6 +2517,7 @@ export const CanvasView = ({
           );
           ctx.restore();
         }
+        ctx.globalAlpha = previousAlpha;
 
         if (shouldShowElementSelection) {
           ctx.strokeStyle = isMultiSelection
@@ -2534,7 +2563,9 @@ export const CanvasView = ({
                 );
                 ctx.fill();
 
-                ctx.strokeStyle = toThemeColor(scene.settings.shapeDefaults.fill);
+                ctx.strokeStyle = toThemeColor(
+                  scene.settings.shapeDefaults.fill,
+                );
                 ctx.lineWidth = 1 / camera.zoom;
                 ctx.beginPath();
                 ctx.arc(
@@ -2563,6 +2594,7 @@ export const CanvasView = ({
         renderLineElement({
           ctx,
           lineElement,
+          elementOpacity,
           zoom: camera.zoom,
           accentColor,
           accentSelectionColor,
@@ -2608,6 +2640,8 @@ export const CanvasView = ({
       ctx.translate(textCenter.x, textCenter.y);
       ctx.rotate(rotationRadians);
       ctx.translate(-textCenter.x, -textCenter.y);
+      const previousAlpha = ctx.globalAlpha;
+      ctx.globalAlpha *= elementOpacity;
 
       ctx.fillStyle = toThemeColor(element.color);
       ctx.textAlign = "left";
@@ -2626,6 +2660,7 @@ export const CanvasView = ({
         },
         `text:${element.id}`,
       );
+      ctx.globalAlpha = previousAlpha;
 
       if (shouldShowElementSelection) {
         const textBounds = getElementBounds(element.id, ctx, true);
@@ -2795,6 +2830,7 @@ export const CanvasView = ({
           y: drawingBounds.y + fontSize,
           text: localeMessages.canvas.newText,
           fontFamily: "Shantell Sans, sans-serif",
+          opacity: 100,
           fontSize,
           fontWeight: "200",
           fontStyle: "normal",
@@ -3397,7 +3433,9 @@ export const CanvasView = ({
                   width: selectedElement.width,
                   height: selectedElement.height,
                   controlPoint: null,
-                  points: selectedElement.points ? [...selectedElement.points] : [],
+                  points: selectedElement.points
+                    ? [...selectedElement.points]
+                    : [],
                 },
               };
               setActiveLinePointHandle(hoveredPointHandle);
@@ -3433,7 +3471,9 @@ export const CanvasView = ({
                 width: selectedElement.width,
                 height: selectedElement.height,
                 controlPoint: selectedElement.controlPoint ?? null,
-                points: selectedElement.points ? [...selectedElement.points] : undefined,
+                points: selectedElement.points
+                  ? [...selectedElement.points]
+                  : undefined,
               },
             };
             setActiveLineHandle(hoveredHandle);
@@ -3863,7 +3903,10 @@ export const CanvasView = ({
         let nextEnd = endPoint;
         let nextControl = activeLineDrag.startLine.controlPoint;
 
-        if (activeLineDrag.handle === "start" || activeLineDrag.handle === "point") {
+        if (
+          activeLineDrag.handle === "start" ||
+          activeLineDrag.handle === "point"
+        ) {
           nextStart = localPointer;
         } else if (activeLineDrag.handle === "end") {
           nextEnd = localPointer;
@@ -3888,10 +3931,11 @@ export const CanvasView = ({
           activeLineDrag.startLine.points &&
           activeLineDrag.startLine.points.length > activeLineDrag.pointIndex
         ) {
-          const nextPoints = activeLineDrag.startLine.points.map((point, index) =>
-            index === activeLineDrag.pointIndex
-              ? { x: snappedStart.x, y: snappedStart.y }
-              : point,
+          const nextPoints = activeLineDrag.startLine.points.map(
+            (point, index) =>
+              index === activeLineDrag.pointIndex
+                ? { x: snappedStart.x, y: snappedStart.y }
+                : point,
           );
           const nextBounds = getLinePathBounds(nextPoints);
 
@@ -4057,7 +4101,9 @@ export const CanvasView = ({
           lineDragStartRef.current = null;
           setDrawingSelection(null);
           setLineChain({
-            points: [{ x: pendingLineStart.startX, y: pendingLineStart.startY }],
+            points: [
+              { x: pendingLineStart.startX, y: pendingLineStart.startY },
+            ],
             preview: { x: pendingLineStart.startX, y: pendingLineStart.startY },
           });
           setActiveRadiusElementId(null);
@@ -4318,7 +4364,11 @@ export const CanvasView = ({
       return;
     }
 
-    if (lineHandleDragRef.current || activeLineHandle || activeLinePointHandle !== null) {
+    if (
+      lineHandleDragRef.current ||
+      activeLineHandle ||
+      activeLinePointHandle !== null
+    ) {
       setCanvasCursor("pointer");
       return;
     }
@@ -4633,6 +4683,7 @@ export const CanvasView = ({
         hasSelection={hasSelection}
         canFlipSelection={canFlipSelection}
         selectionType={selectedElementType}
+        selectionOpacity={selectedOpacity}
         hasElements={scene.elements.length > 0}
         canUngroupSelection={canUngroupSelection}
         onCut={onCutSelection}
@@ -4640,6 +4691,13 @@ export const CanvasView = ({
         onCopy={onCopySelection}
         onPaste={handleContextMenuPaste}
         onDuplicate={onDuplicateSelection}
+        onSelectionOpacityChange={(opacity) => {
+          if (!hasSelection) {
+            return;
+          }
+
+          onElementsOpacityChange(selectedIds, opacity);
+        }}
         onDelete={onDeleteSelection}
         onGroup={onGroupSelection}
         onUngroup={onUngroupSelection}

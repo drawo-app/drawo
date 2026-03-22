@@ -1,6 +1,6 @@
-[data-theme="catppuccin-dark"],
-[data-theme="catppuccin-dark"] * {
+[data-theme="catppuccin-dark"] {
   --accent: #cba6f7;
+  --accent-dark: var(--accent);
   --logoduotone-firstcolor: #8839ef;
   --logoduotone-secondcolor: #ca9ee6;
   --logocolor: #f5e0dc;

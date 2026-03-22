@@ -1,5 +1,4 @@
-[data-theme="tokyonight-dark"],
-[data-theme="tokyonight-dark"] * {
+[data-theme="tokyonight-dark"] {
   --accent: #7aa2f7;
   --accent-dark: #334f8b;
   --logoduotone-firstcolor: #73daca;

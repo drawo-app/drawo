@@ -7,6 +7,7 @@ export interface TextElement {
   y: number;
   text: string;
   fontFamily: string;
+  opacity: number;
   fontSize: number;
   fontWeight: string;
   fontStyle: "normal" | "italic";

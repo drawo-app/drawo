@@ -12,6 +12,7 @@ export interface DrawElement {
   createdAt?: number;
   rotation: number;
   x: number;
+  opacity: number;
   y: number;
   width: number;
   height: number;

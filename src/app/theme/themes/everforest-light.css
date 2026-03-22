@@ -1,7 +1,8 @@
-[data-theme="everforest-light"],
-[data-theme="everforest-light"] * {
+[data-theme="everforest-light"] {
   --accent: #8da101;
-  --logoduotone-secondcolor: #35a77c;
+  --accent-dark: var(--accent);
+  --logoduotone-firstcolor: #386c16;
+  --logoduotone-secondcolor: #8da101;
   --logocolor: #5c6a72;
   --accent-rgb: 141, 161, 1;
   --text-rgb: 92, 106, 114;
@@ -10,8 +11,9 @@
   --panel-shadow: 0 10px 24px rgba(92, 106, 114, 0.11);
   --app-bg: #f3ead3;
   --app-fg: #5c6a72;
+  --darkborder-rgb: 0,0,0;
+  --popover-dark-text: #5c6a72;
   --panel-bg: rgba(242, 239, 223, 0.95);
-  --logoduotone-firstcolor: var(--accent);
   --popover-dark: var(--panel-bg);
   --popover-foreground-dark: var(--app-fg);
 }

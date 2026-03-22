@@ -772,10 +772,24 @@ export const MenuBar = ({
         }
         messages={messages}
         setTheme={(theme) => {
+          const separatorIndex = theme.lastIndexOf("-");
+          if (separatorIndex === -1) {
+            return;
+          }
+
+          const colorScheme = theme.slice(
+            0,
+            separatorIndex,
+          ) as Scene["settings"]["colorScheme"];
+          const mode = theme.slice(separatorIndex + 1);
+          if (mode !== "light" && mode !== "dark") {
+            return;
+          }
+
           setSceneWithoutHistory((currentScene) =>
             updateSceneSettings(currentScene, {
-              colorScheme: theme.split("-")[0] as Scene["settings"]["colorScheme"],
-              theme: theme.split("-")[1] as "light" | "dark",
+              colorScheme,
+              theme: mode,
             }),
           );
         }}

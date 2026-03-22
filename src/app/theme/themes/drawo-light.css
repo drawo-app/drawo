@@ -1,6 +1,6 @@
-[data-theme="drawo-light"],
-[data-theme="drawo-light"] * {
+[data-theme="drawo-light"] {
   --accent: #7c5cff;
+  --accent-dark: var(--accent);
   --logoduotone-firstcolor: #6f5af6;
   --logoduotone-secondcolor: #3119cf;
   --logocolor: #1d00d7;
@@ -12,6 +12,6 @@
   --app-bg: #ffffff;
   --app-fg: #1f2937;
   --panel-bg: rgba(255, 255, 255, 0.94);
-  --popover-dark: var(--panel-bg);
+  --popover-dark: rgba(26, 26, 26, 0.94);
   --popover-foreground-dark: var(--app-fg);
 }

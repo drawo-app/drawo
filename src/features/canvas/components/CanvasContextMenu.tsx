@@ -1,9 +1,10 @@
-import type { ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   Circles5Random,
   Copy,
   CopyPlus,
   Cubes3,
+  Droplet,
   Layers,
   Scissors,
   Sticker,
@@ -30,6 +31,7 @@ import {
   LayerSendBackward,
   LayerSendToBack,
 } from "@shared/ui/icons";
+import { Slider } from "@shared/ui/slider";
 
 export type CanvasContextMenuSelectionType = "draw" | "image" | "multiple";
 
@@ -38,6 +40,7 @@ interface CanvasContextMenuProps {
   hasSelection: boolean;
   canFlipSelection: boolean;
   selectionType: CanvasContextMenuSelectionType;
+  selectionOpacity: number | null;
   localeMessages: LocaleMessages;
   hasElements: boolean;
   canUngroupSelection: boolean;
@@ -55,6 +58,7 @@ interface CanvasContextMenuProps {
   onMoveBackward: () => void;
   onFlipHorizontal: () => void;
   onFlipVertical: () => void;
+  onSelectionOpacityChange: (opacity: number) => void;
 }
 
 export const CanvasContextMenu = ({
@@ -62,6 +66,7 @@ export const CanvasContextMenu = ({
   hasSelection,
   canFlipSelection,
   selectionType,
+  selectionOpacity,
   hasElements,
   localeMessages,
   canUngroupSelection,
@@ -79,8 +84,32 @@ export const CanvasContextMenu = ({
   onMoveBackward,
   onFlipHorizontal,
   onFlipVertical,
+  onSelectionOpacityChange,
 }: CanvasContextMenuProps) => {
   const hasMultipleSelection = hasSelection && selectionType === "multiple";
+  const normalizedSelectionOpacity = useMemo(() => {
+    if (typeof selectionOpacity !== "number" || !Number.isFinite(selectionOpacity)) {
+      return 100;
+    }
+
+    return Math.max(0, Math.min(100, Math.round(selectionOpacity)));
+  }, [selectionOpacity]);
+  const [opacityValue, setOpacityValue] = useState(normalizedSelectionOpacity);
+  const [opacityInput, setOpacityInput] = useState(
+    String(normalizedSelectionOpacity),
+  );
+
+  useEffect(() => {
+    setOpacityValue(normalizedSelectionOpacity);
+    setOpacityInput(String(normalizedSelectionOpacity));
+  }, [normalizedSelectionOpacity, hasSelection]);
+
+  const applyOpacity = (nextOpacity: number) => {
+    const clamped = Math.max(0, Math.min(100, Math.round(nextOpacity)));
+    setOpacityValue(clamped);
+    setOpacityInput(String(clamped));
+    onSelectionOpacityChange(clamped);
+  };
 
   return (
     <ContextMenu>
@@ -181,6 +210,77 @@ export const CanvasContextMenu = ({
                   <LayerSendBackward />
                   {localeMessages.contextMenu.layers.sendBackward}
                 </ContextMenuItem>
+              </ContextMenuSubContent>
+            </ContextMenuSub>
+            <ContextMenuSub>
+              <ContextMenuSubTrigger>
+                <Droplet />
+                {localeMessages.selectionBar.opacity}...
+              </ContextMenuSubTrigger>
+              <ContextMenuSubContent className="drawo-contextmenu-opacity-subcontent">
+                <div
+                  className="drawo-contextmenu-opacity-popover"
+                  onPointerDown={(event) => event.stopPropagation()}
+                  onClick={(event) => event.stopPropagation()}
+                >
+                  <div className="drawo-contextmenu-opacity-header">
+                    <span>{localeMessages.selectionBar.opacity}</span>
+                    <div className="drawo-contextmenu-opacity-input-wrap">
+                      <input
+                        className="drawo-input drawo-numberinput drawo-contextmenu-opacity-input"
+                        type="number"
+                        min={0}
+                        max={100}
+                        step={1}
+                        value={opacityInput}
+                        onChange={(event) => {
+                          const sanitized = event.target.value.replace(
+                            /[^0-9]/g,
+                            "",
+                          );
+                          setOpacityInput(sanitized);
+                        }}
+                        onBlur={() => {
+                          const parsed = Number.parseInt(opacityInput, 10);
+                          applyOpacity(Number.isFinite(parsed) ? parsed : opacityValue);
+                        }}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter") {
+                            const parsed = Number.parseInt(opacityInput, 10);
+                            applyOpacity(
+                              Number.isFinite(parsed) ? parsed : opacityValue,
+                            );
+                            event.currentTarget.blur();
+                            return;
+                          }
+
+                          if (event.key === "Escape") {
+                            setOpacityInput(String(opacityValue));
+                            event.currentTarget.blur();
+                          }
+                        }}
+                      />
+                      <span className="drawo-contextmenu-opacity-unit">%</span>
+                    </div>
+                  </div>
+
+                  <Slider
+                    className="drawo-contextmenu-opacity-slider"
+                    value={[opacityValue]}
+                    min={0}
+                    max={100}
+                    step={1}
+                    onValueChange={(value) => {
+                      const next = value[0] ?? opacityValue;
+                      setOpacityValue(next);
+                      setOpacityInput(String(Math.round(next)));
+                    }}
+                    onValueCommit={(value) => {
+                      applyOpacity(value[0] ?? opacityValue);
+                    }}
+                  />
+
+                </div>
               </ContextMenuSubContent>
             </ContextMenuSub>
             <ContextMenuSeparator />

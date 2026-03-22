@@ -1,6 +1,6 @@
-[data-theme="dracula-light"],
-[data-theme="dracula-light"] * {
+[data-theme="dracula-light"] {
   --accent: #6272a4;
+  --accent-dark: var(--accent);
   --logoduotone-firstcolor: #bd93f9;
   --logoduotone-secondcolor: #6939ac;
   --logocolor: #282a36;
@@ -10,8 +10,8 @@
   --panel-border: rgba(40, 42, 54, 0.13);
   --panel-shadow: 0 10px 24px rgba(40, 42, 54, 0.1);
   --app-bg: #f8f8fb;
-  --app-fg: #282a36;
+  --app-fg: #1F1F1F;
   --panel-bg: rgba(241, 241, 247, 0.95);
-  --popover-dark: var(--panel-bg);
+  --popover-dark: #1F1F1F;
   --popover-foreground-dark: var(--app-fg);
 }

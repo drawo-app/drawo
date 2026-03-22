@@ -26,6 +26,7 @@ import {
   updateShapeElementsStrokeColor,
   updateShapeElementsStrokeWidth,
   updateShapeElementsStrokeStyle,
+  updateElementsOpacity,
   updateSceneSettings,
   updateTextElementContent,
   updateTextElementLayout,
@@ -1608,6 +1609,15 @@ export const useInteraction = ({
     [setScene],
   );
 
+  const handleElementsOpacityChange = useCallback(
+    (ids: string[], opacity: number) => {
+      setScene((currentScene) =>
+        updateElementsOpacity(currentScene, ids, opacity),
+      );
+    },
+    [setScene],
+  );
+
   const handleDrawDefaultStrokeColorChange = useCallback(
     (drawMode: "draw" | "marker" | "quill", strokeColor: string) => {
       setScene((currentScene) =>
@@ -1753,6 +1763,7 @@ export const useInteraction = ({
     handleDrawStrokeColorChange,
     handleShapeFillColorChange,
     handleShapeFillStyleChange,
+    handleElementsOpacityChange,
     handleShapeStrokeColorChange,
     handleShapeStrokeWidthChange,
     handleShapeStrokeStyleChange,

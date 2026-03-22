@@ -10,6 +10,7 @@ export interface CircleElement {
   fillStyle: "solid" | "hachure" | "none";
   fill: string;
   stroke: string;
+  opacity: number;
   strokeWidth: number;
   strokeStyle: "solid" | "dashed" | "none";
 

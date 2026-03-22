@@ -108,6 +108,7 @@ export interface CanvasViewProps {
   onDrawStrokeColorChange: (ids: string[], strokeColor: string) => void;
   onShapeFillColorChange: (ids: string[], fillColor: string) => void;
   onShapeFillStyleChange: (ids: string[], fillColor: string) => void;
+  onElementsOpacityChange: (ids: string[], opacity: number) => void;
   onShapeStrokeColorChange: (ids: string[], strokeColor: string) => void;
   onShapeStrokeWidthChange: (ids: string[], strokeWidth: number) => void;
   onShapeStrokeStyleChange: (ids: string[], strokeStyle: "solid" | "dashed" | "none") => void;

@@ -33,21 +33,23 @@ export function ThemeDialog({
             <PaletteRound weight="BoldDuotone" /> {messages.menu.themes}
           </DialogTitle>
         </DialogHeader>
-        {["light", "dark"].map((mode) => {
+        {(["light", "dark"] as const).map((mode) => {
           return (
-            <>
+            <div key={mode}>
               <h1>{mode.charAt(0).toUpperCase() + mode.slice(1)} themes</h1>
               <div className="theme-entries">
                 {Object.entries(THEME_LABELS).map(([key, label]) => {
+                  const themeVariant = key + "-" + mode;
                   return (
                     <div
+                      key={themeVariant}
                       className="theme-entry-container"
-                      data-theme={key + "-" + mode}
+                      data-theme={themeVariant}
                     >
                       <div
                         className={
                           "theme-entry " +
-                          (currentTheme == (key + "-" + mode) ? "selected" : "")
+                          (currentTheme === themeVariant ? "selected" : "")
                         }
                         style={{
                           border: "1px solid var(--panel-border)",
@@ -55,7 +57,7 @@ export function ThemeDialog({
                             SCHEME_PRESETS[key][mode].drawDefaults.canvas,
                         }}
                         onClick={() => {
-                          setTheme(key + "-" + mode);
+                          setTheme(themeVariant);
                         }}
                       >
       <svg
@@ -111,7 +113,7 @@ export function ThemeDialog({
                   );
                 })}
               </div>
-            </>
+            </div>
           );
         })}
       </DialogContent>

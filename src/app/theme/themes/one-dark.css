@@ -1,5 +1,4 @@
-[data-theme="one-dark"],
-[data-theme="one-dark"] * {
+[data-theme="one-dark"] {
   --accent: #61afef;
   --accent-dark: #2a6ba0;
   --logoduotone-secondcolor: #56b6c2;

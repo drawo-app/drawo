@@ -1,6 +1,6 @@
-*[data-theme="kanagawa-light"],
-*[data-theme="kanagawa-light"] * {
+[data-theme="kanagawa-light"] {
   --accent: #4d699b;
+  --accent-dark: var(--accent);
   --logoduotone-firstcolor: #198383;
   --logoduotone-secondcolor: #629f9f;
   --logocolor: #545464;
@@ -12,6 +12,6 @@
   --app-bg: #f2ecbc;
   --app-fg: #545464;
   --panel-bg: rgba(244, 241, 217, 0.95);
-  --popover-dark: var(--panel-bg);
+  --popover-dark: #141421;
   --popover-foreground-dark: var(--app-fg);
 }

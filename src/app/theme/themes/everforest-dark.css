@@ -1,5 +1,4 @@
-[data-theme="everforest-dark"],
-[data-theme="everforest-dark"] * {
+[data-theme="everforest-dark"] {
   --accent: #83c092;
   --accent-dark: #4b7565;
   --logoduotone-firstcolor: #83c092;

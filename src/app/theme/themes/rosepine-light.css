@@ -1,6 +1,6 @@
-[data-theme="rosepine-light"],
-[data-theme="rosepine-light"] * {
+[data-theme="rosepine-light"] {
   --accent: #907aa9;
+  --accent-dark: var(--accent);
   --logoduotone-secondcolor: #56949f;
   --logocolor: #575279;
   --accent-rgb: 144, 122, 169;
@@ -10,6 +10,8 @@
   --panel-shadow: 0 10px 24px rgba(87, 82, 121, 0.1);
   --app-bg: #faf4ed;
   --app-fg: #575279;
+  --popover-dark-text: #575279;
+  --darkborder-rgb: 0,0,0;
   --panel-bg: rgba(255, 250, 243, 0.95);
   --logoduotone-firstcolor: var(--accent);
   --popover-dark: var(--panel-bg);

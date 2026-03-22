@@ -61,7 +61,7 @@ html {
 }
 
 html.dark .switch-row {
-  color: #f3f4f6;
+  color: var(--popover-dark-text, #f3f4f6);
 }
 
 .selection-toolbar .bar-text {
@@ -291,17 +291,17 @@ html.dark .tool-item {
   margin: auto 5px;
   margin-right: 4px;
   opacity: 0.2;
-  background-color: currentColor;
+  background-color: rgba(var(--darkborder-rgb, 255, 255, 255), 1);
 }
 .toggle-selectionbar-button:hover {
-  background-color: rgba(255, 255, 255, 0.05);
+  background-color: rgba(var(--darkborder-rgb, 255, 255, 255), 0.05);
 }
 .toggle-selectionbar-button.active {
   background-color: rgba(var(--accent-rgb), 0.4) !important;
 }
 .toggle-selectionbar-button {
   border: none !important;
-  color: white;
+  color: var(--popover-dark-text, white);
   background-color: transparent;
   height: var(--selectiontoolbar-height);
   width: calc(var(--selectiontoolbar-height));
@@ -353,7 +353,7 @@ html.dark .selection-toolbar {
   padding: 0 10px;
   border: none;
   background: transparent;
-  color: #f3f4f6;
+  color: var(--popover-dark-text, #f3f4f6);
   font:
     500 14px Inter,
     sans-serif;
@@ -362,13 +362,13 @@ html.dark .selection-toolbar {
 }
 
 .selection-toolbar .select-trigger:hover {
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(var(--darkborder-rgb, 255, 255, 255), 0.05);
 }
 
 .selection-toolbar .select-trigger-icon {
   width: 14px;
   height: 14px;
-  color: #b8b8b8;
+  color: var(--popover-dark-text, #b8b8b8);
   margin-left: 8px;
   pointer-events: none;
 }
@@ -389,7 +389,7 @@ html.dark .selection-toolbar {
   backdrop-filter: blur(12px);
   background: var(--popover-dark, #232323);
   border: 1px solid var(--panel-border);
-  color: #f3f4f6;
+  color: var(--popover-dark-text, #f3f4f6);
   box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35);
 }
 
@@ -683,9 +683,9 @@ html.dark .canvas-text-editor-input *::selection {
   z-index: 50;
   max-height: var(--radix-context-menu-content-available-height);
   transform-origin: var(--radix-context-menu-content-transform-origin);
-  overflow-x: hidden;
+  overflow-x: visible;
+  overflow-y: visible;
   corner-shape: squircle;
-  overflow-y: auto;
   border: 1px solid var(--panel-border);
 }
 .dark .drawo-contextmenu-content,
@@ -760,9 +760,81 @@ html.dark .canvas-text-editor-input *::selection {
 
   z-index: 50;
   transform-origin: var(--radix-context-menu-content-transform-origin);
-  overflow: hidden;
+  overflow: visible;
   corner-shape: squircle;
   border: 1px solid var(--panel-border);
+}
+.drawo-contextmenu-opacity-subcontent {
+  min-width: 230px;
+  padding: 6px;
+}
+.drawo-contextmenu-opacity-popover {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 6px;
+  border-radius: 10px;
+  corner-shape: squircle;
+}
+.drawo-contextmenu-opacity-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 15px;
+}
+.opacity-0 {
+  opacity: 0!important;
+}
+.drawo-contextmenu-opacity-input-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.drawo-contextmenu-opacity-input {
+  width: 54px;
+  min-width: 54px;
+  padding: 4px 8px;
+  font-size: 12px;
+  text-align: right;
+}
+.drawo-contextmenu-opacity-unit {
+  font-size: 12px;
+  opacity: 0.65;
+}
+.drawo-contextmenu-opacity-slider .drawo-slider-track {
+  height: 16px !important;
+}
+.drawo-contextmenu-opacity-slider .drawo-slider-thumb {
+  width: 20px;
+  height: 16px;
+}
+.drawo-contextmenu-opacity-slider .drawo-slider-thumb::before {
+  width: 16px;
+  height: 10px;
+}
+.drawo-contextmenu-opacity-presets {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 2px;
+}
+.drawo-contextmenu-opacity-preset {
+  border: none;
+  font-family: Inter, sans-serif;
+  background: rgba(var(--text-rgb), 0.07);
+  color: rgb(var(--text-rgb));
+  border-radius: 12px;
+  corner-shape: squircle;
+  font-size: 12px;
+  padding: 6px 8px;
+  cursor: pointer;
+}
+.drawo-contextmenu-opacity-preset:hover {
+  background: rgba(var(--text-rgb), 0.11);
+}
+.drawo-contextmenu-opacity-preset.active {
+  border-color: rgba(var(--accent-rgb), 0.45);
+  background: rgba(var(--accent-rgb), 0.18);
 }
 
 .drawo-contextmenu-label {
@@ -1255,10 +1327,10 @@ html.dark .canvas-text-editor-input *::selection {
   bottom: 4px;
 }
 .drawo-logopreview {
-    position: absolute;
-    top: 40%;
-    left: 50%;
-    transform: translate(-50%, -50%)
+  position: absolute;
+  top: 40%;
+  left: 50%;
+  transform: translate(-50%, -50%);
 }
 .drawo-themepreview-bottombar-item {
   position: absolute;
@@ -1382,7 +1454,7 @@ p.label {
 
 .dark .drawo-btn-secondary {
   background: rgba(255, 255, 255, 0.08);
-  color: #f3f4f6;
+  color: var(--popover-dark-text, #f3f4f6);
 }
 
 .dark .drawo-btn-secondary:hover {

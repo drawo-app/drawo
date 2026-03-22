@@ -10,6 +10,7 @@ export interface RectangleElement {
   borderRadius: number;
   fillStyle: "solid" | "hachure" | "none";
   fill: string;
+  opacity: number;
   stroke: string;
   strokeWidth: number;
   strokeStyle: "solid" | "dashed" | "none";

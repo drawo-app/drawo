@@ -1,17 +1,18 @@
-[data-theme="ayu-light"],
-[data-theme="ayu-light"] * {
-  --accent: #399ee6;
-  --logoduotone-secondcolor: #4cbf99;
+[data-theme="ayu-light"] {
+  --accent: #b0832b;
+  --logoduotone-firstcolor: var(--accent);
+  --logoduotone-secondcolor: #e0b766;
   --logocolor: #5c6773;
-  --accent-rgb: 57, 158, 230;
+  --accent-rgb: 224, 183, 102;
   --text-rgb: 92, 103, 115;
   --background-rgb: 255, 251, 234;
   --panel-border: rgba(92, 103, 115, 0.13);
   --panel-shadow: 0 10px 24px rgba(92, 103, 115, 0.1);
   --app-bg: #fffbea;
+  --darkborder-rgb: 0,0,0;
+  --popover-dark-text: #5c6773;
   --app-fg: #5c6773;
   --panel-bg: rgba(252, 244, 221, 0.95);
-  --logoduotone-firstcolor: var(--accent);
   --popover-dark: var(--panel-bg);
   --popover-foreground-dark: var(--app-fg);
 }

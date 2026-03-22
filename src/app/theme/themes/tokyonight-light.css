@@ -1,6 +1,6 @@
-[data-theme="tokyonight-light"],
-[data-theme="tokyonight-light"] * {
+[data-theme="tokyonight-light"] {
   --accent: #2e7de9;
+  --accent-dark: var(--accent);
   --logoduotone-secondcolor: #6172b0;
   --logocolor: #3760bf;
   --accent-rgb: 46, 125, 233;
@@ -9,7 +9,9 @@
   --panel-border: rgba(55, 96, 191, 0.14);
   --panel-shadow: 0 10px 24px rgba(55, 96, 191, 0.1);
   --app-bg: #d5d6db;
-  --app-fg: #3760bf;
+  --app-fg: #3c3836;
+  --darkborder-rgb: 0,0,0;
+  --popover-dark-text: #3c3836;
   --panel-bg: rgba(225, 226, 231, 0.94);
   --logoduotone-firstcolor: var(--accent);
   --popover-dark: var(--panel-bg);

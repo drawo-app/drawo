@@ -31,7 +31,6 @@ import {
   SquareFilledIcon,
   SquareUnfilledIcon,
 } from "@shared/ui/icons";
-import { OctagonXmark } from "@gravity-ui/icons";
 
 interface SelectionShapeControlsProps {
   scene: Scene;
@@ -588,7 +587,6 @@ export const SelectionShapeControls = ({
         }
       >
         <TooltipTrigger asChild>
-          <div className="selectionbar-separator" />
         </TooltipTrigger>
         <TooltipContent
           className="drawo-content-color drawo-ultrainferior-colorcontent"

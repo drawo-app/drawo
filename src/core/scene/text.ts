@@ -414,3 +414,30 @@ export const updateShapeElementsStrokeStyle = (
     }),
   };
 };
+
+export const updateElementsOpacity = (
+  scene: Scene,
+  ids: string[],
+  opacity: number,
+): Scene => {
+  if (ids.length === 0) {
+    return scene;
+  }
+
+  const targetIds = new Set(ids);
+  const nextOpacity = Math.max(0, Math.min(100, Math.round(opacity)));
+
+  return {
+    ...scene,
+    elements: scene.elements.map((element) => {
+      if (!targetIds.has(element.id)) {
+        return element;
+      }
+
+      return {
+        ...element,
+        opacity: nextOpacity,
+      };
+    }),
+  };
+};

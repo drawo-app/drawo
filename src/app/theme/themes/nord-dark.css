@@ -1,5 +1,4 @@
-[data-theme="nord-dark"],
-[data-theme="nord-dark"] * {
+[data-theme="nord-dark"] {
   --accent: #88c0d0;
   --accent-dark: #5e81ac;
   --logoduotone-firstcolor: #81a1c1;

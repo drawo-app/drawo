@@ -1,6 +1,6 @@
-[data-theme="drawo-dark"],
-[data-theme="drawo-dark"] * {
+[data-theme="drawo-dark"] {
   --accent: #b19eff;
+  --accent-dark: #6f5af6;
   --logoduotone-firstcolor: #6f5af6;
   --logoduotone-secondcolor: #c6bdff;
   --logocolor: #ffffff;

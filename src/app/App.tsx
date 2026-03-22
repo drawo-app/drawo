@@ -62,47 +62,32 @@ import {
   syncSceneThemeDefaults,
 } from "@app/theme/themes";
 import "@app/theme/base-tokens.css";
-const THEMES = [
-  "drawo-light",
-  "drawo-dark",
-  "catppuccin-latte",
-  "catppuccin-mocha",
-  "nord-light",
-  "nord-dark",
-  "solarized-light",
-  "solarized-dark",
-  "gruvbox-light",
-  "gruvbox-dark",
-  "tokyonight-light",
-  "tokyonight-dark",
-  "rosepine-light",
-  "rosepine-dark",
-  "everforest-light",
-  "everforest-dark",
-  "kanagawa-light",
-  "kanagawa-dark",
-  "dracula-light",
-  "dracula-dark",
-  "one-light",
-  "one-dark",
-  "ayu-light",
-  "ayu-dark",
-];
+import "@app/theme/themes/drawo-light.css";
+import "@app/theme/themes/drawo-dark.css";
+import "@app/theme/themes/catppuccin-latte.css";
+import "@app/theme/themes/catppuccin-mocha.css";
+import "@app/theme/themes/nord-light.css";
+import "@app/theme/themes/nord-dark.css";
+import "@app/theme/themes/solarized-light.css";
+import "@app/theme/themes/solarized-dark.css";
+import "@app/theme/themes/gruvbox-light.css";
+import "@app/theme/themes/gruvbox-dark.css";
+import "@app/theme/themes/tokyonight-light.css";
+import "@app/theme/themes/tokyonight-dark.css";
+import "@app/theme/themes/rosepine-light.css";
+import "@app/theme/themes/rosepine-dark.css";
+import "@app/theme/themes/everforest-light.css";
+import "@app/theme/themes/everforest-dark.css";
+import "@app/theme/themes/kanagawa-light.css";
+import "@app/theme/themes/kanagawa-dark.css";
+import "@app/theme/themes/dracula-light.css";
+import "@app/theme/themes/dracula-dark.css";
+import "@app/theme/themes/one-light.css";
+import "@app/theme/themes/one-dark.css";
+import "@app/theme/themes/ayu-light.css";
+import "@app/theme/themes/ayu-dark.css";
 
-function Theme({ theme }) {
-  const [cssContent, setCssContent] = useState("");
-  fetch(`/themes/${theme}.css`)
-    .then((response) => response.text())
-    .then((cssText) => {
-      setCssContent(cssText);
-    });
-  return (
-    <>
-      <style dangerouslySetInnerHTML={{ __html: cssContent }} />
-    </>
-  );
-}
-const DRAWO_VERSION = "1.1.2";
+//const DRAWO_VERSION = "1.1.2";
 const DRAWO_PROJECT_FORMAT = "drawo-project";
 const DRAWO_PROJECT_VERSION = 1;
 
@@ -661,6 +646,7 @@ export default function App() {
     handleDrawStrokeColorChange,
     handleShapeFillColorChange,
     handleShapeFillStyleChange,
+    handleElementsOpacityChange,
     handleShapeStrokeColorChange,
     handleShapeStrokeWidthChange,
     handleShapeStrokeStyleChange,
@@ -1023,25 +1009,9 @@ export default function App() {
     scene.settings.presentationMode,
     scene.settings.zenMode,
   ]);
-  function organizeThemes(arr, key) {
-    const index = arr.indexOf(key);
-
-    if (index === -1) return arr;
-
-    const copy = [...arr];
-    const [item] = copy.splice(index, 1);
-    copy.unshift(item);
-
-    return copy;
-  }
 
   return (
     <div className="app-root">
-      {organizeThemes(THEMES, /* selected theme */ resolvedTheme.variant).map(
-        (theme) => (
-          <Theme theme={theme} />
-        ),
-      )}
       <TooltipProvider>
         <div className="drawo-topbar">
           <div className="drawo-topbar-left">
@@ -1107,6 +1077,7 @@ export default function App() {
           onDrawStrokeColorChange={handleDrawStrokeColorChange}
           onShapeFillColorChange={handleShapeFillColorChange}
           onShapeFillStyleChange={handleShapeFillStyleChange}
+          onElementsOpacityChange={handleElementsOpacityChange}
           onShapeStrokeColorChange={handleShapeStrokeColorChange}
           onShapeStrokeWidthChange={handleShapeStrokeWidthChange}
           onShapeStrokeStyleChange={handleShapeStrokeStyleChange}
