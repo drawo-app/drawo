@@ -1,0 +1,18 @@
+[data-theme="nord-dark"],
+[data-theme="nord-dark"] * {
+  --accent: #88c0d0;
+  --accent-dark: #5e81ac;
+  --logoduotone-firstcolor: #81a1c1;
+  --logoduotone-secondcolor: #88c0d0;
+  --logocolor: #eceff4;
+  --accent-rgb: 136, 192, 208;
+  --text-rgb: 236, 239, 244;
+  --background-rgb: 46, 52, 64;
+  --panel-border: rgba(216, 222, 233, 0.08);
+  --panel-shadow: 0 12px 28px rgba(46, 52, 64, 0.42);
+  --app-bg: #2e3440;
+  --app-fg: #eceff4;
+  --popover-dark: #3b4252;
+  --panel-bg: #3b4252;
+  --popover-foreground-dark: var(--app-fg);
+}

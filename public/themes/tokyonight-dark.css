@@ -1,0 +1,18 @@
+[data-theme="tokyonight-dark"],
+[data-theme="tokyonight-dark"] * {
+  --accent: #7aa2f7;
+  --accent-dark: #334f8b;
+  --logoduotone-firstcolor: #73daca;
+  --logoduotone-secondcolor: #348a7d;
+  --logocolor: #c0caf5;
+  --accent-rgb: 122, 162, 247;
+  --text-rgb: 192, 202, 245;
+  --background-rgb: 26, 27, 38;
+  --panel-border: rgba(192, 202, 245, 0);
+  --panel-shadow: 0 12px 28px rgba(10, 10, 20, 0.52);
+  --app-bg: #1a1b26;
+  --app-fg: #c0caf5;
+  --panel-bg: rgba(36, 40, 59, 0.94);
+  --popover-dark: var(--panel-bg);
+  --popover-foreground-dark: var(--app-fg);
+}

@@ -1,0 +1,17 @@
+[data-theme="gruvbox-light"],
+[data-theme="gruvbox-light"] * {
+  --accent: #d79921;
+  --logoduotone-secondcolor: #b57614;
+  --logocolor: #3c3836;
+  --accent-rgb: 215, 153, 33;
+  --text-rgb: 60, 56, 54;
+  --background-rgb: 251, 241, 199;
+  --panel-border: rgba(60, 56, 54, 0.14);
+  --panel-shadow: 0 10px 24px rgba(60, 56, 54, 0.12);
+  --app-bg: #fbf1c7;
+  --app-fg: #3c3836;
+  --panel-bg: rgba(242, 229, 188, 0.94);
+  --logoduotone-firstcolor: var(--accent);
+  --popover-dark: var(--panel-bg);
+  --popover-foreground-dark: var(--app-fg);
+}

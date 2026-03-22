@@ -1,0 +1,17 @@
+[data-theme="nord-light"],
+[data-theme="nord-light"] * {
+  --accent: #5e81ac;
+  --logoduotone-firstcolor: #81a1c1;
+  --logoduotone-secondcolor: #88c0d0;
+  --logocolor: #2e3440;
+  --accent-rgb: 94, 129, 172;
+  --text-rgb: 46, 52, 64;
+  --background-rgb: 236, 239, 244;
+  --panel-border: rgba(46, 52, 64, 0.12);
+  --panel-shadow: 0 10px 24px rgba(46, 52, 64, 0.08);
+  --app-bg: #eceff4;
+  --app-fg: #2e3440;
+  --panel-bg: rgba(229, 233, 240, 0.92);
+  --popover-dark: var(--panel-bg);
+  --popover-foreground-dark: var(--app-fg);
+}

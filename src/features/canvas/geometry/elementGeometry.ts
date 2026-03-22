@@ -1,4 +1,10 @@
-import type { DrawElement, LineCap, LineElement } from "@core/elements";
+import {
+  hasLinePathPoints,
+  getLinePathBounds,
+  type DrawElement,
+  type LineCap,
+  type LineElement,
+} from "@core/elements";
 import { rotatePointAroundCenter } from "./geometry";
 import type { ElementBounds } from "@features/canvas/types";
 
@@ -39,22 +45,38 @@ export const getDrawSelectionBounds = (element: DrawElement): ElementBounds => {
 };
 
 export const getLineSelectionBounds = (element: LineElement): ElementBounds => {
-  const startX = element.x;
-  const startY = element.y;
-  const endX = element.x + element.width;
-  const endY = element.y + element.height;
-  const controlX = element.controlPoint
-    ? element.controlPoint.x
-    : startX + (endX - startX) / 2;
-  const controlY = element.controlPoint
-    ? element.controlPoint.y
-    : startY + (endY - startY) / 2;
+  const linePathBounds =
+    hasLinePathPoints(element) && element.points
+      ? getLinePathBounds(element.points)
+      : null;
+  const startX = linePathBounds ? linePathBounds.x : element.x;
+  const startY = linePathBounds ? linePathBounds.y : element.y;
+  const endX = linePathBounds ? linePathBounds.x + linePathBounds.width : element.x + element.width;
+  const endY = linePathBounds ? linePathBounds.y + linePathBounds.height : element.y + element.height;
+  const controlX = linePathBounds
+    ? startX + (endX - startX) / 2
+    : element.controlPoint
+      ? element.controlPoint.x
+      : startX + (endX - startX) / 2;
+  const controlY = linePathBounds
+    ? startY + (endY - startY) / 2
+    : element.controlPoint
+      ? element.controlPoint.y
+      : startY + (endY - startY) / 2;
   const curveControlX = controlX * 2 - (startX + endX) * 0.5;
   const curveControlY = controlY * 2 - (startY + endY) * 0.5;
-  const minX = Math.min(startX, endX, controlX, curveControlX);
-  const minY = Math.min(startY, endY, controlY, curveControlY);
-  const maxX = Math.max(startX, endX, controlX, curveControlX);
-  const maxY = Math.max(startY, endY, controlY, curveControlY);
+  const pathMinX = linePathBounds ? linePathBounds.x : Number.POSITIVE_INFINITY;
+  const pathMinY = linePathBounds ? linePathBounds.y : Number.POSITIVE_INFINITY;
+  const pathMaxX = linePathBounds
+    ? linePathBounds.x + linePathBounds.width
+    : Number.NEGATIVE_INFINITY;
+  const pathMaxY = linePathBounds
+    ? linePathBounds.y + linePathBounds.height
+    : Number.NEGATIVE_INFINITY;
+  const minX = Math.min(startX, endX, controlX, curveControlX, pathMinX);
+  const minY = Math.min(startY, endY, controlY, curveControlY, pathMinY);
+  const maxX = Math.max(startX, endX, controlX, curveControlX, pathMaxX);
+  const maxY = Math.max(startY, endY, controlY, curveControlY, pathMaxY);
   const strokePadding = Math.max(2, element.strokeWidth / 2);
   const capPadding = Math.max(
     getLineCapPadding(element.startCap, element.strokeWidth),
@@ -76,8 +98,12 @@ export const getLineMidpoint = (line: LineElement) => ({
 });
 
 export const getLinePoints = (line: LineElement) => {
-  const start = { x: line.x, y: line.y };
-  const end = { x: line.x + line.width, y: line.y + line.height };
+  const points =
+    hasLinePathPoints(line) && line.points ? line.points : null;
+  const start = points ? points[0] : { x: line.x, y: line.y };
+  const end = points
+    ? points[points.length - 1]
+    : { x: line.x + line.width, y: line.y + line.height };
   const throughPoint = line.controlPoint ?? getLineMidpoint(line);
 
   return { start, end, throughPoint };

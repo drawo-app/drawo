@@ -1,0 +1,17 @@
+[data-theme="solarized-light"],
+[data-theme="solarized-light"] * {
+  --accent: #7f6237;
+  --logoduotone-firstcolor: #61470e;
+  --logoduotone-secondcolor: #a16f2a;
+  --logocolor: #586e75;
+  --accent-rgb: 127, 98, 55;
+  --text-rgb: 88, 110, 117;
+  --background-rgb: 253, 246, 227;
+  --panel-border: rgba(88, 110, 117, 0.16);
+  --panel-shadow: 0 10px 24px rgba(88, 110, 117, 0.12);
+  --app-bg: #fdf6e3;
+  --app-fg: #586e75;
+  --panel-bg: rgba(238, 232, 213, 0.96);
+  --popover-dark: var(--panel-bg);
+  --popover-foreground-dark: var(--app-fg);
+}

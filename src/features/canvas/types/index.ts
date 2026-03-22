@@ -47,6 +47,8 @@ export interface ElementBounds {
 
 export interface CanvasViewProps {
   scene: Scene;
+  strokeColors: readonly string[];
+  shapeColors: readonly [readonly string[], readonly string[]];
   alignmentGuides: SmartGuide[];
   interactionMode: "select" | "pan";
   drawingTool: NewElementType | "laser" | null;
@@ -78,6 +80,7 @@ export interface CanvasViewProps {
     points: Array<{ x: number; y: number; t?: number }>,
     style?: Partial<DrawElementStyle>,
   ) => void;
+  onCreateLinePathElement: (points: Array<{ x: number; y: number }>) => void;
   onDrawingToolComplete: () => void;
   onDropImageFiles: (files: File[], x: number, y: number) => void;
   onSelectElements: (ids: string[]) => void;
@@ -127,6 +130,7 @@ export interface CanvasViewProps {
       width: number;
       height: number;
       controlPoint: { x: number; y: number } | null;
+      points?: Array<{ x: number; y: number }>;
     },
   ) => void;
   onRectangleBorderRadiusChange: (ids: string[], borderRadius: number) => void;

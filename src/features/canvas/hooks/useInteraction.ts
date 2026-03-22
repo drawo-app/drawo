@@ -9,6 +9,7 @@ import { findHitElement } from "@core/hitTest";
 import {
   addDrawElementToScene,
   addElementToScene,
+  addLinePathElementToScene,
   type DrawElementStyle,
   type ElementCreationBounds,
   getGroupElementIds,
@@ -881,6 +882,32 @@ export const useInteraction = ({
               }
 
               if (element.type === "line") {
+                if (startElement.points && startElement.points.length > 1) {
+                  const pointScaleX =
+                    startElement.width === 0
+                      ? 1
+                      : appliedWidth / startElement.width;
+                  const pointScaleY =
+                    startElement.height === 0
+                      ? 1
+                      : appliedHeight / startElement.height;
+
+                  const nextPoints = startElement.points.map((point) => ({
+                    x: appliedX + (point.x - startElement.x) * pointScaleX,
+                    y: appliedY + (point.y - startElement.y) * pointScaleY,
+                  }));
+
+                  return {
+                    ...element,
+                    x: appliedX,
+                    y: appliedY,
+                    width: appliedWidth,
+                    height: appliedHeight,
+                    controlPoint: null,
+                    points: nextPoints,
+                  };
+                }
+
                 return {
                   ...element,
                   x: appliedX,
@@ -998,12 +1025,19 @@ export const useInteraction = ({
                     y: appliedY + (element.controlPoint.y - element.y),
                   }
                 : null;
+              const points = element.points
+                ? element.points.map((point) => ({
+                    x: point.x + (appliedX - element.x),
+                    y: point.y + (appliedY - element.y),
+                  }))
+                : undefined;
 
               return {
                 ...element,
                 x: appliedX,
                 y: appliedY,
                 controlPoint,
+                points,
               };
             }
 
@@ -1257,10 +1291,11 @@ export const useInteraction = ({
             return {
               id: element.id,
               type: element.type,
-              x: bounds.x,
-              y: bounds.y,
-              width: bounds.width,
-              height: bounds.height,
+              x: element.x,
+              y: element.y,
+              width: element.width,
+              height: element.height,
+              points: element.points ? [...element.points] : undefined,
             };
           }
 
@@ -1494,6 +1529,22 @@ export const useInteraction = ({
     [setScene],
   );
 
+  const handleCreateLinePathElement = useCallback(
+    (points: Array<{ x: number; y: number }>) => {
+      setScene((currentScene) => {
+        const nextPoints = currentScene.settings.snapToGrid
+          ? points.map((point) => ({
+              x: snapValue(point.x, currentScene.settings.gridSize),
+              y: snapValue(point.y, currentScene.settings.gridSize),
+            }))
+          : points;
+
+        return addLinePathElementToScene(currentScene, nextPoints);
+      });
+    },
+    [setScene],
+  );
+
   const handleDrawStrokeWidthChange = useCallback(
     (ids: string[], strokeWidth: number) => {
       setScene((currentScene) =>
@@ -1653,6 +1704,7 @@ export const useInteraction = ({
         width: number;
         height: number;
         controlPoint: { x: number; y: number } | null;
+        points?: Array<{ x: number; y: number }>;
       },
     ) => {
       setSceneWithoutHistory((currentScene) => ({
@@ -1669,6 +1721,7 @@ export const useInteraction = ({
             width: nextGeometry.width,
             height: nextGeometry.height,
             controlPoint: nextGeometry.controlPoint,
+            points: nextGeometry.points ?? element.points,
           };
         }),
       }));
@@ -1695,6 +1748,7 @@ export const useInteraction = ({
     handleTextFontStyleChange,
     handleTextAlignChange,
     handleCreateDrawElement,
+    handleCreateLinePathElement,
     handleDrawStrokeWidthChange,
     handleDrawStrokeColorChange,
     handleShapeFillColorChange,

@@ -1,0 +1,17 @@
+[data-theme="catppuccin-light"],
+[data-theme="catppuccin-light"] * {
+  --accent: #8839ef;
+  --logoduotone-firstcolor: #6f5af6;
+  --logoduotone-secondcolor: #b38ef4;
+  --logocolor: #4c4f69;
+  --accent-rgb: 136, 57, 239;
+  --text-rgb: 76, 79, 105;
+  --background-rgb: 239, 241, 245;
+  --panel-border: rgba(76, 79, 105, 0.12);
+  --panel-shadow: 0 12px 28px rgba(136, 57, 239, 0.09);
+  --app-bg: #eff1f5;
+  --app-fg: #4c4f69;
+  --panel-bg: rgba(255, 255, 255, 0.9);
+  --popover-dark: var(--panel-bg);
+  --popover-foreground-dark: var(--app-fg);
+}

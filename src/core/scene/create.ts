@@ -107,8 +107,8 @@ export const addElementToScene = (
       height,
       borderRadius: 12,
       fillStyle: "solid",
-      fill: "#f5f5f5",
-      stroke: "#cccccc",
+      fill: scene.settings.shapeDefaults.fill,
+      stroke: scene.settings.shapeDefaults.stroke,
       strokeWidth: 1,
       strokeStyle: "solid",
       text: "",
@@ -116,7 +116,7 @@ export const addElementToScene = (
       fontSize: 20,
       fontWeight: "200",
       fontStyle: "normal",
-      color: "#2f3b52",
+      color: scene.settings.shapeDefaults.textColor,
       textAlign: "center",
     };
   } else if (type === "circle") {
@@ -134,8 +134,8 @@ export const addElementToScene = (
       width,
       height,
       fillStyle: "solid",
-      fill: "#f5f5f5",
-      stroke: "#cccccc",
+      fill: scene.settings.shapeDefaults.fill,
+      stroke: scene.settings.shapeDefaults.stroke,
       strokeWidth: 1,
       strokeStyle: "solid",
       text: "",
@@ -143,7 +143,7 @@ export const addElementToScene = (
       fontSize: 20,
       fontWeight: "200",
       fontStyle: "normal",
-      color: "#2f3b52",
+      color: scene.settings.shapeDefaults.textColor,
       textAlign: "center",
     };
   } else if (type === "text") {
@@ -162,7 +162,7 @@ export const addElementToScene = (
       fontSize,
       fontWeight: "200",
       fontStyle: "normal",
-      color: "#2f3b52",
+      color: scene.settings.shapeDefaults.textColor,
       textAlign: "left",
     };
   } else if (type === "line") {
@@ -177,7 +177,7 @@ export const addElementToScene = (
       y: lineBounds ? lineBounds.y : y,
       width,
       height,
-      stroke: "#2f3b52",
+      stroke: scene.settings.shapeDefaults.lineStroke,
       strokeStyle: "solid",
       strokeWidth: 2,
       startCap: "none",
@@ -204,11 +204,16 @@ export const addElementToScene = (
       ],
       stroke:
         drawMode === "marker"
-          ? "#f1e66d"
+          ? scene.settings.drawDefaults.markerStroke
           : drawMode === "quill"
-            ? "#2f3b52"
-            : "#2f3b52",
-      strokeWidth: drawMode === "marker" ? 10 : 2,
+            ? scene.settings.drawDefaults.quillStroke
+            : scene.settings.drawDefaults.drawStroke,
+      strokeWidth:
+        drawMode === "marker"
+          ? scene.settings.drawDefaults.markerStrokeWidth
+          : drawMode === "quill"
+            ? scene.settings.drawDefaults.quillStrokeWidth
+            : scene.settings.drawDefaults.drawStrokeWidth,
     };
   }
 
@@ -287,6 +292,57 @@ export const addDrawElementToScene = (
   };
 };
 
+export const addLinePathElementToScene = (
+  scene: Scene,
+  points: Array<{ x: number; y: number }>,
+): Scene => {
+  if (points.length < 2) {
+    return scene;
+  }
+
+  const normalizedPoints: Array<{ x: number; y: number }> = [];
+
+  for (const point of points) {
+    const previous = normalizedPoints[normalizedPoints.length - 1];
+    if (!previous || Math.hypot(point.x - previous.x, point.y - previous.y) >= 1) {
+      normalizedPoints.push({ x: point.x, y: point.y });
+    }
+  }
+
+  if (normalizedPoints.length < 2) {
+    return scene;
+  }
+
+  const minX = Math.min(...normalizedPoints.map((point) => point.x));
+  const minY = Math.min(...normalizedPoints.map((point) => point.y));
+  const maxX = Math.max(...normalizedPoints.map((point) => point.x));
+  const maxY = Math.max(...normalizedPoints.map((point) => point.y));
+
+  const element: SceneElement = {
+    id: createElementId("line"),
+    type: "line",
+    rotation: 0,
+    x: minX,
+    y: minY,
+    width: Math.max(1, maxX - minX),
+    height: Math.max(1, maxY - minY),
+    stroke: scene.settings.drawDefaults.drawStroke,
+    strokeStyle: "solid",
+    strokeWidth: scene.settings.drawDefaults.drawStrokeWidth,
+    startCap: "none",
+    endCap: "none",
+    controlPoint: null,
+    points: normalizedPoints,
+  };
+
+  return {
+    ...scene,
+    elements: [...scene.elements, element],
+    selectedId: element.id,
+    selectedIds: [element.id],
+  };
+};
+
 export const addImageElementToScene = (
   scene: Scene,
   image: {
@@ -294,6 +350,7 @@ export const addImageElementToScene = (
     assetId?: string | null;
     naturalWidth: number;
     naturalHeight: number;
+    isAnimated?: boolean;
   },
   x: number,
   y: number,
@@ -323,6 +380,7 @@ export const addImageElementToScene = (
     assetId: image.assetId ?? null,
     naturalWidth: image.naturalWidth,
     naturalHeight: image.naturalHeight,
+    isAnimated: image.isAnimated ?? false,
   };
 
   return {

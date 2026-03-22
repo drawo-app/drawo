@@ -1,0 +1,18 @@
+[data-theme="kanagawa-dark"],
+[data-theme="kanagawa-dark"] * {
+  --accent: #7e9cd8;
+  --accent-dark: #45619a;
+  --logoduotone-firstcolor: var(--accent);
+  --logoduotone-secondcolor: #7fb4ca;
+  --logocolor: #dcd7ba;
+  --accent-rgb: 126, 156, 216;
+  --text-rgb: 220, 215, 186;
+  --background-rgb: 31, 31, 40;
+  --panel-border: rgba(220, 215, 186, 0);
+  --panel-shadow: 0px;
+  --app-bg: #1f1f28;
+  --app-fg: #dcd7ba;
+  --panel-bg: rgba(42, 42, 55, 0.94);
+  --popover-dark: var(--panel-bg);
+  --popover-foreground-dark: var(--app-fg);
+}

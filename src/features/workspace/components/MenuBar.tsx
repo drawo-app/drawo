@@ -27,7 +27,6 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@shared/ui/dropdown-menu";
-import { MonitorSmartphone, Moon, Sun } from "@solar-icons/react";
 import {
   ArrowDownToSquare,
   BroomMotion,
@@ -51,6 +50,7 @@ import {
   ObjectsAlignLeft,
   ObjectsAlignRight,
   ObjectsAlignTop,
+  Palette,
   PencilToSquare,
   Rectangles4,
   Route,
@@ -73,6 +73,7 @@ import { DiscordIcon, LaserPointerStylusIcon } from "@shared/ui/icons";
 import { ColorSwatchPicker } from "@shared/ui/ColorSwatchPicker";
 import { Slider } from "@shared/ui/slider";
 import { Switch } from "@shared/ui/switch";
+import { ThemeDialog } from "@app/theme/themeDialog";
 
 interface MenuBarProps {
   scene: Scene;
@@ -95,6 +96,7 @@ export const MenuBar = ({
   onExportProject,
   onOpenProject,
 }: MenuBarProps) => {
+  const [isThemeDialogOpen, setIsThemeDialogOpen] = useState(false);
   const [isClearDialogOpen, setIsClearDialogOpen] = useState(false);
   const [isLaserPointerOpen, setIsLaserPointerOpen] = useState(false);
   const [isOpenProjectConfirmOpen, setIsOpenProjectConfirmOpen] =
@@ -466,6 +468,122 @@ export const MenuBar = ({
             <CrownDiamond /> {messages.menu.donate}
           </DropdownMenuItem>
           <DropdownMenuSeparator />
+          {/*
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger>
+              <BucketPaint />
+              {messages.menu.theme}
+            </DropdownMenuSubTrigger>
+            <DropdownMenuSubContent>
+              <DropdownMenuRadioGroup
+                value={`${scene.settings.colorScheme}-${scene.settings.theme === "dark" ? "dark" : "light"}`}
+                onValueChange={(value) => {
+                  const lastDashIndex = value.lastIndexOf("-");
+                  if (lastDashIndex <= 0) {
+                    return;
+                  }
+
+                  const colorScheme = value.slice(
+                    0,
+                    lastDashIndex,
+                  ) as Scene["settings"]["colorScheme"];
+                  const theme = value.slice(lastDashIndex + 1);
+                  if (theme !== "light" && theme !== "dark") {
+                    return;
+                  }
+
+                  setSceneWithoutHistory((currentScene) =>
+                    updateSceneSettings(currentScene, {
+                      colorScheme,
+                      theme,
+                    }),
+                  );
+                }}
+              >
+                <DropdownMenuRadioItem value="drawo-light">
+                  Drawo Light
+                </DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="catppuccin-light">
+                  Catppuccin Latte
+                </DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="nord-light">
+                  Nord Light
+                </DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="solarized-light">
+                  Solarized Light
+                </DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="gruvbox-light">
+                  Gruvbox Light
+                </DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="tokyonight-light">
+                  Tokyo Night Light
+                </DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="rosepine-light">
+                  Rose Pine Light
+                </DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="everforest-light">
+                  Everforest Light
+                </DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="kanagawa-light">
+                  Kanagawa Light
+                </DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="dracula-light">
+                  Dracula Light
+                </DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="one-light">
+                  One Light
+                </DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="ayu-light">
+                  Ayu Light
+                </DropdownMenuRadioItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuRadioItem value="drawo-dark">
+                  Drawo Dark
+                </DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="catppuccin-dark">
+                  Catppuccin Mocha
+                </DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="nord-dark">
+                  Nord Dark
+                </DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="solarized-dark">
+                  Solarized Dark
+                </DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="gruvbox-dark">
+                  Gruvbox Dark
+                </DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="tokyonight-dark">
+                  Tokyo Night Dark
+                </DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="rosepine-dark">
+                  Rose Pine Dark
+                </DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="everforest-dark">
+                  Everforest Dark
+                </DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="kanagawa-dark">
+                  Kanagawa Dark
+                </DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="dracula-dark">
+                  Dracula Dark
+                </DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="one-dark">
+                  One Dark
+                </DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="ayu-dark">
+                  Ayu Dark
+                </DropdownMenuRadioItem>
+              </DropdownMenuRadioGroup>
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>*/}
+          <DropdownMenuItem
+            onClick={() => {
+              setIsThemeDialogOpen(true);
+            }}
+          >
+            <Palette />
+            {messages.menu.themes}
+          </DropdownMenuItem>
           <DropdownMenuSub>
             <DropdownMenuSubTrigger>
               <Gear />
@@ -497,59 +615,6 @@ export const MenuBar = ({
                 <Route /> {messages.menu.smartGuides}
               </DropdownMenuCheckboxItem>
               <DropdownMenuSeparator />
-              <div className="custom-element">
-                <span>
-                  <BucketPaint />
-                  {messages.menu.colorProfile}
-                </span>
-                <div className="theme-selector">
-                  <div
-                    className={
-                      "theme-option " +
-                      (scene.settings.theme === "light" ? "active" : "")
-                    }
-                    onClick={() => {
-                      setSceneWithoutHistory((currentScene) =>
-                        updateSceneSettings(currentScene, {
-                          theme: "light",
-                        }),
-                      );
-                    }}
-                  >
-                    <Sun size={16} weight="Bold" />
-                  </div>
-                  <div
-                    className={
-                      "theme-option " +
-                      (scene.settings.theme === "dark" ? "active" : "")
-                    }
-                    onClick={() => {
-                      setSceneWithoutHistory((currentScene) =>
-                        updateSceneSettings(currentScene, {
-                          theme: "dark",
-                        }),
-                      );
-                    }}
-                  >
-                    <Moon size={16} weight="Bold" />
-                  </div>
-                  <div
-                    className={
-                      "theme-option " +
-                      (scene.settings.theme === "system" ? "active" : "")
-                    }
-                    onClick={() => {
-                      setSceneWithoutHistory((currentScene) =>
-                        updateSceneSettings(currentScene, {
-                          theme: "system",
-                        }),
-                      );
-                    }}
-                  >
-                    <MonitorSmartphone size={16} weight="Bold" />
-                  </div>
-                </div>
-              </div>
               <DropdownMenuSub>
                 <DropdownMenuSubTrigger>
                   <Globe />
@@ -664,7 +729,9 @@ export const MenuBar = ({
             />
             <span className="text-flex">
               {messages.dialogs.laserCanvas.enableShadows}{" "}
-              <span className="drawo-keybind">BETA</span>
+              <span className="drawo-beta">
+                <span>BETA</span>
+              </span>
             </span>
           </div>
 
@@ -697,6 +764,22 @@ export const MenuBar = ({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <ThemeDialog
+        isOpen={isThemeDialogOpen}
+        onOpenChange={setIsThemeDialogOpen}
+        currentTheme={
+                `${scene.settings.colorScheme}-${scene.settings.theme === "dark" ? "dark" : "light"}`
+        }
+        messages={messages}
+        setTheme={(theme) => {
+          setSceneWithoutHistory((currentScene) =>
+            updateSceneSettings(currentScene, {
+              colorScheme: theme.split("-")[0] as Scene["settings"]["colorScheme"],
+              theme: theme.split("-")[1] as "light" | "dark",
+            }),
+          );
+        }}
+      />
       <Dialog open={isClearDialogOpen} onOpenChange={setIsClearDialogOpen}>
         <DialogContent>
           <DialogHeader>

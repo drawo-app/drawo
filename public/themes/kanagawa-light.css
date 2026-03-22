@@ -1,0 +1,17 @@
+*[data-theme="kanagawa-light"],
+*[data-theme="kanagawa-light"] * {
+  --accent: #4d699b;
+  --logoduotone-firstcolor: #198383;
+  --logoduotone-secondcolor: #629f9f;
+  --logocolor: #545464;
+  --accent-rgb: 77, 105, 155;
+  --text-rgb: 84, 84, 100;
+  --background-rgb: 242, 236, 188;
+  --panel-border: rgba(84, 84, 100, 0.13);
+  --panel-shadow: none;
+  --app-bg: #f2ecbc;
+  --app-fg: #545464;
+  --panel-bg: rgba(244, 241, 217, 0.95);
+  --popover-dark: var(--panel-bg);
+  --popover-foreground-dark: var(--app-fg);
+}

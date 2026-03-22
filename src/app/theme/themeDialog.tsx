@@ -1,27 +1,67 @@
-interface CanvasEmptyStateProps {
-  tagline: string;
-}
+import type { LocaleMessages } from "@shared/i18n";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@shared/ui/dialog";
+import { PaletteRound } from "@solar-icons/react";
+import { SCHEME_PRESETS, THEME_LABELS } from "./themes";
 
-export const CanvasEmptyState = ({ tagline }: CanvasEmptyStateProps) => {
+export function ThemeDialog({
+  messages,
+  isOpen,
+  onOpenChange,
+  currentTheme,
+  setTheme,
+}: {
+  messages: LocaleMessages;
+  isOpen: boolean;
+  onOpenChange: (open: boolean) => void;
+  currentTheme: string;
+  setTheme: (theme: string) => void;
+}) {
   return (
-    <div
-      style={{
-        position: "absolute",
-        left: "50%",
-        top: "50%",
-        display: "flex",
-        justifyContent: "center",
-        alignItems: "center",
-        opacity: 0.5,
-        flexDirection: "column",
-        transform: "translate(-50%, -50%)",
-        pointerEvents: "none",
-        userSelect: "none",
-      }}
-    >
+    <Dialog open={isOpen} onOpenChange={onOpenChange}>
+      <DialogTrigger asChild>
+        <></>
+      </DialogTrigger>
+      <DialogContent className="size-lg">
+        <DialogHeader>
+          <DialogTitle className="flex-text">
+            <PaletteRound weight="BoldDuotone" /> {messages.menu.themes}
+          </DialogTitle>
+        </DialogHeader>
+        {["light", "dark"].map((mode) => {
+          return (
+            <>
+              <h1>{mode.charAt(0).toUpperCase() + mode.slice(1)} themes</h1>
+              <div className="theme-entries">
+                {Object.entries(THEME_LABELS).map(([key, label]) => {
+                  return (
+                    <div
+                      className="theme-entry-container"
+                      data-theme={key + "-" + mode}
+                    >
+                      <div
+                        className={
+                          "theme-entry " +
+                          (currentTheme == (key + "-" + mode) ? "selected" : "")
+                        }
+                        style={{
+                          border: "1px solid var(--panel-border)",
+                          backgroundColor:
+                            SCHEME_PRESETS[key][mode].drawDefaults.canvas,
+                        }}
+                        onClick={() => {
+                          setTheme(key + "-" + mode);
+                        }}
+                      >
       <svg
-        height="8vh"
-        viewBox="0 0 2269 361"
+        height="2vh"
+        className="drawo-logopreview"
+        viewBox="0 0 500 361"
         fill="none"
         xmlns="http://www.w3.org/2000/svg"
       >
@@ -60,15 +100,21 @@ export const CanvasEmptyState = ({ tagline }: CanvasEmptyStateProps) => {
           fill="var(--logocolor)"
         />
       </svg>
-
-      <p
-        style={{
-          fontFamily: "Shantell Sans",
-          fontSize: "24px",
-          textAlign: "center",
-        }}
-        dangerouslySetInnerHTML={{ __html: tagline.replaceAll("\n", "<br>") }}
-      />
-    </div>
+                        <div className="drawo-themepreview-bottombar">
+                          <div className="drawo-themepreview-bottombar-item" data-isdark={mode==="dark"}></div>
+                        </div>
+                      </div>
+                      <p>
+                        {label} ({mode})
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          );
+        })}
+      </DialogContent>
+    </Dialog>
   );
-};
+}

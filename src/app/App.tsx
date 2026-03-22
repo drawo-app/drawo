@@ -57,7 +57,51 @@ import {
   MIN_CAMERA_ZOOM,
   ZOOM_SENSITIVITY,
 } from "@features/canvas/interaction/constants";
+import {
+  resolveThemeForSettings,
+  syncSceneThemeDefaults,
+} from "@app/theme/themes";
+import "@app/theme/base-tokens.css";
+const THEMES = [
+  "drawo-light",
+  "drawo-dark",
+  "catppuccin-latte",
+  "catppuccin-mocha",
+  "nord-light",
+  "nord-dark",
+  "solarized-light",
+  "solarized-dark",
+  "gruvbox-light",
+  "gruvbox-dark",
+  "tokyonight-light",
+  "tokyonight-dark",
+  "rosepine-light",
+  "rosepine-dark",
+  "everforest-light",
+  "everforest-dark",
+  "kanagawa-light",
+  "kanagawa-dark",
+  "dracula-light",
+  "dracula-dark",
+  "one-light",
+  "one-dark",
+  "ayu-light",
+  "ayu-dark",
+];
 
+function Theme({ theme }) {
+  const [cssContent, setCssContent] = useState("");
+  fetch(`/themes/${theme}.css`)
+    .then((response) => response.text())
+    .then((cssText) => {
+      setCssContent(cssText);
+    });
+  return (
+    <>
+      <style dangerouslySetInnerHTML={{ __html: cssContent }} />
+    </>
+  );
+}
 const DRAWO_VERSION = "1.1.2";
 const DRAWO_PROJECT_FORMAT = "drawo-project";
 const DRAWO_PROJECT_VERSION = 1;
@@ -100,6 +144,7 @@ type LoadedImageFile = {
   assetId: string;
   naturalWidth: number;
   naturalHeight: number;
+  isAnimated: boolean;
 };
 
 const loadImageFiles = async (files: File[]): Promise<LoadedImageFile[]> => {
@@ -109,14 +154,17 @@ const loadImageFiles = async (files: File[]): Promise<LoadedImageFile[]> => {
       .map((file) => prepareAndStoreImageFile(file)),
   );
 
-  return loaded
-    .filter(
-      (result): result is PromiseFulfilledResult<LoadedImageFile> =>
-        result.status === "fulfilled" &&
-        result.value.naturalWidth > 0 &&
-        result.value.naturalHeight > 0,
-    )
-    .map((result) => result.value);
+  return loaded.flatMap((result) => {
+    if (
+      result.status !== "fulfilled" ||
+      result.value.naturalWidth <= 0 ||
+      result.value.naturalHeight <= 0
+    ) {
+      return [];
+    }
+
+    return [result.value];
+  });
 };
 
 const toPersistableScene = (scene: Scene): Scene => {
@@ -210,9 +258,11 @@ export default function App() {
   const canUndo = state.past.length > 0;
   const canRedo = state.future.length > 0;
   const messages = LOCALES[locale];
-  const isDarkMode =
-    scene.settings.theme === "dark" ||
-    (scene.settings.theme === "system" && systemPrefersDark);
+  const resolvedTheme = resolveThemeForSettings(
+    scene.settings,
+    systemPrefersDark,
+  );
+  const isDarkMode = resolvedTheme.isDark;
   const isPresentationMode = scene.settings.presentationMode;
   const effectiveInteractionMode = isPresentationMode ? "pan" : interactionMode;
   const effectiveDrawingTool = isPresentationMode ? null : drawingTool;
@@ -419,7 +469,6 @@ export default function App() {
             naturalWidth: optimized.naturalWidth,
             naturalHeight: optimized.naturalHeight,
           });
-        } catch {
         } finally {
           migratingLegacyImageIdsRef.current.delete(image.id);
         }
@@ -601,6 +650,7 @@ export default function App() {
     handleWheelZoom,
     handleCreateElement,
     handleCreateDrawElement,
+    handleCreateLinePathElement,
     handleSelectElements,
     handleTextFontFamilyChange,
     handleTextFontSizeChange,
@@ -931,7 +981,24 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    setSceneWithoutHistory((currentScene) => {
+      const nextTheme = resolveThemeForSettings(
+        currentScene.settings,
+        systemPrefersDark,
+      );
+      return syncSceneThemeDefaults(currentScene, nextTheme.preset);
+    });
+  }, [
+    scene.settings.colorScheme,
+    scene.settings.theme,
+    setSceneWithoutHistory,
+    systemPrefersDark,
+  ]);
+
+  useEffect(() => {
     const rootElement = document.documentElement;
+
+    rootElement.setAttribute("data-theme", resolvedTheme.dataTheme);
 
     if (isDarkMode) {
       rootElement.classList.add("dark");
@@ -950,10 +1017,31 @@ export default function App() {
     } else {
       rootElement.classList.remove("drawo-presentation-mode");
     }
-  }, [isDarkMode, scene.settings.presentationMode, scene.settings.zenMode]);
+  }, [
+    isDarkMode,
+    resolvedTheme.dataTheme,
+    scene.settings.presentationMode,
+    scene.settings.zenMode,
+  ]);
+  function organizeThemes(arr, key) {
+    const index = arr.indexOf(key);
+
+    if (index === -1) return arr;
+
+    const copy = [...arr];
+    const [item] = copy.splice(index, 1);
+    copy.unshift(item);
+
+    return copy;
+  }
 
   return (
     <div className="app-root">
+      {organizeThemes(THEMES, /* selected theme */ resolvedTheme.variant).map(
+        (theme) => (
+          <Theme theme={theme} />
+        ),
+      )}
       <TooltipProvider>
         <div className="drawo-topbar">
           <div className="drawo-topbar-left">
@@ -987,6 +1075,8 @@ export default function App() {
         </div>
         <CanvasView
           scene={scene}
+          strokeColors={resolvedTheme.preset.strokeColors}
+          shapeColors={resolvedTheme.preset.shapeColors}
           alignmentGuides={alignmentGuides}
           interactionMode={effectiveInteractionMode}
           drawingTool={effectiveDrawingTool}
@@ -1000,6 +1090,7 @@ export default function App() {
           onWheelZoom={handleWheelZoom}
           onCreateElement={handleCreateElement}
           onCreateDrawElement={handleCreateDrawElement}
+          onCreateLinePathElement={handleCreateLinePathElement}
           onDrawingToolComplete={() => setDrawingToolGuarded(null)}
           onDropImageFiles={(files, x, y) =>
             void handleInsertImageFiles(files, { x, y })
@@ -1065,6 +1156,10 @@ export default function App() {
           setInteractionMode={setInteractionModeGuarded}
           setDrawingTool={setDrawingToolGuarded}
           drawDefaults={scene.settings.drawDefaults}
+          invertPaletteInDarkMode={
+            isDarkMode && scene.settings.colorScheme === "drawo"
+          }
+          strokeColors={resolvedTheme.preset.strokeColors}
           onDrawDefaultStrokeColorChange={handleDrawDefaultStrokeColorChange}
           onDrawDefaultStrokeWidthChange={handleDrawDefaultStrokeWidthChange}
           onSelectImageFiles={(files) => void handleInsertImageFiles(files)}

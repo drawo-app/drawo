@@ -26,7 +26,6 @@ import {
   LINE_STROKELINECAPS_PREVIEWS,
   MARKER_STROKE_OPTIONS,
   MARKER_STROKE_PREVIEWS,
-  STROKE_COLORS,
 } from "@features/canvas/rendering/constants";
 import { parseColorForPicker } from "@features/canvas/rendering/color";
 import {
@@ -37,6 +36,7 @@ import {
 
 interface SelectionStrokeControlsProps {
   scene: Scene;
+  strokeColors: readonly string[];
   selectedIds: string[];
   drawingTool: NewElementType | "laser" | null;
   localeMessages: LocaleMessages;
@@ -89,6 +89,7 @@ const renderDrawStrokePreview = (
 
 export const SelectionStrokeControls = ({
   scene,
+  strokeColors,
   selectedIds,
   drawingTool,
   localeMessages,
@@ -148,7 +149,7 @@ export const SelectionStrokeControls = ({
         : scene.settings.drawDefaults.drawStroke;
   const selectedDrawStrokeColor =
     selectedDrawElements[0]?.stroke || defaultDrawStrokeColor;
-  const drawStrokeColorSelectValue = STROKE_COLORS.some(
+  const drawStrokeColorSelectValue = strokeColors.some(
     (color) =>
       color !== "multi" &&
       color.toLowerCase() === selectedDrawStrokeColor.toLowerCase(),
@@ -161,9 +162,9 @@ export const SelectionStrokeControls = ({
     "multi";
   const selectedLineStrokePreviewColor =
     selectedLineStrokeColor === "multi"
-      ? (selectedLineElements[0]?.stroke ?? "#2f3b52")
+      ? (selectedLineElements[0]?.stroke ?? scene.settings.shapeDefaults.lineStroke)
       : selectedLineStrokeColor;
-  const lineStrokeColorSelectValue = STROKE_COLORS.some(
+  const lineStrokeColorSelectValue = strokeColors.some(
     (color) =>
       color !== "multi" &&
       color.toLowerCase() === selectedLineStrokeColor.toLowerCase(),
@@ -261,7 +262,7 @@ export const SelectionStrokeControls = ({
             className="drawo-colorselect-content"
           >
             <ColorSwatchPicker
-              colors={STROKE_COLORS}
+              colors={strokeColors}
               currentColor={selectedDrawStrokeColor}
               uniColor={uniColor}
               renderItem={({ color, isMulti, swatch }) => (
@@ -468,7 +469,7 @@ export const SelectionStrokeControls = ({
             className="drawo-colorselect-content"
           >
             <ColorSwatchPicker
-              colors={STROKE_COLORS}
+              colors={strokeColors}
               currentColor={selectedLineStrokePreviewColor}
               uniColor={uniColor}
               renderItem={({ color, isMulti, swatch }) => (

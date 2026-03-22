@@ -1,0 +1,17 @@
+[data-theme="dracula-light"],
+[data-theme="dracula-light"] * {
+  --accent: #6272a4;
+  --logoduotone-firstcolor: #bd93f9;
+  --logoduotone-secondcolor: #6939ac;
+  --logocolor: #282a36;
+  --accent-rgb: 98, 114, 164;
+  --text-rgb: 40, 42, 54;
+  --background-rgb: 248, 248, 251;
+  --panel-border: rgba(40, 42, 54, 0.13);
+  --panel-shadow: 0 10px 24px rgba(40, 42, 54, 0.1);
+  --app-bg: #f8f8fb;
+  --app-fg: #282a36;
+  --panel-bg: rgba(241, 241, 247, 0.95);
+  --popover-dark: var(--panel-bg);
+  --popover-foreground-dark: var(--app-fg);
+}

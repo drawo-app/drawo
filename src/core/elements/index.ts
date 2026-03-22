@@ -17,7 +17,12 @@ export type { CircleElement } from "./circle";
 export type { DrawElement, DrawPoint } from "./draw";
 export type { RectangleElement } from "./rectangle";
 export type { TextElement } from "./text";
-export type { LineCap, LineElement } from "./line";
+export {
+  getLinePathBounds,
+  hasLinePathPoints,
+  type LineCap,
+  type LineElement,
+} from "./line";
 export type { ImageElement } from "./image";
 
 export { hitTestCircle } from "./circle";

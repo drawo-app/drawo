@@ -157,6 +157,25 @@ const isValidTheme = (value: unknown): value is SceneSettings["theme"] => {
   return value === "light" || value === "dark" || value === "system";
 };
 
+const isValidColorScheme = (
+  value: unknown,
+): value is SceneSettings["colorScheme"] => {
+  return (
+    value === "drawo" ||
+    value === "catppuccin" ||
+    value === "nord" ||
+    value === "solarized" ||
+    value === "gruvbox" ||
+    value === "tokyonight" ||
+    value === "rosepine" ||
+    value === "everforest" ||
+    value === "kanagawa" ||
+    value === "dracula" ||
+    value === "one" ||
+    value === "ayu"
+  );
+};
+
 const isValidGridStyle = (
   value: unknown,
 ): value is SceneSettings["gridStyle"] => {
@@ -172,6 +191,9 @@ const isValidDrawDefaults = (
 
   const drawDefaults = value as SceneSettings["drawDefaults"];
   return (
+    ((typeof drawDefaults.canvas === "string" &&
+      drawDefaults.canvas.trim().length > 0) ||
+      typeof drawDefaults.canvas === "undefined") &&
     typeof drawDefaults.drawStroke === "string" &&
     drawDefaults.drawStroke.trim().length > 0 &&
     typeof drawDefaults.markerStroke === "string" &&
@@ -185,6 +207,26 @@ const isValidDrawDefaults = (
       typeof drawDefaults.quillStrokeWidth === "undefined") &&
     (typeof drawDefaults.markerStrokeWidth === "number" ||
       typeof drawDefaults.markerStrokeWidth === "undefined")
+  );
+};
+
+const isValidShapeDefaults = (
+  value: unknown,
+): value is SceneSettings["shapeDefaults"] => {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const shapeDefaults = value as SceneSettings["shapeDefaults"];
+  return (
+    typeof shapeDefaults.fill === "string" &&
+    shapeDefaults.fill.trim().length > 0 &&
+    typeof shapeDefaults.stroke === "string" &&
+    shapeDefaults.stroke.trim().length > 0 &&
+    typeof shapeDefaults.textColor === "string" &&
+    shapeDefaults.textColor.trim().length > 0 &&
+    typeof shapeDefaults.lineStroke === "string" &&
+    shapeDefaults.lineStroke.trim().length > 0
   );
 };
 
@@ -294,6 +336,13 @@ const normalizeSceneSettings = (
     delete nextSettings.gridStyle;
   }
 
+  if (
+    typeof nextSettings.colorScheme !== "undefined" &&
+    !isValidColorScheme(nextSettings.colorScheme)
+  ) {
+    delete nextSettings.colorScheme;
+  }
+
   if (source && Object.prototype.hasOwnProperty.call(source, "drawDefaults")) {
     if (isValidDrawDefaults(source.drawDefaults)) {
       const mergedDrawDefaults = mergeByShape(
@@ -306,6 +355,21 @@ const normalizeSceneSettings = (
       };
     } else {
       delete nextSettings.drawDefaults;
+    }
+  }
+
+  if (source && Object.prototype.hasOwnProperty.call(source, "shapeDefaults")) {
+    if (isValidShapeDefaults(source.shapeDefaults)) {
+      const mergedShapeDefaults = mergeByShape(
+        baseSettings.shapeDefaults as unknown as Record<string, unknown>,
+        source.shapeDefaults,
+      ) as Partial<SceneSettings["shapeDefaults"]>;
+      nextSettings.shapeDefaults = {
+        ...baseSettings.shapeDefaults,
+        ...mergedShapeDefaults,
+      };
+    } else {
+      delete nextSettings.shapeDefaults;
     }
   }
 

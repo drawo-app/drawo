@@ -1,4 +1,8 @@
-import type { LineCap, LineElement } from "@core/elements";
+import {
+  hasLinePathPoints,
+  type LineCap,
+  type LineElement,
+} from "@core/elements";
 import { HANDLE_SIZE } from "./constants";
 import {
   getLineCurveControlPoint,
@@ -56,6 +60,84 @@ export const drawLineEditHandles = (
   }
 };
 
+export const drawSmoothLinePath = (
+  ctx: CanvasRenderingContext2D,
+  points: Array<{ x: number; y: number }>,
+  roundness = 1.25,
+) => {
+  if (points.length === 0) {
+    return;
+  }
+
+  ctx.moveTo(points[0].x, points[0].y);
+
+  if (points.length === 1) {
+    return;
+  }
+
+  if (points.length === 2) {
+    ctx.lineTo(points[1].x, points[1].y);
+    return;
+  }
+
+  const factor = Math.max(0.2, Math.min(1.8, roundness));
+
+  for (let index = 0; index < points.length - 1; index++) {
+    const p0 = points[index - 1] ?? points[index];
+    const p1 = points[index];
+    const p2 = points[index + 1];
+    const p3 = points[index + 2] ?? p2;
+
+    const cp1x = p1.x + ((p2.x - p0.x) * factor) / 6;
+    const cp1y = p1.y + ((p2.y - p0.y) * factor) / 6;
+    const cp2x = p2.x - ((p3.x - p1.x) * factor) / 6;
+    const cp2y = p2.y - ((p3.y - p1.y) * factor) / 6;
+
+    ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, p2.x, p2.y);
+  }
+};
+
+const drawLinePathEditHandles = (
+  ctx: CanvasRenderingContext2D,
+  points: Array<{ x: number; y: number }>,
+  zoom: number,
+  accentColor: string,
+  surfaceColor: string,
+  hoveredPointIndex: number | null,
+  activePointIndex: number | null,
+) => {
+  const baseRadius = Math.max(6 / zoom, HANDLE_SIZE / (2.35 * zoom));
+
+  for (let index = 0; index < points.length; index++) {
+    const point = points[index];
+    const isHovered = hoveredPointIndex === index;
+    const isActive = activePointIndex === index;
+    const isEndPoint = index === 0 || index === points.length - 1;
+    const scale = isActive ? 1.36 : isHovered ? 1.18 : 1;
+    const radius = baseRadius * scale * (isEndPoint ? 1.08 : 1);
+
+    ctx.save();
+    ctx.fillStyle = surfaceColor;
+    ctx.strokeStyle = accentColor;
+    ctx.lineWidth = (isActive ? 2.3 : isHovered ? 1.85 : 1.5) / zoom;
+    ctx.beginPath();
+    ctx.arc(point.x, point.y, radius, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    if (isActive || isHovered) {
+      ctx.globalAlpha = isActive ? 0.21 : 0.13;
+      ctx.strokeStyle = accentColor;
+      ctx.lineWidth = 5 / zoom;
+      ctx.beginPath();
+      ctx.arc(point.x, point.y, radius + 1.65 / zoom, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    ctx.restore();
+  }
+};
+
 interface RenderLineElementOptions {
   ctx: CanvasRenderingContext2D;
   lineElement: LineElement;
@@ -69,6 +151,8 @@ interface RenderLineElementOptions {
   canTransformSelection: boolean;
   hoveredLineHandle: "start" | "end" | "control" | null;
   activeLineHandle: "start" | "end" | "control" | null;
+  hoveredLinePointIndex: number | null;
+  activeLinePointIndex: number | null;
 }
 
 export const renderLineElement = ({
@@ -84,14 +168,20 @@ export const renderLineElement = ({
   canTransformSelection,
   hoveredLineHandle,
   activeLineHandle,
+  hoveredLinePointIndex,
+  activeLinePointIndex,
 }: RenderLineElementOptions) => {
   const { start, end, throughPoint } = getLinePoints(lineElement);
+  const linePathPoints =
+    hasLinePathPoints(lineElement) && lineElement.points
+      ? lineElement.points
+      : null;
   const curveControl = getLineCurveControlPoint(start, end, throughPoint);
-  const hasControlPoint = Boolean(lineElement.controlPoint);
+  const hasControlPoint = Boolean(lineElement.controlPoint) && !linePathPoints;
   const capSize = Math.max(10, lineElement.strokeWidth * 1.9);
   const selectionBounds = getLineSelectionBounds(lineElement);
-  const centerX = start.x + lineElement.width / 2;
-  const centerY = start.y + lineElement.height / 2;
+  const centerX = lineElement.x + lineElement.width / 2;
+  const centerY = lineElement.y + lineElement.height / 2;
 
   const drawArrowCap = (
     x: number,
@@ -212,12 +302,24 @@ export const renderLineElement = ({
     ctx.restore();
   };
 
-  const startTangent = hasControlPoint
-    ? { x: curveControl.x - start.x, y: curveControl.y - start.y }
-    : { x: end.x - start.x, y: end.y - start.y };
-  const endTangent = hasControlPoint
-    ? { x: end.x - curveControl.x, y: end.y - curveControl.y }
-    : { x: end.x - start.x, y: end.y - start.y };
+  const startTangent = linePathPoints
+    ? {
+        x: linePathPoints[1].x - linePathPoints[0].x,
+        y: linePathPoints[1].y - linePathPoints[0].y,
+      }
+    : hasControlPoint
+      ? { x: curveControl.x - start.x, y: curveControl.y - start.y }
+      : { x: end.x - start.x, y: end.y - start.y };
+  const endTangent = linePathPoints
+    ? {
+        x: linePathPoints[linePathPoints.length - 1].x -
+          linePathPoints[linePathPoints.length - 2].x,
+        y: linePathPoints[linePathPoints.length - 1].y -
+          linePathPoints[linePathPoints.length - 2].y,
+      }
+    : hasControlPoint
+      ? { x: end.x - curveControl.x, y: end.y - curveControl.y }
+      : { x: end.x - start.x, y: end.y - start.y };
   const startAngle = Math.atan2(startTangent.y, startTangent.x);
   const endAngle = Math.atan2(endTangent.y, endTangent.x);
 
@@ -233,13 +335,28 @@ export const renderLineElement = ({
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
   ctx.beginPath();
-  ctx.moveTo(start.x, start.y);
-  if (hasControlPoint) {
-    ctx.quadraticCurveTo(curveControl.x, curveControl.y, end.x, end.y);
+  if (linePathPoints) {
+    drawSmoothLinePath(ctx, linePathPoints);
   } else {
-    ctx.lineTo(end.x, end.y);
+    ctx.moveTo(start.x, start.y);
+    if (hasControlPoint) {
+      ctx.quadraticCurveTo(curveControl.x, curveControl.y, end.x, end.y);
+    } else {
+      ctx.lineTo(end.x, end.y);
+    }
   }
   ctx.stroke();
+
+  if (linePathPoints && linePathPoints.length > 1) {
+    const knotRadius = Math.max(lineElement.strokeWidth * 0.52, 1);
+    ctx.fillStyle = toThemeColor(lineElement.stroke);
+    for (let index = 0; index < linePathPoints.length; index++) {
+      const point = linePathPoints[index];
+      ctx.beginPath();
+      ctx.arc(point.x, point.y, knotRadius, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
 
   const renderLineCap = (
     cap: LineCap,
@@ -284,15 +401,27 @@ export const renderLineElement = ({
         selectionBounds.height,
       );
     } else if (canTransformSelection) {
-      drawLineEditHandles(
-        ctx,
-        lineElement,
-        zoom,
-        accentColor,
-        toThemeColor("#F4F5F4"),
-        hoveredLineHandle,
-        activeLineHandle,
-      );
+      if (linePathPoints) {
+        drawLinePathEditHandles(
+          ctx,
+          linePathPoints,
+          zoom,
+          accentColor,
+          toThemeColor("#F4F5F4"),
+          hoveredLinePointIndex,
+          activeLinePointIndex,
+        );
+      } else {
+        drawLineEditHandles(
+          ctx,
+          lineElement,
+          zoom,
+          accentColor,
+          toThemeColor("#F4F5F4"),
+          hoveredLineHandle,
+          activeLineHandle,
+        );
+      }
     }
   } else if (isMarqueePreview) {
     ctx.strokeStyle = accentColor;

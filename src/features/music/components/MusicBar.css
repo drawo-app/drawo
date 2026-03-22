@@ -250,13 +250,13 @@
 .drawo-app-root--dark .music-panel,
 .dark .music-bar-toggle,
 .drawo-app-root--dark .music-bar-toggle {
-    background: #1e1e1e;
+    background: var(--popover-dark, #1e1e1e);
     color: #f3f4f6;
 }
 
 .dark .music-bar-toggle:hover,
 .drawo-app-root--dark .music-bar-toggle:hover {
-    background: #1e1e1e;
+    background: var(--popover-dark, #1e1e1e);
 }
 
 .dark .music-dot,

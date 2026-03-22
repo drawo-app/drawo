@@ -1,6 +1,8 @@
 import {
   estimateTextHeight,
   estimateTextWidth,
+  getLinePathBounds,
+  hasLinePathPoints,
   type DrawElement,
   type ImageElement,
   getTextStartX,
@@ -88,10 +90,14 @@ const getElementBounds = (element: SceneElement): Bounds => {
   }
 
   if (element.type === "line") {
-    const startX = element.x;
-    const startY = element.y;
-    const endX = element.x + element.width;
-    const endY = element.y + element.height;
+    const pathBounds =
+      hasLinePathPoints(element) && element.points
+        ? getLinePathBounds(element.points)
+        : null;
+    const startX = pathBounds ? pathBounds.x : element.x;
+    const startY = pathBounds ? pathBounds.y : element.y;
+    const endX = pathBounds ? pathBounds.x + pathBounds.width : element.x + element.width;
+    const endY = pathBounds ? pathBounds.y + pathBounds.height : element.y + element.height;
     const minX = Math.min(startX, endX);
     const minY = Math.min(startY, endY);
     const maxX = Math.max(startX, endX);
@@ -135,6 +141,10 @@ const translateElement = (
             y: element.controlPoint.y + dy,
           }
         : null,
+      points: element.points?.map((point) => ({
+        x: point.x + dx,
+        y: point.y + dy,
+      })),
     };
   }
 
@@ -167,6 +177,31 @@ const flipLineElementLocally = (
   element: LineElement,
   axis: FlipAxis,
 ): LineElement => {
+  if (hasLinePathPoints(element) && element.points) {
+    const bounds = getLinePathBounds(element.points);
+    const nextPoints = element.points.map((point) => ({
+      x:
+        axis === "horizontal"
+          ? bounds.x + bounds.width - (point.x - bounds.x)
+          : point.x,
+      y:
+        axis === "vertical"
+          ? bounds.y + bounds.height - (point.y - bounds.y)
+          : point.y,
+    }));
+    const nextBounds = getLinePathBounds(nextPoints);
+
+    return {
+      ...element,
+      x: nextBounds.x,
+      y: nextBounds.y,
+      width: nextBounds.width,
+      height: nextBounds.height,
+      controlPoint: null,
+      points: nextPoints,
+    };
+  }
+
   if (axis === "horizontal") {
     return {
       ...element,
@@ -278,6 +313,35 @@ export const updateRectangleElementBounds = (
     }
 
     if (element.type === "line") {
+      if (hasLinePathPoints(element) && element.points) {
+        const startWidth = element.width === 0 ? 1 : element.width;
+        const startHeight = element.height === 0 ? 1 : element.height;
+        const widthRatio = width / startWidth;
+        const heightRatio = height / startHeight;
+        const minX = Math.min(element.x, element.x + element.width);
+        const minY = Math.min(element.y, element.y + element.height);
+        const maxX = minX + Math.abs(element.width);
+        const maxY = minY + Math.abs(element.height);
+        const nextMinX = Math.min(x, x + width);
+        const nextMinY = Math.min(y, y + height);
+
+        const nextPoints = element.points.map((point) => ({
+          x: nextMinX + (point.x - minX) * widthRatio,
+          y: nextMinY + (point.y - minY) * heightRatio,
+        }));
+        const nextBounds = getLinePathBounds(nextPoints);
+
+        return {
+          ...element,
+          x: nextBounds.x,
+          y: nextBounds.y,
+          width: nextBounds.width,
+          height: nextBounds.height,
+          controlPoint: null,
+          points: nextPoints,
+        };
+      }
+
       const startUsesMaxX = element.width < 0;
       const startUsesMaxY = element.height < 0;
       const nextStartX = startUsesMaxX ? x + width : x;

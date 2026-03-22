@@ -15,6 +15,7 @@ export interface ImageElement {
   src: string;
   naturalWidth: number;
   naturalHeight: number;
+  isAnimated?: boolean;
 }
 
 const rotatePointAroundCenter = (

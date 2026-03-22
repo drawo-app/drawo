@@ -15,6 +15,7 @@ export interface PreparedImageAsset {
   src: string;
   naturalWidth: number;
   naturalHeight: number;
+  isAnimated: boolean;
 }
 
 const isIndexedDbSupported = () => typeof indexedDB !== "undefined";
@@ -117,11 +118,26 @@ const getImageDimensions = async (blob: Blob) => {
 
 export const optimizeImageBlob = async (
   blob: Blob,
-): Promise<{ blob: Blob; naturalWidth: number; naturalHeight: number }> => {
+): Promise<{
+  blob: Blob;
+  naturalWidth: number;
+  naturalHeight: number;
+  isAnimated: boolean;
+}> => {
+  // Preserve animated GIFs as-is — converting to WebP strips the animation
+  if (blob.type === "image/gif") {
+    return {
+      blob,
+      ...(await getImageDimensions(blob)),
+      isAnimated: true,
+    };
+  }
+
   if (!blob.type.startsWith("image/")) {
     return {
       blob,
       ...(await getImageDimensions(blob)),
+      isAnimated: false,
     };
   }
 
@@ -147,6 +163,7 @@ export const optimizeImageBlob = async (
         blob,
         naturalWidth: sourceWidth,
         naturalHeight: sourceHeight,
+        isAnimated: false,
       };
     }
 
@@ -161,6 +178,7 @@ export const optimizeImageBlob = async (
         blob,
         naturalWidth: sourceWidth,
         naturalHeight: sourceHeight,
+        isAnimated: false,
       };
     }
 
@@ -172,6 +190,7 @@ export const optimizeImageBlob = async (
         blob,
         naturalWidth: sourceWidth,
         naturalHeight: sourceHeight,
+        isAnimated: false,
       };
     }
 
@@ -179,18 +198,25 @@ export const optimizeImageBlob = async (
       blob: optimizedBlob,
       naturalWidth: targetWidth,
       naturalHeight: targetHeight,
+      isAnimated: false,
     };
   } catch {
     return {
       blob,
       ...(await getImageDimensions(blob)),
+      isAnimated: false,
     };
   }
 };
 
 export const optimizeImageFile = async (
   file: File,
-): Promise<{ blob: Blob; naturalWidth: number; naturalHeight: number }> => {
+): Promise<{
+  blob: Blob;
+  naturalWidth: number;
+  naturalHeight: number;
+  isAnimated: boolean;
+}> => {
   return optimizeImageBlob(file);
 };
 
@@ -255,5 +281,6 @@ export const prepareAndStoreImageFile = async (
     src,
     naturalWidth: optimized.naturalWidth,
     naturalHeight: optimized.naturalHeight,
+    isAnimated: optimized.isAnimated,
   };
 };

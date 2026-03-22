@@ -1,0 +1,18 @@
+[data-theme="gruvbox-dark"],
+[data-theme="gruvbox-dark"] * {
+  --accent: #fabd2f;
+  --accent-dark: #806015;
+  --logoduotone-secondcolor: #d79921;
+  --logocolor: #ebdbb2;
+  --accent-rgb: 250, 189, 47;
+  --text-rgb: 235, 219, 178;
+  --background-rgb: 40, 40, 40;
+  --panel-border: rgba(235, 219, 178, 0.09);
+  --panel-shadow: 0 12px 28px rgba(20, 20, 20, 0.48);
+  --app-bg: #282828;
+  --app-fg: #ebdbb2;
+  --panel-bg: rgba(60, 56, 54, 0.94);
+  --logoduotone-firstcolor: var(--accent);
+  --popover-dark: var(--panel-bg);
+  --popover-foreground-dark: var(--app-fg);
+}

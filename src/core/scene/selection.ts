@@ -57,6 +57,26 @@ const cloneSceneElements = (
           })())
         : null;
 
+    if (element.type === "line") {
+      return {
+        ...element,
+        id: createElementId(element.type),
+        groupId: nextGroupId,
+        x: element.x + offsetX,
+        y: element.y + offsetY,
+        controlPoint: element.controlPoint
+          ? {
+              x: element.controlPoint.x + offsetX,
+              y: element.controlPoint.y + offsetY,
+            }
+          : null,
+        points: element.points?.map((point) => ({
+          x: point.x + offsetX,
+          y: point.y + offsetY,
+        })),
+      };
+    }
+
     return {
       ...element,
       id: createElementId(element.type),

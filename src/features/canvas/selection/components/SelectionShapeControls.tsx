@@ -18,10 +18,6 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@shared/ui/tooltip";
 import type { CircleElement, RectangleElement } from "@core/elements";
 import type { Scene } from "@core/scene";
 import type { LocaleMessages } from "@shared/i18n";
-import {
-  SHAPE_COLORS,
-  STROKE_COLORS,
-} from "@features/canvas/rendering/constants";
 import { parseColorForPicker } from "@features/canvas/rendering/color";
 import {
   getSelectedShapeElements,
@@ -39,6 +35,8 @@ import { OctagonXmark } from "@gravity-ui/icons";
 
 interface SelectionShapeControlsProps {
   scene: Scene;
+  strokeColors: readonly string[];
+  shapeColors: readonly [readonly string[], readonly string[]];
   selectedIds: string[];
   localeMessages: LocaleMessages;
   customDrawColorPickerWrapRef: RefObject<HTMLDivElement | null>;
@@ -57,6 +55,8 @@ interface SelectionShapeControlsProps {
 
 export const SelectionShapeControls = ({
   scene,
+  strokeColors,
+  shapeColors,
   selectedIds,
   localeMessages,
   customDrawColorPickerWrapRef,
@@ -89,10 +89,10 @@ export const SelectionShapeControls = ({
 
   const selectedFillPreviewColor =
     sharedFillColor === "multi"
-      ? (selectedShapeElements[0]?.fill ?? "#f5f5f5")
+      ? (selectedShapeElements[0]?.fill ?? scene.settings.shapeDefaults.fill)
       : sharedFillColor;
 
-  const fillColorSelectValue = [...SHAPE_COLORS[0], ...SHAPE_COLORS[1]].some(
+  const fillColorSelectValue = [...shapeColors[0], ...shapeColors[1]].some(
     (color) =>
       color !== "multi" &&
       color.toLowerCase() === sharedFillColor.toLowerCase(),
@@ -113,9 +113,9 @@ export const SelectionShapeControls = ({
     "multi";
   const selectedStrokePreviewColor =
     sharedStrokeColor === "multi"
-      ? (selectedShapeElements[0]?.stroke ?? "#2f3b52")
+      ? (selectedShapeElements[0]?.stroke ?? scene.settings.shapeDefaults.stroke)
       : sharedStrokeColor;
-  const strokeColorSelectValue = STROKE_COLORS.some(
+  const strokeColorSelectValue = strokeColors.some(
     (color) =>
       color !== "multi" &&
       color.toLowerCase() === sharedStrokeColor.toLowerCase(),
@@ -143,14 +143,14 @@ export const SelectionShapeControls = ({
     "fill" | "stroke" | null
   >(null);
 
-  const fillPresetColors = [...SHAPE_COLORS[0], ...SHAPE_COLORS[1]].map(
+  const fillPresetColors = [...shapeColors[0], ...shapeColors[1]].map(
     (color) => color.toLowerCase(),
   );
   const isSharedFillPresetColor = fillPresetColors.includes(
     sharedFillColor.toLowerCase(),
   );
 
-  const strokePresetColors = STROKE_COLORS.map((color) => color.toLowerCase());
+  const strokePresetColors = strokeColors.map((color) => color.toLowerCase());
   const isSharedStrokePresetColor = strokePresetColors.includes(
     sharedStrokeColor.toLowerCase(),
   );
@@ -297,7 +297,7 @@ export const SelectionShapeControls = ({
             >
               <div>
                 <ColorSwatchPicker
-                  colors={SHAPE_COLORS[0]}
+                  colors={shapeColors[0]}
                   currentColor={selectedFillPreviewColor}
                   uniColor={uniColor}
                   renderItem={({ color, isMulti, swatch }) => (
@@ -338,8 +338,8 @@ export const SelectionShapeControls = ({
               </div>
               <div>
                 <ColorSwatchPicker
-                  colors={SHAPE_COLORS[1]}
-                  realTotalColors={[...SHAPE_COLORS[0], ...SHAPE_COLORS[1]]}
+                  colors={shapeColors[1]}
+                  realTotalColors={[...shapeColors[0], ...shapeColors[1]]}
                   currentColor={selectedFillPreviewColor}
                   uniColor={uniColor}
                   renderItem={({ color, isMulti, swatch }) => (
@@ -506,7 +506,7 @@ export const SelectionShapeControls = ({
           >
             <div>
               <ColorSwatchPicker
-                colors={SHAPE_COLORS[0]}
+                colors={shapeColors[0]}
                 currentColor={selectedFillPreviewColor}
                 uniColor={uniColor}
                 renderItem={({ color, isMulti, swatch }) => (
@@ -543,8 +543,8 @@ export const SelectionShapeControls = ({
             </div>
             <div>
               <ColorSwatchPicker
-                colors={SHAPE_COLORS[1]}
-                realTotalColors={[...SHAPE_COLORS[0], ...SHAPE_COLORS[1]]}
+                colors={shapeColors[1]}
+                realTotalColors={[...shapeColors[0], ...shapeColors[1]]}
                 currentColor={selectedFillPreviewColor}
                 uniColor={uniColor}
                 renderItem={({ color, isMulti, swatch }) => (

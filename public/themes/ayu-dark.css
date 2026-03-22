@@ -1,0 +1,18 @@
+[data-theme="ayu-dark"],
+[data-theme="ayu-dark"] * {
+  --accent-dark: #e0b7667c;
+  --accent: #e0b866;
+  --logoduotone-firstcolor: #e0b7667f;
+  --logoduotone-secondcolor: #e0b866;
+  --logocolor: #bfbdb6;
+  --accent-rgb: 224, 184, 102;
+  --text-rgb: 191, 189, 182;
+  --background-rgb: 11, 14, 20;
+  --panel-border: rgba(191, 189, 182, 0.017);
+  --panel-shadow: none;
+  --app-bg: #0b0e14;
+  --app-fg: #bfbdb6;
+  --panel-bg: #121621;
+  --popover-dark: var(--panel-bg);
+  --popover-foreground-dark: var(--app-fg);
+}

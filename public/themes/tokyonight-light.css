@@ -1,0 +1,17 @@
+[data-theme="tokyonight-light"],
+[data-theme="tokyonight-light"] * {
+  --accent: #2e7de9;
+  --logoduotone-secondcolor: #6172b0;
+  --logocolor: #3760bf;
+  --accent-rgb: 46, 125, 233;
+  --text-rgb: 55, 96, 191;
+  --background-rgb: 213, 214, 219;
+  --panel-border: rgba(55, 96, 191, 0.14);
+  --panel-shadow: 0 10px 24px rgba(55, 96, 191, 0.1);
+  --app-bg: #d5d6db;
+  --app-fg: #3760bf;
+  --panel-bg: rgba(225, 226, 231, 0.94);
+  --logoduotone-firstcolor: var(--accent);
+  --popover-dark: var(--panel-bg);
+  --popover-foreground-dark: var(--app-fg);
+}

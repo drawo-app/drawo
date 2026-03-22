@@ -1,0 +1,18 @@
+[data-theme="solarized-dark"],
+[data-theme="solarized-dark"] * {
+  --accent: #2aa198;
+  --accent-dark: #2aa198;
+  --logoduotone-firstcolor: #41b4c3;
+  --logoduotone-secondcolor: #ffffff;
+  --logocolor: #93a1a1;
+  --accent-rgb: 42, 161, 152;
+  --text-rgb: 147, 161, 161;
+  --background-rgb: 0, 43, 54;
+  --panel-border: rgba(147, 161, 161, 0.12);
+  --panel-shadow: 0 12px 28px rgba(0, 20, 26, 0.5);
+  --app-bg: #002b36;
+  --app-fg: #93a1a1;
+  --panel-bg: rgba(7, 54, 66, 0.94);
+  --popover-dark: rgba(3, 33, 41, 0.94);
+  --popover-foreground-dark: var(--app-fg);
+}

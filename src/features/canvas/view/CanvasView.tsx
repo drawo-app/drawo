@@ -3,9 +3,11 @@ import type { DrawElementStyle, FlipAxis } from "@core/scene";
 import {
   estimateTextHeight,
   estimateTextWidth,
+  getLinePathBounds,
   getTextFont,
   getTextLineHeight,
   getTextRunFont,
+  hasLinePathPoints,
   hitTestRectangle,
   measureTextLineWidth,
   parseRichText,
@@ -61,7 +63,10 @@ import {
   getLineSelectionBounds,
   toLineLocalPointer,
 } from "@features/canvas/geometry/elementGeometry";
-import { renderLineElement } from "@features/canvas/rendering/lineRendering";
+import {
+  drawSmoothLinePath,
+  renderLineElement,
+} from "@features/canvas/rendering/lineRendering";
 import {
   deserializeRichTextDocument,
   serializeRichTextDocument,
@@ -92,10 +97,7 @@ import type {
   RichTextDocument,
 } from "@features/canvas/types";
 import type { SmartGuide } from "@features/canvas/selection/alignmentGuides";
-import {
-  drawLaserTrail,
-  useLaserTrails,
-} from "@features/canvas/laser";
+import { drawLaserTrail, useLaserTrails } from "@features/canvas/laser";
 import {
   CanvasContextMenu,
   type CanvasContextMenuSelectionType,
@@ -121,6 +123,12 @@ interface FlipPreviewState {
 
 const FLIP_ANIMATION_DURATION_MS = 220;
 const SHIFT_CLICK_DESELECT_DRAG_THRESHOLD_PX = 4;
+const LINE_CLICK_DRAG_THRESHOLD_PX = 4;
+
+interface LineChainState {
+  points: Array<{ x: number; y: number }>;
+  preview: { x: number; y: number } | null;
+}
 
 const isFlippableSceneElement = (
   element: SceneElement,
@@ -308,6 +316,8 @@ const strokeShapeOutline = (
 
 export const CanvasView = ({
   scene,
+  strokeColors,
+  shapeColors,
   alignmentGuides,
   interactionMode,
   drawingTool,
@@ -319,6 +329,7 @@ export const CanvasView = ({
   onWheelZoom,
   onCreateElement,
   onCreateDrawElement,
+  onCreateLinePathElement,
   onDrawingToolComplete,
   onDropImageFiles,
   onSelectElements,
@@ -368,6 +379,7 @@ export const CanvasView = ({
     [editorSessionKey],
   );
   const imageCacheRef = useRef<Map<string, HTMLImageElement>>(new Map());
+  const hiddenImagesContainerRef = useRef<HTMLDivElement>(null);
   const [canvasSize, setCanvasSize] = useState(() => ({
     width: window.innerWidth,
     height: window.innerHeight,
@@ -389,6 +401,7 @@ export const CanvasView = ({
   const [drawSelection, setDrawSelection] = useState<DrawSelection | null>(
     null,
   );
+  const [lineChain, setLineChain] = useState<LineChainState | null>(null);
   const fontsLoadedRef = useRef(false);
   const [, setRenderTrigger] = useState(0);
   const [flipPreview, setFlipPreview] = useState<FlipPreviewState | null>(null);
@@ -406,7 +419,7 @@ export const CanvasView = ({
   const [isCustomDrawColorPickerOpen2, setIsCustomDrawColorPickerOpen2] =
     useState(false);
   const [customDrawColorPickerColor, setCustomDrawColorPickerColor] =
-    useState<string>("#2f3b52");
+    useState<string>(scene.settings.drawDefaults.drawStroke);
   const [activeSelectId, setActiveSelectId] = useState<string | null>(null);
   const [activeRadiusElementId, setActiveRadiusElementId] = useState<
     string | null
@@ -419,7 +432,16 @@ export const CanvasView = ({
   const [activeLineHandle, setActiveLineHandle] = useState<
     "start" | "end" | "control" | null
   >(null);
-  const getCachedImage = (src: string) => {
+  const [hoveredLinePointHandle, setHoveredLinePointHandle] = useState<
+    number | null
+  >(null);
+  const [activeLinePointHandle, setActiveLinePointHandle] = useState<
+    number | null
+  >(null);
+  const getCachedImage = (src: string): HTMLImageElement | null => {
+    // Never create an image for an empty src — it would fetch the page itself
+    if (!src) return null;
+
     const cachedImage = imageCacheRef.current.get(src);
     if (cachedImage) {
       return cachedImage;
@@ -433,20 +455,37 @@ export const CanvasView = ({
     image.onerror = () => {
       setRenderTrigger((prev) => prev + 1);
     };
+    // Attach to DOM BEFORE setting src so Chrome animates GIFs from the start.
+    // The container uses opacity:0 (not display:none) so Chrome actually paints
+    // the element and advances animated GIF frames.
+    const container = hiddenImagesContainerRef.current;
+    if (container) {
+      image.style.cssText = "position:absolute;width:1px;height:1px;";
+      container.appendChild(image);
+    }
     image.src = src;
     imageCacheRef.current.set(src, image);
     return image;
   };
   const lineHandleDragRef = useRef<{
     id: string;
-    handle: "start" | "end" | "control";
+    handle: "start" | "end" | "control" | "point";
+    pointIndex?: number;
     startLine: {
       x: number;
       y: number;
       width: number;
       height: number;
       controlPoint: { x: number; y: number } | null;
+      points?: Array<{ x: number; y: number }>;
     };
+  } | null>(null);
+  const lineChainRef = useRef<LineChainState | null>(null);
+  const lineDragStartRef = useRef<{
+    screenX: number;
+    screenY: number;
+    startX: number;
+    startY: number;
   } | null>(null);
   const lastPointerRef = useRef<{ x: number; y: number } | null>(null);
   const contextMenuPointRef = useRef<{ x: number; y: number } | null>(null);
@@ -505,6 +544,24 @@ export const CanvasView = ({
     scene.settings.theme === "dark" ||
     (scene.settings.theme === "system" &&
       document.documentElement.classList.contains("dark"));
+  const shouldInvertColors =
+    isDarkMode && scene.settings.colorScheme === "drawo";
+
+  const commitLineChain = useCallback(
+    (lineChainState: LineChainState | null) => {
+      if (!lineChainState || lineChainState.points.length < 2) {
+        return false;
+      }
+
+      onCreateLinePathElement(lineChainState.points);
+      setLineChain(null);
+      lineDragStartRef.current = null;
+      setDrawingSelection(null);
+      setCanvasCursor("crosshair");
+      return true;
+    },
+    [onCreateLinePathElement],
+  );
 
   const getActiveDrawStyle = (
     drawMode: "draw" | "marker" | "quill",
@@ -561,15 +618,15 @@ export const CanvasView = ({
 
   const toThemeColor = (color: string | null | undefined): string => {
     const safeColor =
-      typeof color === "string" && color.trim().length > 0 ? color : "#2f3b52";
+      typeof color === "string" && color.trim().length > 0
+        ? color
+        : scene.settings.shapeDefaults.textColor;
 
-    if (!isDarkMode) {
+    if (!shouldInvertColors) {
       return safeColor;
     }
 
-    return safeColor.toLowerCase() === "#f4f5f4"
-      ? "#101010"
-      : invertLightnessPreservingHue(safeColor);
+    return invertLightnessPreservingHue(safeColor);
   };
 
   const screenToWorld = useCallback(
@@ -829,6 +886,10 @@ export const CanvasView = ({
     localPointY: number,
     zoom: number,
   ): "start" | "end" | "control" | null => {
+    if (hasLinePathPoints(line)) {
+      return null;
+    }
+
     const { start, end, throughPoint } = getLinePoints(line);
     const hitRadius = Math.max(7 / zoom, HANDLE_SIZE / (2.3 * zoom));
 
@@ -848,6 +909,32 @@ export const CanvasView = ({
     }
 
     return null;
+  };
+
+  const getHoveredLinePointHandle = (
+    line: LineElement,
+    localPointX: number,
+    localPointY: number,
+    zoom: number,
+  ): number | null => {
+    if (!hasLinePathPoints(line) || !line.points) {
+      return null;
+    }
+
+    const hitRadius = Math.max(7 / zoom, HANDLE_SIZE / (2.15 * zoom));
+    let bestIndex: number | null = null;
+    let bestDistance = Number.POSITIVE_INFINITY;
+
+    for (let index = 0; index < line.points.length; index++) {
+      const point = line.points[index];
+      const distance = Math.hypot(localPointX - point.x, localPointY - point.y);
+      if (distance <= hitRadius && distance < bestDistance) {
+        bestIndex = index;
+        bestDistance = distance;
+      }
+    }
+
+    return bestIndex;
   };
 
   const measureElementBounds = (
@@ -969,7 +1056,9 @@ export const CanvasView = ({
       ctx.shadowOffsetX = 0;
       ctx.shadowOffsetY = 1.5 / zoom;
 
-      ctx.fillStyle = isActive ? accentColor : toThemeColor("#F4F5F4");
+      ctx.fillStyle = isActive
+        ? accentColor
+        : toThemeColor(scene.settings.shapeDefaults.fill);
       ctx.strokeStyle = accentColor;
       ctx.lineWidth = strokeWidth;
 
@@ -1140,6 +1229,49 @@ export const CanvasView = ({
     };
   }, [flipPreview, onFlipSelection]);
 
+  const hasAnimatedImages = scene.elements.some(
+    (element) =>
+      element.type === "image" && (element as ImageElement).isAnimated === true,
+  );
+
+  useEffect(() => {
+    if (!hasAnimatedImages) {
+      return;
+    }
+
+    let frameId = 0;
+
+    const tick = () => {
+      setRenderTrigger((previous) => previous + 1);
+      frameId = requestAnimationFrame(tick);
+    };
+
+    frameId = requestAnimationFrame(tick);
+
+    return () => {
+      cancelAnimationFrame(frameId);
+    };
+  }, [hasAnimatedImages]);
+
+  useEffect(() => {
+    lineChainRef.current = lineChain;
+  }, [lineChain]);
+
+  useEffect(() => {
+    if (drawingTool === "line") {
+      return;
+    }
+
+    if (lineChainRef.current) {
+      commitLineChain(lineChainRef.current);
+    }
+
+    if (lineDragStartRef.current) {
+      lineDragStartRef.current = null;
+      setLineChain(null);
+    }
+  }, [commitLineChain, drawingTool]);
+
   const selectionToolbarOverlay = (() => {
     if (selectedIds.length === 0) {
       return null;
@@ -1149,7 +1281,8 @@ export const CanvasView = ({
       isDraggingElement ||
       activeResizeHandle ||
       activeRotatingHandle ||
-      activeLineHandle
+      activeLineHandle ||
+      activeLinePointHandle !== null
     ) {
       return null;
     }
@@ -1361,6 +1494,8 @@ export const CanvasView = ({
       return (
         <SelectionShapeControls
           scene={scene}
+          strokeColors={strokeColors}
+          shapeColors={shapeColors}
           selectedIds={selectedIds}
           localeMessages={localeMessages}
           customDrawColorPickerWrapRef={customDrawColorPickerWrapRef}
@@ -1382,6 +1517,7 @@ export const CanvasView = ({
     return (
       <SelectionStrokeControls
         scene={scene}
+        strokeColors={strokeColors}
         selectedIds={selectedIds}
         drawingTool={drawingTool}
         localeMessages={localeMessages}
@@ -1453,22 +1589,40 @@ export const CanvasView = ({
 
       if (selectedLine) {
         const localPoint = toLineLocalPointer(selectedLine, pointX, pointY);
-        const hoveredHandle = getHoveredLineHandle(
-          selectedLine,
-          localPoint.x,
-          localPoint.y,
-          camera.zoom,
-        );
-        setHoveredLineHandle(hoveredHandle);
+        if (hasLinePathPoints(selectedLine)) {
+          const hoveredPointHandle = getHoveredLinePointHandle(
+            selectedLine,
+            localPoint.x,
+            localPoint.y,
+            camera.zoom,
+          );
+          setHoveredLinePointHandle(hoveredPointHandle);
+          setHoveredLineHandle(null);
 
-        if (hoveredHandle) {
-          return "pointer";
+          if (hoveredPointHandle !== null) {
+            return "pointer";
+          }
+        } else {
+          const hoveredHandle = getHoveredLineHandle(
+            selectedLine,
+            localPoint.x,
+            localPoint.y,
+            camera.zoom,
+          );
+          setHoveredLineHandle(hoveredHandle);
+          setHoveredLinePointHandle(null);
+
+          if (hoveredHandle) {
+            return "pointer";
+          }
         }
       } else {
         setHoveredLineHandle(null);
+        setHoveredLinePointHandle(null);
       }
     } else {
       setHoveredLineHandle(null);
+      setHoveredLinePointHandle(null);
     }
 
     const cornerAction = getHoverCornerAction(pointX, pointY);
@@ -1897,7 +2051,7 @@ export const CanvasView = ({
       renderCtx.translate(-center.x, -center.y);
     };
 
-    ctx.fillStyle = toThemeColor("#F4F5F4");
+    ctx.fillStyle = scene.settings.drawDefaults.canvas;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     ctx.save();
@@ -2135,7 +2289,7 @@ export const CanvasView = ({
           height: imageElement.height,
         };
         const center = getBoundsCenter(bounds);
-        const image = getCachedImage(imageElement.src);
+        const image = imageElement.src ? getCachedImage(imageElement.src) : null;
         const cornerRadius = Math.min(
           16 / camera.zoom,
           Math.min(imageElement.width, imageElement.height) / 6,
@@ -2156,7 +2310,7 @@ export const CanvasView = ({
         ctx.shadowColor = "rgba(15, 23, 42, 0.14)";
         ctx.shadowBlur = 18 / camera.zoom;
         ctx.shadowOffsetY = 6 / camera.zoom;
-        ctx.fillStyle = toThemeColor("#f4f5f4");
+        ctx.fillStyle = toThemeColor(scene.settings.shapeDefaults.fill);
         drawRoundedRect(
           ctx,
           imageElement.x,
@@ -2179,6 +2333,7 @@ export const CanvasView = ({
         ctx.clip();
 
         if (
+          image &&
           image.complete &&
           image.naturalWidth > 0 &&
           image.naturalHeight > 0
@@ -2379,7 +2534,7 @@ export const CanvasView = ({
                 );
                 ctx.fill();
 
-                ctx.strokeStyle = toThemeColor("#F4F5F4");
+                ctx.strokeStyle = toThemeColor(scene.settings.shapeDefaults.fill);
                 ctx.lineWidth = 1 / camera.zoom;
                 ctx.beginPath();
                 ctx.arc(
@@ -2418,6 +2573,8 @@ export const CanvasView = ({
           canTransformSelection,
           hoveredLineHandle,
           activeLineHandle,
+          hoveredLinePointIndex: hoveredLinePointHandle,
+          activeLinePointIndex: activeLinePointHandle,
         });
         ctx.restore();
         continue;
@@ -2572,7 +2729,7 @@ export const CanvasView = ({
       const drawingBounds = getDrawingBounds(drawingSelection);
 
       if (drawingSelection.type === "rectangle") {
-        ctx.fillStyle = toThemeColor("#f5f5f5");
+        ctx.fillStyle = toThemeColor(scene.settings.shapeDefaults.fill);
         ctx.fillRect(
           drawingBounds.x,
           drawingBounds.y,
@@ -2591,7 +2748,7 @@ export const CanvasView = ({
         const centerX = drawingBounds.x + drawingBounds.width / 2;
         const centerY = drawingBounds.y + drawingBounds.height / 2;
 
-        ctx.fillStyle = toThemeColor("#f5f5f5");
+        ctx.fillStyle = toThemeColor(scene.settings.shapeDefaults.fill);
         ctx.beginPath();
         ctx.ellipse(
           centerX,
@@ -2641,7 +2798,7 @@ export const CanvasView = ({
           fontSize,
           fontWeight: "200",
           fontStyle: "normal",
-          color: "#2f3b52",
+          color: scene.settings.shapeDefaults.textColor,
           textAlign: "left",
         };
 
@@ -2654,6 +2811,29 @@ export const CanvasView = ({
           previewTextElement.x,
           previewTextElement.y,
         );
+      }
+    }
+
+    if (lineChain && lineChain.points.length > 0 && lineChain.preview) {
+      const previewPoints = [...lineChain.points, lineChain.preview];
+
+      ctx.strokeStyle = accentColor;
+      ctx.lineWidth = 2 / camera.zoom;
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      ctx.beginPath();
+      drawSmoothLinePath(ctx, previewPoints);
+      ctx.stroke();
+
+      if (previewPoints.length > 1) {
+        const knotRadius = Math.max(ctx.lineWidth * 0.52, 1 / camera.zoom);
+        ctx.fillStyle = accentColor;
+        for (let index = 0; index < previewPoints.length; index++) {
+          const point = previewPoints[index];
+          ctx.beginPath();
+          ctx.arc(point.x, point.y, knotRadius, 0, Math.PI * 2);
+          ctx.fill();
+        }
       }
     }
 
@@ -2777,6 +2957,23 @@ export const CanvasView = ({
         }
       }
 
+      if (event.key === "Escape") {
+        if (lineChainRef.current || lineDragStartRef.current) {
+          event.preventDefault();
+          lineDragStartRef.current = null;
+          setLineChain(null);
+          setDrawingSelection(null);
+          return;
+        }
+      }
+
+      if (event.key === "Enter" && !editingText) {
+        if (commitLineChain(lineChainRef.current)) {
+          event.preventDefault();
+          return;
+        }
+      }
+
       const key = event.key.toLowerCase();
 
       if (
@@ -2883,6 +3080,7 @@ export const CanvasView = ({
     beginTextEditing,
     canFlipSelection,
     camera.zoom,
+    commitLineChain,
     handleFlipSelectionWithAnimation,
     measureRichTextLayout,
     worldToScreen,
@@ -3014,6 +3212,7 @@ export const CanvasView = ({
       panStateRef.current = { screenX, screenY };
       lineHandleDragRef.current = null;
       setActiveLineHandle(null);
+      setActiveLinePointHandle(null);
       setActiveRotatingHandle(null);
       setActiveResizeHandle(null);
       setMarqueeSelection(null);
@@ -3028,6 +3227,7 @@ export const CanvasView = ({
       panStateRef.current = { screenX, screenY };
       lineHandleDragRef.current = null;
       setActiveLineHandle(null);
+      setActiveLinePointHandle(null);
       setActiveRotatingHandle(null);
       setActiveResizeHandle(null);
       setMarqueeSelection(null);
@@ -3045,6 +3245,7 @@ export const CanvasView = ({
 
       lineHandleDragRef.current = null;
       setActiveLineHandle(null);
+      setActiveLinePointHandle(null);
 
       if (drawingTool === "laser") {
         startLaserTrail(pointer);
@@ -3065,15 +3266,18 @@ export const CanvasView = ({
           isLine: e.shiftKey,
         });
       } else if (drawingTool === "line") {
-        setDrawingSelection({
-          type: "line",
-          startX: pointer.x,
-          startY: pointer.y,
-          currentX: pointer.x,
-          currentY: pointer.y,
-          fromCenter: false,
-          lockAspect: e.shiftKey,
-        });
+        const activeLineChain = lineChainRef.current;
+        if (activeLineChain && activeLineChain.points.length > 0) {
+          lineDragStartRef.current = null;
+        } else {
+          lineDragStartRef.current = {
+            screenX,
+            screenY,
+            startX: pointer.x,
+            startY: pointer.y,
+          };
+        }
+        setDrawingSelection(null);
       } else {
         setDrawingSelection({
           type: drawingTool,
@@ -3173,6 +3377,44 @@ export const CanvasView = ({
             pointer.x,
             pointer.y,
           );
+          if (hasLinePathPoints(selectedElement)) {
+            const hoveredPointHandle = getHoveredLinePointHandle(
+              selectedElement,
+              localPoint.x,
+              localPoint.y,
+              camera.zoom,
+            );
+
+            if (hoveredPointHandle !== null) {
+              onLineEditStart();
+              lineHandleDragRef.current = {
+                id: selectedElement.id,
+                handle: "point",
+                pointIndex: hoveredPointHandle,
+                startLine: {
+                  x: selectedElement.x,
+                  y: selectedElement.y,
+                  width: selectedElement.width,
+                  height: selectedElement.height,
+                  controlPoint: null,
+                  points: selectedElement.points ? [...selectedElement.points] : [],
+                },
+              };
+              setActiveLinePointHandle(hoveredPointHandle);
+              setHoveredLinePointHandle(hoveredPointHandle);
+              setActiveLineHandle(null);
+              setHoveredLineHandle(null);
+              setActiveRotatingHandle(null);
+              setActiveResizeHandle(null);
+              setIsDraggingElement(false);
+              setIsDuplicateDragging(false);
+              setMarqueeSelection(null);
+              setCanvasCursor("pointer");
+              canvas.setPointerCapture(e.pointerId);
+              return;
+            }
+          }
+
           const hoveredHandle = getHoveredLineHandle(
             selectedElement,
             localPoint.x,
@@ -3191,10 +3433,13 @@ export const CanvasView = ({
                 width: selectedElement.width,
                 height: selectedElement.height,
                 controlPoint: selectedElement.controlPoint ?? null,
+                points: selectedElement.points ? [...selectedElement.points] : undefined,
               },
             };
             setActiveLineHandle(hoveredHandle);
             setHoveredLineHandle(hoveredHandle);
+            setActiveLinePointHandle(null);
+            setHoveredLinePointHandle(null);
             setActiveRotatingHandle(null);
             setActiveResizeHandle(null);
             setIsDraggingElement(false);
@@ -3431,6 +3676,45 @@ export const CanvasView = ({
     }
 
     if (drawingTool) {
+      if (drawingTool === "line") {
+        const activeLineChain = lineChainRef.current;
+        if (activeLineChain && activeLineChain.points.length > 0) {
+          const lastPoint =
+            activeLineChain.points[activeLineChain.points.length - 1];
+          const nextPoint = e.shiftKey
+            ? snapLinePointer(lastPoint.x, lastPoint.y, pointer.x, pointer.y)
+            : pointer;
+
+          setLineChain({
+            points: activeLineChain.points,
+            preview: nextPoint,
+          });
+          setCanvasCursor("crosshair");
+          return;
+        }
+
+        const lineDragStart = lineDragStartRef.current;
+        if (lineDragStart) {
+          const movedDistance = Math.hypot(
+            screenX - lineDragStart.screenX,
+            screenY - lineDragStart.screenY,
+          );
+
+          if (movedDistance >= LINE_CLICK_DRAG_THRESHOLD_PX) {
+            setDrawingSelection({
+              type: "line",
+              startX: lineDragStart.startX,
+              startY: lineDragStart.startY,
+              currentX: pointer.x,
+              currentY: pointer.y,
+              fromCenter: false,
+              lockAspect: e.shiftKey,
+            });
+            lineDragStartRef.current = null;
+          }
+        }
+      }
+
       if (drawingTool === "laser") {
         appendLaserPoint(pointer, camera.zoom);
       } else if (
@@ -3579,11 +3863,11 @@ export const CanvasView = ({
         let nextEnd = endPoint;
         let nextControl = activeLineDrag.startLine.controlPoint;
 
-        if (activeLineDrag.handle === "start") {
+        if (activeLineDrag.handle === "start" || activeLineDrag.handle === "point") {
           nextStart = localPointer;
         } else if (activeLineDrag.handle === "end") {
           nextEnd = localPointer;
-        } else {
+        } else if (activeLineDrag.handle === "control") {
           nextControl = { x: localPointer.x, y: localPointer.y };
         }
 
@@ -3598,14 +3882,36 @@ export const CanvasView = ({
         const snappedControl = nextControl
           ? { x: snap(nextControl.x), y: snap(nextControl.y) }
           : null;
+        if (
+          activeLineDrag.handle === "point" &&
+          typeof activeLineDrag.pointIndex === "number" &&
+          activeLineDrag.startLine.points &&
+          activeLineDrag.startLine.points.length > activeLineDrag.pointIndex
+        ) {
+          const nextPoints = activeLineDrag.startLine.points.map((point, index) =>
+            index === activeLineDrag.pointIndex
+              ? { x: snappedStart.x, y: snappedStart.y }
+              : point,
+          );
+          const nextBounds = getLinePathBounds(nextPoints);
 
-        onLineGeometryChange(activeLineDrag.id, {
-          x: snappedStart.x,
-          y: snappedStart.y,
-          width: snappedEnd.x - snappedStart.x,
-          height: snappedEnd.y - snappedStart.y,
-          controlPoint: snappedControl,
-        });
+          onLineGeometryChange(activeLineDrag.id, {
+            x: nextBounds.x,
+            y: nextBounds.y,
+            width: nextBounds.width,
+            height: nextBounds.height,
+            controlPoint: null,
+            points: nextPoints,
+          });
+        } else {
+          onLineGeometryChange(activeLineDrag.id, {
+            x: snappedStart.x,
+            y: snappedStart.y,
+            width: snappedEnd.x - snappedStart.x,
+            height: snappedEnd.y - snappedStart.y,
+            controlPoint: snappedControl,
+          });
+        }
       }
 
       setCanvasCursor("pointer");
@@ -3745,6 +4051,57 @@ export const CanvasView = ({
     }
 
     if (drawingTool) {
+      if (drawingTool === "line") {
+        const pendingLineStart = lineDragStartRef.current;
+        if (pendingLineStart) {
+          lineDragStartRef.current = null;
+          setDrawingSelection(null);
+          setLineChain({
+            points: [{ x: pendingLineStart.startX, y: pendingLineStart.startY }],
+            preview: { x: pendingLineStart.startX, y: pendingLineStart.startY },
+          });
+          setActiveRadiusElementId(null);
+          setActiveRadiusHandle(null);
+          setCanvasCursor("crosshair");
+          return;
+        }
+
+        const activeLineChain = lineChainRef.current;
+        if (activeLineChain && activeLineChain.points.length > 0) {
+          const rect = canvas?.getBoundingClientRect();
+          if (rect) {
+            const screenX = e.clientX - rect.left;
+            const screenY = e.clientY - rect.top;
+            const pointer = screenToWorld(screenX, screenY);
+            const lastPoint =
+              activeLineChain.points[activeLineChain.points.length - 1];
+            const nextPoint = e.shiftKey
+              ? snapLinePointer(lastPoint.x, lastPoint.y, pointer.x, pointer.y)
+              : pointer;
+            const length = Math.hypot(
+              nextPoint.x - lastPoint.x,
+              nextPoint.y - lastPoint.y,
+            );
+
+            if (length >= 1) {
+              setLineChain({
+                points: [...activeLineChain.points, nextPoint],
+                preview: nextPoint,
+              });
+            } else {
+              setLineChain({
+                points: activeLineChain.points,
+                preview: nextPoint,
+              });
+            }
+          }
+          setActiveRadiusElementId(null);
+          setActiveRadiusHandle(null);
+          setCanvasCursor("crosshair");
+          return;
+        }
+      }
+
       if (drawingTool === "laser") {
         clearActiveLaserTrail();
       } else if (
@@ -3817,6 +4174,7 @@ export const CanvasView = ({
       onPointerUp();
       lineHandleDragRef.current = null;
       setActiveLineHandle(null);
+      setActiveLinePointHandle(null);
 
       const rect = canvas?.getBoundingClientRect();
       if (rect) {
@@ -3886,7 +4244,9 @@ export const CanvasView = ({
       setHoveredResizeHandle(null);
       lineHandleDragRef.current = null;
       setActiveLineHandle(null);
+      setActiveLinePointHandle(null);
       setHoveredLineHandle(null);
+      setHoveredLinePointHandle(null);
       setIsDraggingElement(false);
       setIsDuplicateDragging(false);
 
@@ -3911,7 +4271,9 @@ export const CanvasView = ({
     setHoveredResizeHandle(null);
     lineHandleDragRef.current = null;
     setActiveLineHandle(null);
+    setActiveLinePointHandle(null);
     setHoveredLineHandle(null);
+    setHoveredLinePointHandle(null);
     setIsDraggingElement(false);
     setIsDuplicateDragging(false);
 
@@ -3956,7 +4318,7 @@ export const CanvasView = ({
       return;
     }
 
-    if (lineHandleDragRef.current || activeLineHandle) {
+    if (lineHandleDragRef.current || activeLineHandle || activeLinePointHandle !== null) {
       setCanvasCursor("pointer");
       return;
     }
@@ -3973,6 +4335,7 @@ export const CanvasView = ({
 
     setHoveredResizeHandle(null);
     setHoveredLineHandle(null);
+    setHoveredLinePointHandle(null);
 
     if (activeRotatingHandle) {
       setCanvasCursor(getRotateCursor(activeRotatingHandle));
@@ -3993,6 +4356,11 @@ export const CanvasView = ({
   };
 
   const handleDoubleClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (drawingTool === "line" && commitLineChain(lineChainRef.current)) {
+      e.preventDefault();
+      return;
+    }
+
     if (interactionMode === "pan" || drawingTool) {
       return;
     }
@@ -4186,7 +4554,7 @@ export const CanvasView = ({
   };
 
   const uniColor = (color: string) =>
-    isDarkMode ? invertLightnessPreservingHue(color) : color;
+    shouldInvertColors ? invertLightnessPreservingHue(color) : color;
 
   const handleCanvasContextMenu = (
     event: React.MouseEvent<HTMLCanvasElement>,
@@ -4243,6 +4611,24 @@ export const CanvasView = ({
         height: canvasSize.height,
       }}
     >
+      {/*
+        Container for <img> elements used by getCachedImage.
+        Must NOT use display:none — Chrome pauses GIF animation for elements
+        that are not painted. opacity:0 keeps painting active (frames advance)
+        while remaining invisible and non-interactive.
+      */}
+      <div
+        ref={hiddenImagesContainerRef}
+        style={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          pointerEvents: "none",
+          opacity: 0,
+          zIndex: -9999,
+        }}
+        aria-hidden="true"
+      />
       <CanvasContextMenu
         hasSelection={hasSelection}
         canFlipSelection={canFlipSelection}
@@ -4310,9 +4696,12 @@ export const CanvasView = ({
           }}
         />
       </CanvasContextMenu>
-      {scene.elements.length === 0 && !drawingSelection && !drawSelection && (
-        <CanvasEmptyState tagline={localeMessages.canvas.tagline} />
-      )}
+      {scene.elements.length === 0 &&
+        !drawingSelection &&
+        !drawSelection &&
+        !lineChain && (
+          <CanvasEmptyState tagline={localeMessages.canvas.tagline} />
+        )}
 
       <TextEditorOverlay
         editorWrapRef={editorWrapRef}

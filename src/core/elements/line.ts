@@ -24,7 +24,80 @@ export interface LineElement {
     x: number;
     y: number;
   } | null;
+  points?: Array<{
+    x: number;
+    y: number;
+  }>;
 }
+
+export const hasLinePathPoints = (line: LineElement): boolean =>
+  Array.isArray(line.points) && line.points.length >= 2;
+
+export const getLinePathBounds = (
+  points: Array<{ x: number; y: number }>,
+): { x: number; y: number; width: number; height: number } => {
+  const minX = Math.min(...points.map((point) => point.x));
+  const minY = Math.min(...points.map((point) => point.y));
+  const maxX = Math.max(...points.map((point) => point.x));
+  const maxY = Math.max(...points.map((point) => point.y));
+
+  return {
+    x: minX,
+    y: minY,
+    width: Math.max(1, maxX - minX),
+    height: Math.max(1, maxY - minY),
+  };
+};
+
+const pointToSegmentDistance = (
+  pointX: number,
+  pointY: number,
+  startX: number,
+  startY: number,
+  endX: number,
+  endY: number,
+) => {
+  const dx = endX - startX;
+  const dy = endY - startY;
+  const lengthSquared = dx * dx + dy * dy;
+
+  if (lengthSquared === 0) {
+    return Math.hypot(pointX - startX, pointY - startY);
+  }
+
+  const t = Math.max(
+    0,
+    Math.min(1, ((pointX - startX) * dx + (pointY - startY) * dy) / lengthSquared),
+  );
+  const projectionX = startX + t * dx;
+  const projectionY = startY + t * dy;
+  return Math.hypot(pointX - projectionX, pointY - projectionY);
+};
+
+const getSmoothSegmentControls = (
+  points: Array<{ x: number; y: number }>,
+  index: number,
+  roundness: number,
+) => {
+  const p0 = points[index - 1] ?? points[index];
+  const p1 = points[index];
+  const p2 = points[index + 1];
+  const p3 = points[index + 2] ?? p2;
+  const factor = Math.max(0.2, Math.min(1.8, roundness));
+
+  return {
+    p1,
+    p2,
+    cp1: {
+      x: p1.x + ((p2.x - p0.x) * factor) / 6,
+      y: p1.y + ((p2.y - p0.y) * factor) / 6,
+    },
+    cp2: {
+      x: p2.x - ((p3.x - p1.x) * factor) / 6,
+      y: p2.y - ((p3.y - p1.y) * factor) / 6,
+    },
+  };
+};
 
 export const hitTestLine = (
   line: LineElement,
@@ -44,6 +117,78 @@ export const hitTestLine = (
 
   const localX = dx * cos - dy * sin;
   const localY = dx * sin + dy * cos;
+
+  if (hasLinePathPoints(line) && line.points) {
+    const localPoints = line.points.map((point) => {
+      const px = point.x - centerX;
+      const py = point.y - centerY;
+
+      return {
+        x: px * cos - py * sin,
+        y: px * sin + py * cos,
+      };
+    });
+
+    if (localPoints.length === 1) {
+      return (
+        Math.hypot(localX - localPoints[0].x, localY - localPoints[0].y) <=
+        tolerance
+      );
+    }
+
+    if (localPoints.length === 2) {
+      return (
+        pointToSegmentDistance(
+          localX,
+          localY,
+          localPoints[0].x,
+          localPoints[0].y,
+          localPoints[1].x,
+          localPoints[1].y,
+        ) <= tolerance
+      );
+    }
+
+    for (let index = 0; index < localPoints.length - 1; index++) {
+      const segment = getSmoothSegmentControls(localPoints, index, 1.25);
+      let previous = { x: segment.p1.x, y: segment.p1.y };
+      const sampleCount = 18;
+
+      for (let sampleIndex = 1; sampleIndex <= sampleCount; sampleIndex++) {
+        const t = sampleIndex / sampleCount;
+        const invT = 1 - t;
+        const current = {
+          x:
+            invT * invT * invT * segment.p1.x +
+            3 * invT * invT * t * segment.cp1.x +
+            3 * invT * t * t * segment.cp2.x +
+            t * t * t * segment.p2.x,
+          y:
+            invT * invT * invT * segment.p1.y +
+            3 * invT * invT * t * segment.cp1.y +
+            3 * invT * t * t * segment.cp2.y +
+            t * t * t * segment.p2.y,
+        };
+
+        if (
+          pointToSegmentDistance(
+            localX,
+            localY,
+            previous.x,
+            previous.y,
+            current.x,
+            current.y,
+          ) <= tolerance
+        ) {
+          return true;
+        }
+
+        previous = current;
+      }
+    }
+
+    return false;
+  }
 
   const start = { x: line.x - centerX, y: line.y - centerY };
   const end = {

@@ -215,8 +215,6 @@ export const CanvasContextMenu = ({
             <span>{Ctrl()}</span> + <span>A</span>
           </span>
         </ContextMenuItem>
-        <ContextMenuSeparator />
-        {selectionType}
       </ContextMenuContent>
     </ContextMenu>
   );

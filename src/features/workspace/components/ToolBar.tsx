@@ -1,4 +1,10 @@
-import { useRef, useState, type Dispatch, type SetStateAction } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type Dispatch,
+  type SetStateAction,
+} from "react";
 import type { NewElementType } from "@core/scene";
 import type { LocaleMessages } from "@shared/i18n";
 import { MapArrowUp, Pen, Text } from "@solar-icons/react";
@@ -19,7 +25,6 @@ import {
   DRAW_STROKE_PREVIEWS,
   MARKER_STROKE_OPTIONS,
   MARKER_STROKE_PREVIEWS,
-  STROKE_COLORS,
 } from "@features/canvas/rendering/constants";
 import {
   Select,
@@ -44,6 +49,8 @@ interface ToolBarProps {
     markerStrokeWidth: number;
     quillStrokeWidth: number;
   };
+  invertPaletteInDarkMode: boolean;
+  strokeColors: readonly string[];
   onDrawDefaultStrokeColorChange: (
     drawMode: "draw" | "marker" | "quill",
     strokeColor: string,
@@ -63,6 +70,8 @@ export const ToolBar = ({
   setInteractionMode,
   setDrawingTool,
   drawDefaults,
+  invertPaletteInDarkMode,
+  strokeColors,
   onDrawDefaultStrokeColorChange,
   onDrawDefaultStrokeWidthChange,
   onSelectImageFiles,
@@ -104,7 +113,7 @@ export const ToolBar = ({
     drawingTool === "marker" ? MARKER_STROKE_PREVIEWS : DRAW_STROKE_PREVIEWS;
 
   const uniColor = (color: string) =>
-    document.documentElement.classList.contains("dark")
+    invertPaletteInDarkMode
       ? invertLightnessPreservingHue(color)
       : color;
 
@@ -114,6 +123,10 @@ export const ToolBar = ({
       : drawingTool === "quill"
         ? drawDefaults.quillStroke
         : drawDefaults.drawStroke;
+
+  useEffect(() => {
+    setColorPickerColor(currentColor);
+  }, [currentColor]);
 
   const handleColorChange = (color: { hexa?: string; hex?: string }) => {
     const next = color.hexa || color.hex;
@@ -240,7 +253,7 @@ export const ToolBar = ({
           </Tooltip>
           <div className="tool-separator" />
           <ColorSwatchPicker
-            colors={STROKE_COLORS}
+            colors={strokeColors}
             currentColor={currentColor}
             uniColor={uniColor}
             renderItem={({ color, swatch }) => (

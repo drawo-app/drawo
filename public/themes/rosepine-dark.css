@@ -1,0 +1,18 @@
+[data-theme="rosepine-dark"],
+[data-theme="rosepine-dark"] * {
+  --accent: #ea9a97;
+  --accent-dark: rgb(98, 88, 164);
+  --logoduotone-firstcolor: #eb6f92;
+  --logoduotone-secondcolor: #b4637a;
+  --logocolor: #e0def4;
+  --accent-rgb: 234, 154, 151;
+  --text-rgb: 224, 222, 244;
+  --background-rgb: 25, 23, 36;
+  --panel-border: rgba(224, 222, 244, 0);
+  --panel-shadow: 0 12px 28px rgba(15, 12, 22, 0.5);
+  --app-bg: #191724;
+  --app-fg: #e0def4;
+  --panel-bg: rgba(38, 35, 58, 0.94);
+  --popover-dark: var(--panel-bg);
+  --popover-foreground-dark: var(--app-fg);
+}
