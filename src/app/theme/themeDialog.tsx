@@ -52,7 +52,6 @@ export function ThemeDialog({
                           (currentTheme === themeVariant ? "selected" : "")
                         }
                         style={{
-                          border: "1px solid var(--panel-border)",
                           backgroundColor:
                             SCHEME_PRESETS[key][mode].drawDefaults.canvas,
                         }}

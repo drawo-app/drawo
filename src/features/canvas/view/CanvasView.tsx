@@ -563,7 +563,11 @@ export const CanvasView = ({
     (scene.settings.theme === "system" &&
       document.documentElement.classList.contains("dark"));
   const shouldInvertColors =
-    isDarkMode && scene.settings.colorScheme === "drawo";
+    isDarkMode &&
+    !(
+      scene.settings.colorScheme === "drawo" &&
+      document.documentElement.getAttribute("data-theme") === "drawo-dark"
+    );
 
   const commitLineChain = useCallback(
     (lineChainState: LineChainState | null) => {

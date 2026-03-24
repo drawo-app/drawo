@@ -47,6 +47,7 @@ import {
   sourceToBlob,
   storeImageBlob,
 } from "@app/state/imageStorage";
+import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
 import { appReducer, createInitialAppState } from "@app/state/reducer";
 import "./App.css";
 import { Timer } from "@features/timer/components/Timer";
@@ -89,11 +90,15 @@ import "@app/theme/themes/ayu-dark.css";
 
 //const DRAWO_VERSION = "1.1.2";
 const DRAWO_PROJECT_FORMAT = "drawo-project";
-const DRAWO_PROJECT_VERSION = 1;
+const DRAWO_PROJECT_VERSION_V1 = 1;
+const DRAWO_PROJECT_VERSION_V2 = 2;
+const DRAWO_PROJECT_SERIALIZATION_V2 = "yaml-v2";
+const DRAWO_PROJECT_AI_PROMPT_LINE =
+  '# ai_prompt: "You are reading a Drawo project file. Parse the full document as structured data and do not truncate content. The data starts after YAML comments and optional document marker lines."';
+const DRAWO_PROJECT_V2_MARKER_LINE = "# drawo_format: yaml-v2";
 
-interface DrawoProjectFile {
+interface DrawoProjectCommonFields {
   format: typeof DRAWO_PROJECT_FORMAT;
-  version: number;
   exportedAt: string;
   scene: Scene;
   locale: LocaleCode;
@@ -102,15 +107,27 @@ interface DrawoProjectFile {
   musicBarState: string | null;
 }
 
-const isDrawoProjectFile = (value: unknown): value is DrawoProjectFile => {
+interface DrawoProjectFileV1 extends DrawoProjectCommonFields {
+  version: typeof DRAWO_PROJECT_VERSION_V1;
+}
+
+interface DrawoProjectFileV2 extends DrawoProjectCommonFields {
+  version: typeof DRAWO_PROJECT_VERSION_V2;
+  serialization: typeof DRAWO_PROJECT_SERIALIZATION_V2;
+}
+
+type DrawoProjectFile = DrawoProjectFileV1 | DrawoProjectFileV2;
+
+const isDrawoProjectCommonFields = (
+  value: unknown,
+): value is DrawoProjectCommonFields => {
   if (!value || typeof value !== "object") {
     return false;
   }
 
-  const candidate = value as Partial<DrawoProjectFile>;
+  const candidate = value as Partial<DrawoProjectCommonFields>;
   return (
     candidate.format === DRAWO_PROJECT_FORMAT &&
-    typeof candidate.version === "number" &&
     typeof candidate.exportedAt === "string" &&
     Boolean(candidate.scene) &&
     (candidate.locale === "es_ES" || candidate.locale === "en_US") &&
@@ -122,6 +139,59 @@ const isDrawoProjectFile = (value: unknown): value is DrawoProjectFile => {
     (typeof candidate.musicBarState === "string" ||
       candidate.musicBarState === null)
   );
+};
+
+const isDrawoProjectFileV1 = (value: unknown): value is DrawoProjectFileV1 => {
+  if (!isDrawoProjectCommonFields(value)) {
+    return false;
+  }
+
+  const candidate = value as Partial<DrawoProjectFileV1>;
+  return candidate.version === DRAWO_PROJECT_VERSION_V1;
+};
+
+const isDrawoProjectFileV2 = (value: unknown): value is DrawoProjectFileV2 => {
+  if (!isDrawoProjectCommonFields(value)) {
+    return false;
+  }
+
+  const candidate = value as Partial<DrawoProjectFileV2>;
+  return (
+    candidate.version === DRAWO_PROJECT_VERSION_V2 &&
+    candidate.serialization === DRAWO_PROJECT_SERIALIZATION_V2
+  );
+};
+
+const parseDrawoProjectFile = (
+  rawText: string,
+): {
+  project: DrawoProjectFile;
+} => {
+  try {
+    const parsedYaml: unknown = parseYaml(rawText);
+    if (isDrawoProjectFileV2(parsedYaml)) {
+      return { project: parsedYaml };
+    }
+    if (isDrawoProjectFileV1(parsedYaml)) {
+      return { project: parsedYaml };
+    }
+  } catch {
+    // Fall through to legacy JSON parser fallback.
+  }
+
+  try {
+    const parsedRaw: unknown = JSON.parse(rawText);
+    if (isDrawoProjectFileV2(parsedRaw)) {
+      return { project: parsedRaw };
+    }
+    if (isDrawoProjectFileV1(parsedRaw)) {
+      return { project: parsedRaw };
+    }
+  } catch {
+    // keep invalid-project-file below
+  }
+
+  throw new Error("invalid-project-file");
 };
 
 type LoadedImageFile = {
@@ -704,9 +774,10 @@ export default function App() {
 
   const handleExportProject = useCallback(async () => {
     const exportableScene = await toExportableScene(scene);
-    const payload: DrawoProjectFile = {
+    const payload: DrawoProjectFileV2 = {
       format: DRAWO_PROJECT_FORMAT,
-      version: DRAWO_PROJECT_VERSION,
+      version: DRAWO_PROJECT_VERSION_V2,
+      serialization: DRAWO_PROJECT_SERIALIZATION_V2,
       exportedAt: new Date().toISOString(),
       scene: exportableScene,
       locale,
@@ -714,9 +785,15 @@ export default function App() {
       timerState: localStorage.getItem(TIMER_STORAGE_KEY),
       musicBarState: localStorage.getItem(MUSIC_BAR_STORAGE_KEY),
     };
+    const serializedPayload = [
+      DRAWO_PROJECT_AI_PROMPT_LINE,
+      DRAWO_PROJECT_V2_MARKER_LINE,
+      "---",
+      stringifyYaml(payload, { lineWidth: 0 }),
+    ].join("\n");
 
-    const blob = new Blob([JSON.stringify(payload, null, 2)], {
-      type: "application/json",
+    const blob = new Blob([serializedPayload], {
+      type: "text/yaml;charset=utf-8",
     });
     const url = URL.createObjectURL(blob);
     const now = new Date();
@@ -735,10 +812,7 @@ export default function App() {
 
   const handleOpenProject = useCallback(async (file: File) => {
     const rawText = await file.text();
-    const parsed: unknown = JSON.parse(rawText);
-    if (!isDrawoProjectFile(parsed)) {
-      throw new Error("invalid-project-file");
-    }
+    const { project: parsed } = parseDrawoProjectFile(rawText);
 
     const preparedElements = await Promise.all(
       parsed.scene.elements.map(async (element) => {
@@ -1128,7 +1202,7 @@ export default function App() {
           setDrawingTool={setDrawingToolGuarded}
           drawDefaults={scene.settings.drawDefaults}
           invertPaletteInDarkMode={
-            isDarkMode && scene.settings.colorScheme === "drawo"
+            isDarkMode && resolvedTheme.dataTheme !== "drawo-dark"
           }
           strokeColors={resolvedTheme.preset.strokeColors}
           onDrawDefaultStrokeColorChange={handleDrawDefaultStrokeColorChange}

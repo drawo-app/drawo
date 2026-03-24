@@ -20,7 +20,8 @@
     "slate": "^0.123.0",
     "slate-dom": "^0.123.0",
     "slate-history": "^0.113.1",
-    "slate-react": "^0.123.0"
+    "slate-react": "^0.123.0",
+    "yaml": "^2.8.3"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",

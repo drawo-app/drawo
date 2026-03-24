@@ -897,16 +897,16 @@ html.dark .canvas-text-editor-input *::selection {
 
   z-index: 50;
   font-family: Inter, sans-serif;
-  max-height: var(--radix-dropdown-menu-content-available-height);
+  max-height: none;
   transform-origin: var(--radix-dropdown-menu-content-transform-origin);
 
   corner-shape: squircle;
   margin-top: 4px;
   border: 1px solid var(--panel-border);
 }
+.drawo-dropdown-content,
 .drawo-dropdown-subcontent {
-  overflow-x: visible;
-  overflow-y: auto;
+  overflow: visible !important;
 }
 .dark .drawo-dropdown-content,
 .dark .drawo-dropdown-subcontent {
@@ -1323,8 +1323,8 @@ html.dark .canvas-text-editor-input *::selection {
   box-shadow: var(--panel-shadow);
   border: 1px solid var(--panel-border);
   transform: translateX(-50%);
-  border-radius: 6px;
-  bottom: 4px;
+  border-radius: 0.55vmin;
+  bottom: 0.35vmin;
 }
 .drawo-logopreview {
   position: absolute;
@@ -1334,12 +1334,12 @@ html.dark .canvas-text-editor-input *::selection {
 }
 .drawo-themepreview-bottombar-item {
   position: absolute;
-  height: 14px;
-  width: 14px;
-  left: 1.2px;
-  top: 1.05px;
+  height: 1.2vmin;
+  width: 1.2vmin;
+  left: 0.12vmin;
+  top: 0.11vmin;
   scale: 0.8;
-  border-radius: 4px;
+  border-radius: 0.33vmin;
   background-color: var(--accent);
 }
 .drawo-themepreview-bottombar-item[data-isdark="true"] {
@@ -1347,17 +1347,19 @@ html.dark .canvas-text-editor-input *::selection {
 }
 
 .theme-entry.selected {
-  border: 2px solid var(--accent) !important;
+  border-color: var(--accent) !important;
+  border-width: 0.18vmin !important;
 }
 .theme-entry {
   flex-shrink: 0;
-  border-radius: 8px;
+  border-radius: 0.74vmin;
   coner-shape: squircle;
   position: relative;
   cursor: pointer;
   width: 11vw;
   overflow: hidden;
   height: 12vh;
+  border: 0.1vmin solid var(--panel-border);
 
   float: left;
 }
