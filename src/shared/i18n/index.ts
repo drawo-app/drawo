@@ -69,6 +69,20 @@ export interface LocaleMessages {
       invalidExtension: string;
       invalidFile: string;
     };
+    exportImage: {
+      title: string;
+      descriptionSelection: string;
+      descriptionAll: string;
+      format: string;
+      quality: string;
+      padding: string;
+      transparentBackground: string;
+      jpgNoTransparency: string;
+      cancel: string;
+      export: string;
+      exporting: string;
+      genericError: string;
+    };
   };
   localeNames: {
     en_US: string;

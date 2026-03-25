@@ -74,6 +74,7 @@ import { ColorSwatchPicker } from "@shared/ui/ColorSwatchPicker";
 import { Slider } from "@shared/ui/slider";
 import { Switch } from "@shared/ui/switch";
 import { ThemeDialog } from "@app/theme/themeDialog";
+import type { ExportImageFormat } from "@features/workspace/exportImage";
 
 interface MenuBarProps {
   scene: Scene;
@@ -83,6 +84,12 @@ interface MenuBarProps {
   setScene: Dispatch<SetStateAction<Scene>>;
   setSceneWithoutHistory: Dispatch<SetStateAction<Scene>>;
   onExportProject: () => void;
+  onExportImage: (options: {
+    format: ExportImageFormat;
+    qualityScale: number;
+    transparentBackground: boolean;
+    padding: number;
+  }) => Promise<void>;
   onOpenProject: (file: File) => Promise<void>;
 }
 
@@ -94,10 +101,18 @@ export const MenuBar = ({
   setScene,
   setSceneWithoutHistory,
   onExportProject,
+  onExportImage,
   onOpenProject,
 }: MenuBarProps) => {
   const [isThemeDialogOpen, setIsThemeDialogOpen] = useState(false);
   const [isClearDialogOpen, setIsClearDialogOpen] = useState(false);
+  const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
+  const [isExportingImage, setIsExportingImage] = useState(false);
+  const [exportFormat, setExportFormat] = useState<ExportImageFormat>("png");
+  const [exportQuality, setExportQuality] = useState(2);
+  const [exportPadding, setExportPadding] = useState(24);
+  const [exportTransparentBackground, setExportTransparentBackground] =
+    useState(false);
   const [isLaserPointerOpen, setIsLaserPointerOpen] = useState(false);
   const [isOpenProjectConfirmOpen, setIsOpenProjectConfirmOpen] =
     useState(false);
@@ -114,7 +129,8 @@ export const MenuBar = ({
       ? scene.selectedIds.length
       : scene.selectedId
         ? 1
-        : 0;
+      : 0;
+  const hasSelection = selectedCount > 0;
 
   const handleLaserDialogOpen = (open: boolean) => {
     setIsLaserPointerOpen(open);
@@ -209,6 +225,36 @@ export const MenuBar = ({
     void applyOpenProject(nextFile);
   }, [applyOpenProject, pendingProjectFile]);
 
+  const handleExportImage = useCallback(async () => {
+    if (isExportingImage) {
+      return;
+    }
+
+    setIsExportingImage(true);
+
+    try {
+      await onExportImage({
+        format: exportFormat,
+        qualityScale: exportQuality,
+        transparentBackground: exportTransparentBackground,
+        padding: exportPadding,
+      });
+      setIsExportDialogOpen(false);
+    } catch {
+      window.alert(messages.dialogs.exportImage.genericError);
+    } finally {
+      setIsExportingImage(false);
+    }
+  }, [
+    exportFormat,
+    exportPadding,
+    exportQuality,
+    exportTransparentBackground,
+    isExportingImage,
+    messages.dialogs.exportImage.genericError,
+    onExportImage,
+  ]);
+
   return (
     <div className="settings-bar">
       <input
@@ -244,6 +290,12 @@ export const MenuBar = ({
               </DropdownMenuItem>
               <DropdownMenuItem onClick={onExportProject}>
                 <ArrowDownToSquare /> {messages.menu.saveProject}
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => setIsExportDialogOpen(true)}
+                disabled={!hasElements}
+              >
+                <ArrowDownToSquare /> {messages.menu.exportProject}
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem
@@ -760,6 +812,117 @@ export const MenuBar = ({
                   {messages.dialogs.laserCanvas.save}
                 </button>
               </div>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={isExportDialogOpen} onOpenChange={setIsExportDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{messages.dialogs.exportImage.title}</DialogTitle>
+            <DialogDescription>
+              {hasSelection
+                ? messages.dialogs.exportImage.descriptionSelection
+                : messages.dialogs.exportImage.descriptionAll}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="drawo-export-grid">
+            <div className="drawo-export-field">
+              <p className="label">{messages.dialogs.exportImage.format}</p>
+              <select
+                className="drawo-input"
+                value={exportFormat}
+                onChange={(event) => {
+                  const nextValue = event.target.value;
+                  if (
+                    nextValue === "png" ||
+                    nextValue === "jpg" ||
+                    nextValue === "svg" ||
+                    nextValue === "pdf"
+                  ) {
+                    setExportFormat(nextValue);
+                  }
+                }}
+              >
+                <option value="png">PNG</option>
+                <option value="jpg">JPG</option>
+                <option value="svg">SVG</option>
+                <option value="pdf">PDF</option>
+              </select>
+            </div>
+
+            <div className="drawo-export-field">
+              <p className="label">
+                {messages.dialogs.exportImage.quality} ({exportQuality}x)
+              </p>
+              <Slider
+                value={[exportQuality]}
+                min={1}
+                max={4}
+                step={1}
+                onValueChange={(value) => {
+                  setExportQuality(value[0]);
+                }}
+              />
+            </div>
+
+            <div className="drawo-export-field">
+              <p className="label">
+                {messages.dialogs.exportImage.padding} ({exportPadding}px)
+              </p>
+              <Slider
+                value={[exportPadding]}
+                min={0}
+                max={96}
+                step={2}
+                onValueChange={(value) => {
+                  setExportPadding(value[0]);
+                }}
+              />
+            </div>
+          </div>
+
+          <div className="drawo-checkbox-section">
+            <Switch
+              disabled={exportFormat === "jpg"}
+              checked={
+                exportFormat === "jpg" ? false : exportTransparentBackground
+              }
+              onCheckedChange={(value) => {
+                setExportTransparentBackground(value);
+              }}
+            />
+            <span className="text-flex">
+              {messages.dialogs.exportImage.transparentBackground}
+            </span>
+          </div>
+
+          {exportFormat === "jpg" && (
+            <p className="label drawo-export-note">
+              {messages.dialogs.exportImage.jpgNoTransparency}
+            </p>
+          )}
+
+          <DialogFooter>
+            <div className="drawo-dialog-actions">
+              <DialogClose asChild>
+                <button type="button" className="drawo-btn-secondary">
+                  {messages.dialogs.exportImage.cancel}
+                </button>
+              </DialogClose>
+              <button
+                type="button"
+                className="drawo-btn-primary"
+                onClick={() => {
+                  void handleExportImage();
+                }}
+                disabled={isExportingImage}
+              >
+                {isExportingImage
+                  ? messages.dialogs.exportImage.exporting
+                  : messages.dialogs.exportImage.export}
+              </button>
             </div>
           </DialogFooter>
         </DialogContent>

@@ -1514,6 +1514,17 @@ p.label {
   gap: 10px;
   margin-top: 8px;
 }
+.drawo-export-grid {
+  display: grid;
+  gap: 12px;
+}
+.drawo-export-field {
+  display: grid;
+  gap: 8px;
+}
+.drawo-export-note {
+  margin-top: 10px;
+}
 .text-flex .drawo-beta {
   margin: 0px !important;
   padding-left: 0px !important;

@@ -32,6 +32,10 @@ import { ToolBar } from "@features/workspace/components/ToolBar";
 import { MusicBar } from "@features/music/components/MusicBar";
 import { useWorkspaceKeyboardShortcuts } from "@features/workspace/hooks/useWorkspaceKeyboardShortcuts";
 import {
+  exportSceneAsImage,
+  type ExportImageFormat,
+} from "@features/workspace/exportImage";
+import {
   LOCALE_STORAGE_KEY,
   MUSIC_BAR_STORAGE_KEY,
   SCENE_STORAGE_KEY,
@@ -810,6 +814,25 @@ export default function App() {
     URL.revokeObjectURL(url);
   }, [locale, openTopbarPanel, scene]);
 
+  const handleExportImage = useCallback(
+    async (options: {
+      format: ExportImageFormat;
+      qualityScale: number;
+      transparentBackground: boolean;
+      padding: number;
+    }) => {
+      await exportSceneAsImage({
+        scene,
+        format: options.format,
+        qualityScale: options.qualityScale,
+        transparentBackground: options.transparentBackground,
+        padding: options.padding,
+        systemPrefersDark,
+      });
+    },
+    [scene, systemPrefersDark],
+  );
+
   const handleOpenProject = useCallback(async (file: File) => {
     const rawText = await file.text();
     const { project: parsed } = parseDrawoProjectFile(rawText);
@@ -1097,6 +1120,7 @@ export default function App() {
               setScene={setScene}
               setSceneWithoutHistory={setSceneWithoutHistory}
               onExportProject={handleExportProject}
+              onExportImage={handleExportImage}
               onOpenProject={handleOpenProject}
             />
           </div>

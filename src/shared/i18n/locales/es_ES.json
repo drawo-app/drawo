@@ -63,6 +63,20 @@
       "cancel": "Cancelar",
       "invalidExtension": "Solo se pueden abrir archivos .drawo",
       "invalidFile": "El archivo .drawo no es válido"
+    },
+    "exportImage": {
+      "title": "Exportar imagen",
+      "descriptionSelection": "Se exportarán solo los elementos seleccionados.",
+      "descriptionAll": "No hay selección activa. Se exportará todo el contenido del canvas ajustado al contenido.",
+      "format": "Formato",
+      "quality": "Calidad",
+      "padding": "Margen",
+      "transparentBackground": "Fondo transparente",
+      "jpgNoTransparency": "JPG no admite transparencia. Se usará el color de fondo del canvas.",
+      "cancel": "Cancelar",
+      "export": "Exportar",
+      "exporting": "Exportando...",
+      "genericError": "No se pudo exportar la imagen"
     }
   },
   "localeNames": {
