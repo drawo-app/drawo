@@ -52,6 +52,7 @@ import {
   ObjectsAlignTop,
   Palette,
   PencilToSquare,
+  Picture,
   Rectangles4,
   Route,
   SquareDashedCircle,
@@ -296,7 +297,7 @@ export const MenuBar = ({
                 onClick={() => setIsExportDialogOpen(true)}
                 disabled={!hasElements}
               >
-                <ArrowDownToSquare /> {messages.menu.exportProject}
+                <Picture /> {messages.menu.exportProject}
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem
