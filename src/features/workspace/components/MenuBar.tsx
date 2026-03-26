@@ -75,6 +75,7 @@ import { Slider } from "@shared/ui/slider";
 import { Switch } from "@shared/ui/switch";
 import { ThemeDialog } from "@app/theme/themeDialog";
 import type { ExportImageFormat } from "@features/workspace/exportImage";
+import { Select, SelectItem } from "@shared/ui/select";
 
 interface MenuBarProps {
   scene: Scene;
@@ -129,7 +130,7 @@ export const MenuBar = ({
       ? scene.selectedIds.length
       : scene.selectedId
         ? 1
-      : 0;
+        : 0;
   const hasSelection = selectedCount > 0;
 
   const handleLaserDialogOpen = (open: boolean) => {
@@ -830,11 +831,9 @@ export const MenuBar = ({
           <div className="drawo-export-grid">
             <div className="drawo-export-field">
               <p className="label">{messages.dialogs.exportImage.format}</p>
-              <select
-                className="drawo-input"
+              <Select
                 value={exportFormat}
-                onChange={(event) => {
-                  const nextValue = event.target.value;
+                onValueChange={(nextValue) => {
                   if (
                     nextValue === "png" ||
                     nextValue === "jpg" ||
@@ -845,11 +844,11 @@ export const MenuBar = ({
                   }
                 }}
               >
-                <option value="png">PNG</option>
-                <option value="jpg">JPG</option>
-                <option value="svg">SVG</option>
-                <option value="pdf">PDF</option>
-              </select>
+                <SelectItem value="png">PNG</SelectItem>
+                <SelectItem value="jpg">JPG</SelectItem>
+                <SelectItem value="svg">SVG</SelectItem>
+                <SelectItem value="pdf">PDF</SelectItem>
+              </Select>
             </div>
 
             <div className="drawo-export-field">
@@ -930,9 +929,7 @@ export const MenuBar = ({
       <ThemeDialog
         isOpen={isThemeDialogOpen}
         onOpenChange={setIsThemeDialogOpen}
-        currentTheme={
-                `${scene.settings.colorScheme}-${scene.settings.theme === "dark" ? "dark" : "light"}`
-        }
+        currentTheme={`${scene.settings.colorScheme}-${scene.settings.theme === "dark" ? "dark" : "light"}`}
         messages={messages}
         setTheme={(theme) => {
           const separatorIndex = theme.lastIndexOf("-");
