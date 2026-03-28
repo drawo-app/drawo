@@ -4762,7 +4762,7 @@ export const CanvasView = ({
         !drawingSelection &&
         !drawSelection &&
         !lineChain && (
-          <CanvasEmptyState tagline={localeMessages.canvas.tagline} />
+          <CanvasEmptyState />
         )}
 
       <TextEditorOverlay

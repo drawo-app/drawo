@@ -1323,8 +1323,8 @@ html.dark .canvas-text-editor-input *::selection {
   box-shadow: var(--panel-shadow);
   border: 1px solid var(--panel-border);
   transform: translateX(-50%);
-  border-radius: 0.55vmin;
-  bottom: 0.35vmin;
+  border-radius: 0.8vmin;
+  bottom: 0.55vmin;
 }
 .drawo-logopreview {
   position: absolute;
@@ -1334,12 +1334,12 @@ html.dark .canvas-text-editor-input *::selection {
 }
 .drawo-themepreview-bottombar-item {
   position: absolute;
-  height: 1.2vmin;
-  width: 1.2vmin;
-  left: 0.12vmin;
+  height: 1.89vmin;
+  width: 1.89vmin;
+  left: 0.16vmin;
   top: 0.11vmin;
-  scale: 0.8;
-  border-radius: 0.33vmin;
+  scale: 0.7;
+  border-radius: 0.6vmin;
   background-color: var(--accent);
 }
 .drawo-themepreview-bottombar-item[data-isdark="true"] {
