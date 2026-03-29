@@ -2,7 +2,7 @@
 
 # 🎨 Drawo
 
-### Pizarra visual open source construida con React + TypeScript + Canvas
+### Open-source visual whiteboard built with React + TypeScript + Canvas
 
 <p>
   <img alt="Version" src="https://img.shields.io/badge/version-1.1.3-0ea5e9" />
@@ -11,7 +11,7 @@
   <img alt="Node" src="https://img.shields.io/badge/node-%3E%3D20.18.0-16a34a" />
 </p>
 
-<p><strong>Drawo</strong> es una app de dibujo y diagramación estilo whiteboard con foco en velocidad, UX y edición visual fluida.</p>
+<p><strong>Drawo</strong> is a whiteboard-style drawing and diagramming app focused on speed, UX, and smooth visual editing.</p>
 
 <p>
   <img src="assets/changelog/1.1.2.png" alt="Drawo preview" width="86%" />
@@ -19,127 +19,127 @@
 
 </div>
 
-## ✨ Qué es Drawo
-Drawo es un lienzo interactivo pensado para crear bocetos, diagramas y explicaciones visuales rápidas. El proyecto ya incluye herramientas de dibujo, formas, texto enriquecido, imágenes, agrupación, atajos avanzados y exportación.
+## ✨ What is Drawo
+Drawo is an interactive canvas designed for fast sketches, diagrams, and visual explanations. The project already includes drawing tools, shapes, rich text, images, grouping, advanced shortcuts, and export flows.
 
-Todo corre en cliente y guarda estado local del proyecto en el navegador para que puedas continuar donde lo dejaste.
+Everything runs client-side and stores project state locally in the browser so you can continue where you left off.
 
-## 🚀 Features actuales (v1.1.3)
-- Lienzo infinito con cámara (`pan`, `zoom`, centrado y navegación fluida).
-- Herramientas: selección, mano, texto, rectángulo, círculo, línea/flecha, lápiz, pluma, marcador, láser e imagen.
-- Edición avanzada de elementos (rotación, `resize`, opacidad, alineación y orden por capas).
-- Agrupación y desagrupación de elementos.
-- Duplicado rápido y movimiento por teclado.
-- Texto enriquecido con `Slate` (negrita, cursiva, tachado, tamaño, color, alineación).
-- Selección múltiple + guías inteligentes + ajuste a cuadrícula.
-- Modos especiales: `Zen Mode` y `Presentation Mode`.
-- Exportación de imagen (`png`, `jpg`, `svg`, `pdf`) con padding, calidad y transparencia.
-- Guardado y apertura de proyectos `.drawo`.
-- Soporte de imágenes por input/drag&drop con optimización.
-- Internacionalización incluida (`es_ES`, `en_US`).
-- Theming amplio (Drawo, Catppuccin, Nord, Solarized, Gruvbox, TokyoNight, Rose Pine, Everforest, Kanagawa, Dracula, One, Ayu).
+## 🚀 Current features (v1.1.3)
+- Infinite canvas with camera controls (`pan`, `zoom`, centering, and smooth navigation).
+- Tools: selection, hand, text, rectangle, circle, line/arrow, pen, quill, marker, laser, and image.
+- Advanced element editing (rotation, `resize`, opacity, alignment, and layer ordering).
+- Grouping and ungrouping elements.
+- Fast duplication and keyboard movement.
+- Rich text powered by `Slate` (bold, italic, strikethrough, size, color, alignment).
+- Multi-selection + smart guides + snap to grid.
+- Special modes: `Zen Mode` and `Presentation Mode`.
+- Image export (`png`, `jpg`, `svg`, `pdf`) with padding, quality, and transparency options.
+- Save and open `.drawo` project files.
+- Image support through input/drag-and-drop with optimization.
+- Built-in internationalization (`es_ES`, `en_US`).
+- Wide theme set (Drawo, Catppuccin, Nord, Solarized, Gruvbox, TokyoNight, Rose Pine, Everforest, Kanagawa, Dracula, One, Ayu).
 
-## 🧱 Stack técnico
+## 🧱 Tech stack
 - `React 19`
 - `TypeScript 5`
 - `Vite 7`
-- `Slate` para edición de texto enriquecido
-- `Radix UI` + librerías de iconos
-- Canvas 2D API para render/interaction layer
+- `Slate` for rich-text editing
+- `Radix UI` + icon libraries
+- Canvas 2D API for rendering and interaction
 
-## ⚙️ Cómo ejecutarlo localmente
-### Requisitos
+## ⚙️ Run locally
+### Requirements
 - `Node.js >= 20.18.0`
-- `pnpm` recomendado
+- `pnpm` recommended
 
-### Instalación
+### Install
 ```bash
 pnpm install
 ```
 
-### Desarrollo
+### Development
 ```bash
 pnpm dev
 ```
 
-### Build de producción
+### Production build
 ```bash
 pnpm build
 ```
 
-### Preview de build
+### Build preview
 ```bash
 pnpm preview
 ```
 
-## ⌨️ Atajos útiles
-- `V`: selección
-- `H`: mano (pan)
-- `1`: texto
-- `2`: rectángulo
-- `3`: círculo
-- `4`: dibujar
-- `K`: láser
+## ⌨️ Useful shortcuts
+- `V`: selection
+- `H`: hand (pan)
+- `1`: text
+- `2`: rectangle
+- `3`: circle
+- `4`: draw
+- `K`: laser
 - `Ctrl/Cmd + Z`: undo
-- `Ctrl/Cmd + Shift + Z` o `Ctrl/Cmd + Y`: redo
-- `Ctrl/Cmd + A`: seleccionar todo
-- `Ctrl/Cmd + D`: duplicar
-- `Ctrl/Cmd + G`: agrupar
-- `Ctrl/Cmd + Shift + G`: desagrupar
+- `Ctrl/Cmd + Shift + Z` or `Ctrl/Cmd + Y`: redo
+- `Ctrl/Cmd + A`: select all
+- `Ctrl/Cmd + D`: duplicate
+- `Ctrl/Cmd + G`: group
+- `Ctrl/Cmd + Shift + G`: ungroup
 - `Ctrl/Cmd + +/-/0`: zoom in/out/reset
-- `Alt + Z`: alternar modo zen
-- `Alt + R`: alternar modo presentación
-- `Delete/Backspace`: borrar selección
+- `Alt + Z`: toggle zen mode
+- `Alt + R`: toggle presentation mode
+- `Delete/Backspace`: delete selection
 
-## 🗂️ Estructura del proyecto
+## 🗂️ Project structure
 ```text
 src/
   app/
-    state/        # reducer, historial undo/redo, persistencia local
-    theme/        # tokens y esquemas visuales
-    App.tsx       # composición principal de la aplicación
+    state/        # reducer, undo/redo history, local persistence
+    theme/        # visual tokens and color schemes
+    App.tsx       # main app composition
   core/
-    elements/     # modelos y utilidades de cada tipo de elemento
-    scene/        # lógica de escena (selección, agrupado, transformaciones)
+    elements/     # models and utilities per element type
+    scene/        # scene logic (selection, grouping, transforms)
   features/
-    canvas/       # renderizado e interacción del canvas
-    workspace/    # barra de herramientas, menú, exportación, shortcuts
-    music/        # barra de música
-    timer/        # countdown integrado
+    canvas/       # canvas rendering and interaction
+    workspace/    # toolbar, menu, export, shortcuts
+    music/        # music bar
+    timer/        # integrated countdown
   shared/
-    i18n/         # localización
-    ui/           # componentes de interfaz reutilizables
+    i18n/         # localization
+    ui/           # reusable UI components
 ```
 
 ## 🛣️ Roadmap
-### v1.x (actual)
-- Seguir puliendo estabilidad, rendimiento del trazo y UX de edición.
-- Mejorar exportación y consistencia visual entre temas.
-- Continuar refactorizando módulos internos para facilitar extensión.
+### v1.x (current)
+- Keep improving stability, stroke performance, and editing UX.
+- Improve export flows and visual consistency across themes.
+- Continue internal refactoring to make extension easier.
 
-### v2.0 (objetivo principal)
-En `v2.0` Drawo evolucionará de app standalone a **librería npm** para React.
+### v2.0 (main goal)
+In `v2.0`, Drawo will evolve from a standalone app into an **npm library** for React.
 
-Objetivo de producto:
-- Exponer Drawo como un **componente React reutilizable y personalizable**.
-- Permitir integración embebida en productos externos (SaaS, paneles, LMS, documentación, etc.).
+Product goal:
+- Expose Drawo as a **reusable and customizable React component**.
+- Enable embedded integrations in external products (SaaS apps, dashboards, LMS, docs platforms, etc.).
 
-Dirección técnica prevista:
-- Publicación en npm con API estable.
-- Componente principal tipo `<DrawoCanvas />`.
-- Configuración por props para tema, idioma, herramientas disponibles, atajos y comportamiento del canvas.
-- Hooks/eventos para sincronizar estado externo (`onChange`, import/export, selección, etc.).
-- Estilos y tokens para personalización visual sin forks.
+Planned technical direction:
+- Publish to npm with a stable API.
+- Main component format like `<DrawoCanvas />`.
+- Prop-based configuration for theme, locale, available tools, shortcuts, and canvas behavior.
+- Hooks/events for syncing external state (`onChange`, import/export, selection, etc.).
+- Styles and tokens for visual customization without forks.
 
-## 📦 Estado del release
-Versión actual: **1.1.3** (ver [CHANGELOG](./CHANGELOG.md)).
+## 📦 Release status
+Current version: **1.1.3** (see [CHANGELOG](./CHANGELOG.md)).
 
-## 🤝 Contribuciones
-Si quieres aportar:
-1. Haz un fork.
-2. Crea una rama de feature/fix.
-3. Abre PR con una descripción clara de qué cambias y por qué.
+## 🤝 Contributing
+If you want to contribute:
+1. Fork the repo.
+2. Create a feature/fix branch.
+3. Open a PR with a clear description of what changed and why.
 
-## ⭐ Cierre
-Si te mola Drawo, dale estrella al repo y compártelo.  
-La meta de `v2.0` es que puedas enchufarlo en tu app React como si fuese una pieza nativa de tu producto.
+## ⭐ Final note
+If you like Drawo, star the repo and share it.  
+The `v2.0` goal is to let you drop it into your React app as a native product building block.
