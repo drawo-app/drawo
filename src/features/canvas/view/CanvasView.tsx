@@ -316,8 +316,8 @@ const strokeShapeOutline = (
 
 export const CanvasView = ({
   scene,
-  strokeColors,
   shapeColors,
+  strokeColors,
   alignmentGuides,
   interactionMode,
   drawingTool,
@@ -348,6 +348,7 @@ export const CanvasView = ({
   onTextFontWeightChange,
   onTextFontStyleChange,
   onTextAlignChange,
+  onTextColorChange,
   onDrawStrokeWidthChange,
   onDrawStrokeColorChange,
   onShapeFillColorChange,
@@ -563,11 +564,7 @@ export const CanvasView = ({
     (scene.settings.theme === "system" &&
       document.documentElement.classList.contains("dark"));
   const shouldInvertColors =
-    isDarkMode &&
-    !(
-      scene.settings.colorScheme === "drawo" &&
-      document.documentElement.getAttribute("data-theme") === "drawo-dark"
-    );
+    isDarkMode && scene.settings.colorScheme === "drawo";
 
   const commitLineChain = useCallback(
     (lineChainState: LineChainState | null) => {
@@ -859,10 +856,14 @@ export const CanvasView = ({
   };
 
   useEffect(() => {
-    if (!isCustomDrawColorPickerOpen) {
-      return;
-    }
-    if (!isCustomDrawColorPickerOpen2) {
+    const hasOpenCustomPicker =
+      isCustomDrawColorPickerOpen ||
+      isCustomDrawColorPickerOpen2 ||
+      activeSelectId === "shape-fill-color" ||
+      activeSelectId === "shape-stroke-color" ||
+      activeSelectId === "text-color";
+
+    if (!hasOpenCustomPicker) {
       return;
     }
 
@@ -900,7 +901,7 @@ export const CanvasView = ({
       window.removeEventListener("pointerdown", handlePointerDownOutside);
       window.removeEventListener("keydown", handleEscape);
     };
-  }, [isCustomDrawColorPickerOpen]);
+  }, [activeSelectId, isCustomDrawColorPickerOpen, isCustomDrawColorPickerOpen2]);
 
   const getHoveredLineHandle = (
     line: LineElement,
@@ -1494,6 +1495,12 @@ export const CanvasView = ({
           onTextFontWeightChange={onTextFontWeightChange}
           onTextFontStyleChange={onTextFontStyleChange}
           onTextAlignChange={onTextAlignChange}
+          onTextColorChange={onTextColorChange}
+          shapeColors={shapeColors}
+          customDrawColorPickerWrapRef={customDrawColorPickerWrapRef}
+          customDrawColorPickerContentRef={customDrawColorPickerContentRef}
+          customDrawColorPickerColor={customDrawColorPickerColor}
+          setCustomDrawColorPickerColor={setCustomDrawColorPickerColor}
           activeSelectId={activeSelectId}
           setActiveSelectId={setActiveSelectId}
         />
@@ -1516,7 +1523,6 @@ export const CanvasView = ({
       return (
         <SelectionShapeControls
           scene={scene}
-          strokeColors={strokeColors}
           shapeColors={shapeColors}
           selectedIds={selectedIds}
           localeMessages={localeMessages}

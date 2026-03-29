@@ -34,6 +34,7 @@ import {
   updateTextElementsFontSize,
   updateTextElementsFontStyle,
   updateTextElementsFontWeight,
+  updateTextElementsColor,
   updateTextElementsTextAlign,
   updateShapeElementsFillStyle,
 } from "@core/scene";
@@ -1510,6 +1511,15 @@ export const useInteraction = ({
     [setScene],
   );
 
+  const handleTextColorChange = useCallback(
+    (ids: string[], color: string) => {
+      setScene((currentScene) =>
+        updateTextElementsColor(currentScene, ids, color),
+      );
+    },
+    [setScene],
+  );
+
   const handleCreateDrawElement = useCallback(
     (
       points: Array<{ x: number; y: number; t?: number }>,
@@ -1757,6 +1767,7 @@ export const useInteraction = ({
     handleTextFontWeightChange,
     handleTextFontStyleChange,
     handleTextAlignChange,
+    handleTextColorChange,
     handleCreateDrawElement,
     handleCreateLinePathElement,
     handleDrawStrokeWidthChange,

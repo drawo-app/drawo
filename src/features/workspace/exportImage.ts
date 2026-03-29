@@ -84,7 +84,7 @@ const createThemeColorResolver = (
   systemPrefersDark: boolean,
 ): ((color: string | null | undefined) => string) => {
   const isDarkMode = getIsDarkMode(scene, systemPrefersDark);
-  const shouldInvertColors = isDarkMode && scene.settings.colorScheme !== "drawo";
+  const shouldInvertColors = isDarkMode && scene.settings.colorScheme === "drawo";
 
   return (color: string | null | undefined) => {
     const safeColor =

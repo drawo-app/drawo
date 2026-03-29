@@ -1,3 +1,35 @@
+# [1.1.3] - 2026-03-29
+
+## ✨ **Added**
+- **Text color controls in text toolbar**
+  Added full text color control to the selection text toolbar (including custom color picker + HEX input), now available both for standalone text elements and text content inside shapes while editing.
+
+## 🔄 **Changed**
+- **Shape stroke palette now matches fill palette**
+  Shape border color options now use the same palette as fill colors for a more consistent editing workflow.
+- **Drawo project export privacy cleanup**
+  `.drawo` exports no longer serialize music state. Music settings continue to persist locally in the browser.
+
+## 🐛 **Fixed**
+- **Dark theme palette/render mismatch**
+  Fixed inconsistent color inversion rules between UI palettes and canvas rendering:
+  - `drawo-dark` now keeps the intended inversion behavior.
+  - Other dark schemes (for example Catppuccin Dark) now render colors consistently between swatches and actual strokes/fills.
+  - Exported images now follow the same color-resolution logic as the live canvas.
+- **Custom color picker close behavior**
+  Fixed an issue where custom color popovers could remain stuck open after clicking outside.
+- **Custom color picker HEX field visibility**
+  Restored visibility of the picker input area so HEX values can be typed/pasted directly.
+- **Live text color updates while editing**
+  Changing text color during in-place editing now updates immediately without needing to exit the editor.
+- **Shape text color control placement**
+  Removed duplicated shape text-color control from the outer shape toolbar; text color is now handled in the text editing toolbar where it belongs.
+- **Minimum zoom clamp stability**
+  Added a valid minimum zoom floor to prevent extreme negative/near-zero zoom corruption (`Ctrl + -` spam edge case).
+- **Drawo dark default text contrast**
+  Updated Drawo dark default shape text color to a readable light value to avoid low-contrast dark-on-dark text.
+
+
 # [1.1.2] - 2026-03-10
 
 ## ✨ **Added**

@@ -1,4 +1,5 @@
 import type { Scene, SceneSettings } from "@core/scene";
+import { invertLightnessPreservingHue } from "@features/canvas/rendering/color";
 
 export type ThemeMode = SceneSettings["theme"];
 export type ColorScheme = SceneSettings["colorScheme"];
@@ -115,7 +116,7 @@ export const SCHEME_PRESETS: Record<ColorScheme, SchemePresets> = {
       shapeDefaults: {
         fill: "#2a2a2a",
         stroke: "#4a4a4a",
-        textColor: "#1f2024",
+        textColor: "#d7def0",
         lineStroke: "#d7def0",
       },
       strokeColors: makeStrokeColors([

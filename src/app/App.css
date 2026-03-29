@@ -416,6 +416,36 @@ html.dark .canvas-text-editor-input *::selection {
 .drawo-content-color.inferior {
   transform: translateY(-20px) !important;
 }
+.w-color-chrome [style*="margin-left: 5px; cursor: pointer;"]:hover {
+  background-color: rgba(0, 0, 0, 0.1)!important;
+}
+.w-color-chrome [style*="margin-left: 5px; cursor: pointer;"] {
+  border-radius: 6px!important;
+  background-color: transparent!important;
+}
+.dark .w-color-chrome [style*="margin-left: 5px; cursor: pointer;"]:hover {
+  background-color: rgba(255,255,255,.1)!important;
+}
+.dark .w-color-chrome [style*="margin-left: 5px; cursor: pointer;"] {
+  background-color: transparent!important;
+}
+.dark .w-color-chrome [style*="margin-left: 5px; cursor: pointer;"] * {
+  fill: white!important;
+}
+.w-color-editable-input input {
+  border: 1px solid rgba(0, 0, 0, 0.1)!important;
+  box-shadow: none!important;
+  font-size: 12px!important;
+  font-family: Inter, sans-serif!important;
+  border-radius: 5px!important;
+  background-color: #00000020!important;
+  color: black!important;
+}
+.dark .w-color-editable-input input {
+  border: 1px solid rgba(255,255,255,.1)!important;
+  background-color: #ffffff20!important;
+  color: white!important;
+}
 .dark .drawo-content-color .w-color-chrome {
   --github-background-color: #111 !important;
 }
@@ -438,6 +468,12 @@ html.dark .canvas-text-editor-input *::selection {
 }
 .drawo-ultrainferior-colorcontent {
   transform: translateY(138px) translateX(18px) !important;
+}
+.drawo-ultrainferior-colorcontent2 {
+  transform: translateY(145px) translateX(26px) !important;
+}
+.drawo-ultrainferior-colorcontent3 {
+  transform: translateY(92px) translateX(18px) !important;
 }
 .drawo-content-color [style="flex: 1 1 0%;"] .w-color-alpha-horizontal > * {
   border-radius: 4px !important;
@@ -471,7 +507,9 @@ html.dark .canvas-text-editor-input *::selection {
 .drawo-content-color
   .w-color-chrome
   *[style="display: flex; align-items: flex-start; padding: 0px 15px 15px; user-select: none;"] {
-  display: none !important;
+  display: flex !important;
+  align-items: flex-start;
+  padding: 0px 15px 15px;
 }
 .select-viewport {
   padding: 6px;

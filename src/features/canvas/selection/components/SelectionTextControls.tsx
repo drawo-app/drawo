@@ -1,10 +1,18 @@
-import type { Dispatch, SetStateAction } from "react";
+import {
+  useRef,
+  useState,
+  type Dispatch,
+  type RefObject,
+  type SetStateAction,
+} from "react";
+import Chrome from "@uiw/react-color-chrome";
 import {
   ElegantTypography,
   HandwrittenTypography,
   SimpleTypography,
   TechnicalTypography,
 } from "@shared/ui/icons";
+import { ColorSwatchPicker } from "@shared/ui/ColorSwatchPicker";
 import {
   Select,
   SelectContent,
@@ -39,6 +47,7 @@ import {
   getSelectedTextElements,
   getSharedValue,
 } from "@features/canvas/selection/selectionState";
+import { parseColorForPicker } from "@features/canvas/rendering/color";
 import type {
   EditableElement,
   EditingTextState,
@@ -64,6 +73,12 @@ interface SelectionTextControlsProps {
     fontStyle: "normal" | "italic",
   ) => void;
   onTextAlignChange: (ids: string[], textAlign: CanvasTextAlign) => void;
+  onTextColorChange: (ids: string[], color: string) => void;
+  shapeColors: readonly [readonly string[], readonly string[]];
+  customDrawColorPickerWrapRef: RefObject<HTMLDivElement | null>;
+  customDrawColorPickerContentRef: RefObject<HTMLDivElement | null>;
+  customDrawColorPickerColor: string;
+  setCustomDrawColorPickerColor: Dispatch<SetStateAction<string>>;
   activeSelectId: string | null;
   setActiveSelectId: (id: string | null) => void;
 }
@@ -83,6 +98,12 @@ export const SelectionTextControls = ({
   onTextFontWeightChange,
   onTextFontStyleChange,
   onTextAlignChange,
+  onTextColorChange,
+  shapeColors,
+  customDrawColorPickerWrapRef,
+  customDrawColorPickerContentRef,
+  customDrawColorPickerColor,
+  setCustomDrawColorPickerColor,
   activeSelectId,
   setActiveSelectId,
 }: SelectionTextControlsProps) => {
@@ -113,6 +134,28 @@ export const SelectionTextControls = ({
     selectedTextElements,
     (element) => element.fontStyle,
   );
+  const sharedTextColor =
+    getSharedValue(selectedTextElements, (element) => element.color) ?? "multi";
+  const selectedTextPreviewColor =
+    sharedTextColor === "multi"
+      ? (selectedTextElements[0]?.color ?? scene.settings.shapeDefaults.textColor)
+      : sharedTextColor;
+  const textColorPalette = [...shapeColors[0], ...shapeColors[1]];
+  const textColorSelectValue = textColorPalette.some(
+    (color) =>
+      color !== "multi" &&
+      color.toLowerCase() === selectedTextPreviewColor.toLowerCase(),
+  )
+    ? selectedTextPreviewColor
+    : "multi";
+  const isSharedTextPresetColor = textColorPalette.some(
+    (color) =>
+      color !== "multi" &&
+      color.toLowerCase() === selectedTextPreviewColor.toLowerCase(),
+  );
+  const keepTextColorSelectOpenOnNextCloseRef = useRef(false);
+  const [forcedCustomTextColorPicker, setForcedCustomTextColorPicker] =
+    useState(false);
   const isBoldActive =
     selectedFontWeight === "bold" ||
     selectedFontWeight === "700" ||
@@ -199,8 +242,220 @@ export const SelectionTextControls = ({
     });
   };
 
+  const openCustomTextColorPicker = (initialColor: string) => {
+    setForcedCustomTextColorPicker(true);
+    setActiveSelectId("text-color");
+    setCustomDrawColorPickerColor(parseColorForPicker(initialColor));
+  };
+
+  const applyTextColorChange = (color: string) => {
+    const targetIds = selectedTextElements.map((element) => element.id);
+
+    onTextColorChange(targetIds, color);
+
+    if (editingText && targetIds.includes(editingText.id)) {
+      setEditingText((current) => {
+        if (!current) {
+          return current;
+        }
+
+        return {
+          ...current,
+          style: {
+            ...current.style,
+            color,
+          },
+        };
+      });
+    }
+
+    focusEditorIfEditing();
+  };
+
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
+      <div
+        ref={customDrawColorPickerWrapRef}
+        style={{ position: "relative", display: "inline-flex" }}
+      >
+        <Select
+          open={activeSelectId === "text-color"}
+          onOpenChange={(isOpen) => {
+            if (isOpen) {
+              setForcedCustomTextColorPicker(false);
+              setActiveSelectId("text-color");
+              return;
+            }
+
+            if (keepTextColorSelectOpenOnNextCloseRef.current) {
+              keepTextColorSelectOpenOnNextCloseRef.current = false;
+              return;
+            }
+
+            if (forcedCustomTextColorPicker) {
+              setForcedCustomTextColorPicker(false);
+            }
+
+            setActiveSelectId(null);
+          }}
+          value={String(textColorSelectValue)}
+          onValueChange={(value) => {
+            if (value === "multi") {
+              openCustomTextColorPicker(selectedTextPreviewColor);
+              return;
+            }
+
+            setActiveSelectId(null);
+            applyTextColorChange(value);
+          }}
+        >
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <SelectTrigger
+                onPointerDown={(event) => {
+                  if (textColorSelectValue !== "multi") {
+                    return;
+                  }
+
+                  event.preventDefault();
+                  event.stopPropagation();
+                  openCustomTextColorPicker(selectedTextPreviewColor);
+                }}
+                style={{ gap: "0px", width: "fit-content" }}
+              >
+                <span style={{ width: "0px", overflow: "hidden" }}>
+                  <SelectValue placeholder={localeMessages.selectionBar.textColor} />
+                </span>
+                <div
+                  style={{
+                    width: "20px",
+                    borderRadius: "100%",
+                    border: "1px solid #ffffff20",
+                    height: "20px",
+                    background: selectedTextPreviewColor,
+                  }}
+                />
+              </SelectTrigger>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>{localeMessages.selectionBar.textColor}</p>
+            </TooltipContent>
+          </Tooltip>
+          <SelectContent
+            position="popper"
+            className="drawo-colorselect-content"
+          >
+            <div>
+              <ColorSwatchPicker
+                colors={shapeColors[0]}
+                currentColor={selectedTextPreviewColor}
+                uniColor={(color) => color}
+                renderItem={({ color, isMulti, swatch }) => (
+                  <SelectItem
+                    key={color}
+                    value={color}
+                    className="drawo-colorselect-item"
+                    check={false}
+                    onPointerDown={
+                      isMulti
+                        ? (event) => {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            keepTextColorSelectOpenOnNextCloseRef.current = true;
+                            openCustomTextColorPicker(selectedTextPreviewColor);
+                          }
+                        : undefined
+                    }
+                    onSelect={
+                      isMulti
+                        ? (event) => {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            keepTextColorSelectOpenOnNextCloseRef.current = true;
+                            openCustomTextColorPicker(selectedTextPreviewColor);
+                          }
+                        : undefined
+                    }
+                  >
+                    {swatch}
+                  </SelectItem>
+                )}
+              />
+            </div>
+            <div>
+              <ColorSwatchPicker
+                colors={shapeColors[1]}
+                realTotalColors={textColorPalette}
+                currentColor={selectedTextPreviewColor}
+                uniColor={(color) => color}
+                renderItem={({ color, isMulti, swatch }) => (
+                  <SelectItem
+                    key={color}
+                    value={color}
+                    className="drawo-colorselect-item"
+                    check={false}
+                    onPointerDown={
+                      isMulti
+                        ? (event) => {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            keepTextColorSelectOpenOnNextCloseRef.current = true;
+                            openCustomTextColorPicker(selectedTextPreviewColor);
+                          }
+                        : undefined
+                    }
+                    onSelect={
+                      isMulti
+                        ? (event) => {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            keepTextColorSelectOpenOnNextCloseRef.current = true;
+                            openCustomTextColorPicker(selectedTextPreviewColor);
+                          }
+                        : undefined
+                    }
+                  >
+                    {swatch}
+                  </SelectItem>
+                )}
+              />
+            </div>
+          </SelectContent>
+        </Select>
+      </div>
+      <Tooltip
+        open={
+          activeSelectId === "text-color" &&
+          (forcedCustomTextColorPicker || !isSharedTextPresetColor)
+        }
+      >
+        <TooltipTrigger asChild>
+          <div className="selectionbar-separator" />
+        </TooltipTrigger>
+        <TooltipContent
+          className="drawo-content-color drawo-ultrainferior-colorcontent3"
+          side="bottom"
+          style={{ background: "transparent" }}
+        >
+          <div
+            ref={customDrawColorPickerContentRef}
+            onPointerDown={(event) => event.stopPropagation()}
+          >
+            <Chrome
+              color={customDrawColorPickerColor}
+              onChange={(color) => {
+                const next = color.hexa || color.hex;
+                if (!next) {
+                  return;
+                }
+
+                setCustomDrawColorPickerColor(next);
+                applyTextColorChange(next);
+              }}
+            />
+          </div>
+        </TooltipContent>
+      </Tooltip>
       <Select
         open={activeSelectId === "text-font-family" || undefined}
         onOpenChange={(isOpen) => {

@@ -104,6 +104,7 @@ export interface CanvasViewProps {
     fontStyle: "normal" | "italic",
   ) => void;
   onTextAlignChange: (ids: string[], textAlign: CanvasTextAlign) => void;
+  onTextColorChange: (ids: string[], color: string) => void;
   onDrawStrokeWidthChange: (ids: string[], strokeWidth: number) => void;
   onDrawStrokeColorChange: (ids: string[], strokeColor: string) => void;
   onShapeFillColorChange: (ids: string[], fillColor: string) => void;

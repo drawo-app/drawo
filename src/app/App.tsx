@@ -37,7 +37,6 @@ import {
 } from "@features/workspace/exportImage";
 import {
   LOCALE_STORAGE_KEY,
-  MUSIC_BAR_STORAGE_KEY,
   SCENE_STORAGE_KEY,
   SETTINGS_STORAGE_KEY,
   TIMER_STORAGE_KEY,
@@ -108,7 +107,7 @@ interface DrawoProjectCommonFields {
   locale: LocaleCode;
   openTopbarPanel: "music" | "timer" | null;
   timerState: string | null;
-  musicBarState: string | null;
+  musicBarState?: string | null;
 }
 
 interface DrawoProjectFileV1 extends DrawoProjectCommonFields {
@@ -140,7 +139,8 @@ const isDrawoProjectCommonFields = (
       candidate.openTopbarPanel === null) &&
     (typeof candidate.timerState === "string" ||
       candidate.timerState === null) &&
-    (typeof candidate.musicBarState === "string" ||
+    (typeof candidate.musicBarState === "undefined" ||
+      typeof candidate.musicBarState === "string" ||
       candidate.musicBarState === null)
   );
 };
@@ -716,6 +716,7 @@ export default function App() {
     handleTextFontWeightChange,
     handleTextFontStyleChange,
     handleTextAlignChange,
+    handleTextColorChange,
     handleDrawStrokeWidthChange,
     handleDrawStrokeColorChange,
     handleShapeFillColorChange,
@@ -787,7 +788,6 @@ export default function App() {
       locale,
       openTopbarPanel,
       timerState: localStorage.getItem(TIMER_STORAGE_KEY),
-      musicBarState: localStorage.getItem(MUSIC_BAR_STORAGE_KEY),
     };
     const serializedPayload = [
       DRAWO_PROJECT_AI_PROMPT_LINE,
@@ -897,11 +897,6 @@ export default function App() {
         localStorage.removeItem(TIMER_STORAGE_KEY);
       }
 
-      if (parsed.musicBarState) {
-        localStorage.setItem(MUSIC_BAR_STORAGE_KEY, parsed.musicBarState);
-      } else {
-        localStorage.removeItem(MUSIC_BAR_STORAGE_KEY);
-      }
     } catch {
       throw new Error("storage-quota-exceeded");
     }
@@ -1171,6 +1166,7 @@ export default function App() {
           onTextFontWeightChange={handleTextFontWeightChange}
           onTextFontStyleChange={handleTextFontStyleChange}
           onTextAlignChange={handleTextAlignChange}
+          onTextColorChange={handleTextColorChange}
           onDrawStrokeWidthChange={handleDrawStrokeWidthChange}
           onDrawStrokeColorChange={handleDrawStrokeColorChange}
           onShapeFillColorChange={handleShapeFillColorChange}
@@ -1226,7 +1222,7 @@ export default function App() {
           setDrawingTool={setDrawingToolGuarded}
           drawDefaults={scene.settings.drawDefaults}
           invertPaletteInDarkMode={
-            isDarkMode && resolvedTheme.dataTheme !== "drawo-dark"
+            isDarkMode && scene.settings.colorScheme === "drawo"
           }
           strokeColors={resolvedTheme.preset.strokeColors}
           onDrawDefaultStrokeColorChange={handleDrawDefaultStrokeColorChange}

@@ -162,6 +162,32 @@ export const updateTextElementsTextAlign = (
   };
 };
 
+export const updateTextElementsColor = (
+  scene: Scene,
+  ids: string[],
+  color: string,
+): Scene => {
+  if (ids.length === 0 || color === "multi") {
+    return scene;
+  }
+
+  const targetIds = new Set(ids);
+
+  return {
+    ...scene,
+    elements: scene.elements.map((element) => {
+      if (!targetIds.has(element.id) || !isTextCapableElement(element)) {
+        return element;
+      }
+
+      return {
+        ...element,
+        color,
+      };
+    }),
+  };
+};
+
 export const updateTextElementLayout = (
   scene: Scene,
   id: string,
