@@ -18,6 +18,11 @@ import {
   updateSceneSettings,
 } from "@core/scene";
 import { createElementId } from "@app/state/ids";
+import {
+  blobToDataUrl,
+  optimizeImageBlob,
+  storeImageBlob,
+} from "@app/state/imageStorage";
 import type { AppAction } from "@app/state/types";
 import {
   MAX_CAMERA_ZOOM,
@@ -61,22 +66,6 @@ const createTextElement = (text: string): TextElement => {
   };
 };
 
-const readFileAsDataUrl = (file: Blob): Promise<string> => {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result === "string") {
-        resolve(reader.result);
-        return;
-      }
-
-      reject(new Error("Unable to read clipboard image"));
-    };
-    reader.onerror = () => reject(reader.error ?? new Error("File read error"));
-    reader.readAsDataURL(file);
-  });
-};
-
 const loadImageDimensions = (
   src: string,
 ): Promise<{ width: number; height: number }> => {
@@ -97,11 +86,14 @@ const createImageElementFromBlob = async (
   blob: Blob,
 ): Promise<ImageElement | null> => {
   try {
-    const src = await readFileAsDataUrl(blob);
+    const optimized = await optimizeImageBlob(blob);
+    const src = await blobToDataUrl(optimized.blob);
+    const assetId = await storeImageBlob(optimized.blob);
     const { width, height } = await loadImageDimensions(src);
     return {
       id: createElementId("image"),
       type: "image",
+      assetId,
       x: 0,
       y: 0,
       width,

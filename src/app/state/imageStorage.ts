@@ -92,19 +92,24 @@ const runImageStoreTransaction = async <T>(
 const loadImageFromBlob = (blob: Blob): Promise<HTMLImageElement> => {
   return new Promise((resolve, reject) => {
     const image = new window.Image();
-    const objectUrl = URL.createObjectURL(blob);
+    const reader = new FileReader();
 
-    image.onload = () => {
-      URL.revokeObjectURL(objectUrl);
-      resolve(image);
+    reader.onload = () => {
+      if (typeof reader.result !== "string") {
+        reject(new Error("Unable to decode image blob"));
+        return;
+      }
+
+      image.onload = () => resolve(image);
+      image.onerror = () => reject(new Error("Unable to decode image blob"));
+      image.src = reader.result;
     };
 
-    image.onerror = () => {
-      URL.revokeObjectURL(objectUrl);
-      reject(new Error("Unable to decode image blob"));
+    reader.onerror = () => {
+      reject(reader.error ?? new Error("Unable to decode image blob"));
     };
 
-    image.src = objectUrl;
+    reader.readAsDataURL(blob);
   });
 };
 
@@ -274,7 +279,7 @@ export const prepareAndStoreImageFile = async (
 ): Promise<PreparedImageAsset> => {
   const optimized = await optimizeImageFile(file);
   const assetId = await storeImageBlob(optimized.blob);
-  const src = URL.createObjectURL(optimized.blob);
+  const src = await blobToDataUrl(optimized.blob);
 
   return {
     assetId,

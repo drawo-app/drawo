@@ -328,7 +328,6 @@ export default function App() {
   const clipboardRef = useRef<SceneElement[] | null>(null);
   const cursorPositionRef = useRef<{ x: number; y: number } | null>(null);
   const scenePersistenceQuotaWarnedRef = useRef(false);
-  const imageObjectUrlsRef = useRef<Map<string, string>>(new Map());
   const loadingImageAssetsRef = useRef<Set<string>>(new Set());
   const missingImageAssetsRef = useRef<Set<string>>(new Set());
   const migratingLegacyImageIdsRef = useRef<Set<string>>(new Set());
@@ -381,15 +380,6 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    return () => {
-      for (const objectUrl of imageObjectUrlsRef.current.values()) {
-        URL.revokeObjectURL(objectUrl);
-      }
-      imageObjectUrlsRef.current.clear();
-    };
-  }, []);
-
-  useEffect(() => {
     const candidates = scene.elements.filter(
       (element): element is Extract<SceneElement, { type: "image" }> =>
         element.type === "image" &&
@@ -421,18 +411,11 @@ export default function App() {
               missingImageAssetsRef.current.add(assetId);
               return null;
             }
-
-            const previousUrl = imageObjectUrlsRef.current.get(assetId);
-            if (previousUrl) {
-              URL.revokeObjectURL(previousUrl);
-            }
-
-            const objectUrl = URL.createObjectURL(blob);
-            imageObjectUrlsRef.current.set(assetId, objectUrl);
+            const dataUrl = await blobToDataUrl(blob);
 
             return {
               id: element.id,
-              src: objectUrl,
+              src: dataUrl,
             };
           } catch {
             missingImageAssetsRef.current.add(assetId);
@@ -512,19 +495,12 @@ export default function App() {
           const sourceBlob = await sourceToBlob(image.src);
           const optimized = await optimizeImageBlob(sourceBlob);
           const assetId = await storeImageBlob(optimized.blob);
-
-          const previousUrl = imageObjectUrlsRef.current.get(assetId);
-          if (previousUrl) {
-            URL.revokeObjectURL(previousUrl);
-          }
-
-          const objectUrl = URL.createObjectURL(optimized.blob);
-          imageObjectUrlsRef.current.set(assetId, objectUrl);
+          const dataUrl = await blobToDataUrl(optimized.blob);
 
           updates.push({
             id: image.id,
             assetId,
-            src: objectUrl,
+            src: dataUrl,
             naturalWidth: optimized.naturalWidth,
             naturalHeight: optimized.naturalHeight,
           });
@@ -854,11 +830,12 @@ export default function App() {
             optimized.blob,
             element.assetId ?? undefined,
           );
+          const dataUrl = await blobToDataUrl(optimized.blob);
 
           return {
             ...element,
             assetId,
-            src: URL.createObjectURL(optimized.blob),
+            src: dataUrl,
             naturalWidth: optimized.naturalWidth,
             naturalHeight: optimized.naturalHeight,
           };
