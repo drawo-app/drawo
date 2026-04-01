@@ -1,18 +1,18 @@
 [data-theme="catppuccin-dark"] {
   --accent: #cba6f7;
-  --accent-dark: var(--accent);
-  --logoduotone-firstcolor: #8839ef;
-  --logoduotone-secondcolor: #ca9ee6;
+  --accent-dark: #8839ef;
+  --logoduotone-firstcolor: #cba6f7;
+  --logoduotone-secondcolor: #f5c2e7;
   --logocolor: #f5e0dc;
   --accent-rgb: 203, 166, 247;
   --text-rgb: 205, 214, 244;
   --background-rgb: 30, 30, 46;
   --panel-border: rgba(205, 214, 244, 0.08);
-  --panel-background: #1e1e2e;
+  --panel-background: #1e1e2e90;
   --panel-shadow: 0 12px 28px rgba(17, 17, 27, 0.5);
   --app-bg: #11111b;
   --app-fg: #cdd6f4;
   --panel-bg: #181825;
-  --popover-dark: #11111b;
+  --popover-dark: #11111b90;
   --popover-foreground-dark: var(--app-fg);
 }
