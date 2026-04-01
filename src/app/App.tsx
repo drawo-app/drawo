@@ -8,6 +8,7 @@ import {
   type SetStateAction,
 } from "react";
 import {
+  addSvgElementToScene,
   addImageElementToScene,
   duplicateSelectedElements,
   flipSelectedElements,
@@ -23,7 +24,12 @@ import {
   updateRectangleElementsBorderRadius,
 } from "@core/scene";
 import { isLocaleCode, LOCALES, type LocaleCode } from "@shared/i18n";
-import type { SceneElement } from "@core/elements";
+import {
+  estimateTextHeight,
+  estimateTextWidth,
+  getTextStartX,
+  type SceneElement,
+} from "@core/elements";
 import { useInteraction } from "@features/canvas/hooks/useInteraction";
 import { CanvasView } from "@features/canvas/view/CanvasView";
 import { TooltipProvider } from "@shared/ui/tooltip";
@@ -54,6 +60,8 @@ import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
 import { appReducer, createInitialAppState } from "@app/state/reducer";
 import "./App.css";
 import { Timer } from "@features/timer/components/Timer";
+import { SearchLibrarySidebar } from "@features/sidebar/components/SearchLibrarySidebar";
+import type { LibrarySvgAsset } from "@features/library/catalog";
 import { UndoBar } from "@features/workspace/components/UndoBar";
 import { ZoomBar } from "@features/workspace/components/ZoomBar";
 import {
@@ -90,6 +98,7 @@ import "@app/theme/themes/one-light.css";
 import "@app/theme/themes/one-dark.css";
 import "@app/theme/themes/ayu-light.css";
 import "@app/theme/themes/ayu-dark.css";
+import { SidebarMinimalistic } from "@solar-icons/react";
 
 //const DRAWO_VERSION = "1.1.2";
 const DRAWO_PROJECT_FORMAT = "drawo-project";
@@ -105,7 +114,7 @@ interface DrawoProjectCommonFields {
   exportedAt: string;
   scene: Scene;
   locale: LocaleCode;
-  openTopbarPanel: "music" | "timer" | null;
+  openTopbarPanel: "music" | "timer" | "sidebar" | null;
   timerState: string | null;
   musicBarState?: string | null;
 }
@@ -136,6 +145,7 @@ const isDrawoProjectCommonFields = (
     (candidate.locale === "es_ES" || candidate.locale === "en_US") &&
     (candidate.openTopbarPanel === "music" ||
       candidate.openTopbarPanel === "timer" ||
+      candidate.openTopbarPanel === "sidebar" ||
       candidate.openTopbarPanel === null) &&
     (typeof candidate.timerState === "string" ||
       candidate.timerState === null) &&
@@ -278,11 +288,13 @@ const toExportableScene = async (scene: Scene): Promise<Scene> => {
 
 export default function App() {
   const [openTopbarPanel, setOpenTopbarPanel] = useState<
-    "music" | "timer" | null
+    "music" | "timer" | "sidebar" | null
   >(() => {
     try {
       const stored = localStorage.getItem(TOPBAR_OPEN_PANEL_STORAGE_KEY);
-      return stored === "music" || stored === "timer" ? stored : null;
+      return stored === "music" || stored === "timer" || stored === "sidebar"
+        ? stored
+        : null;
     } catch {
       return null;
     }
@@ -323,6 +335,7 @@ export default function App() {
   );
   const isDarkMode = resolvedTheme.isDark;
   const isPresentationMode = scene.settings.presentationMode;
+  const isSidebarOpen = openTopbarPanel === "sidebar";
   const effectiveInteractionMode = isPresentationMode ? "pan" : interactionMode;
   const effectiveDrawingTool = isPresentationMode ? null : drawingTool;
   const clipboardRef = useRef<SceneElement[] | null>(null);
@@ -331,6 +344,7 @@ export default function App() {
   const loadingImageAssetsRef = useRef<Set<string>>(new Set());
   const missingImageAssetsRef = useRef<Set<string>>(new Set());
   const migratingLegacyImageIdsRef = useRef<Set<string>>(new Set());
+  const focusAnimationFrameRef = useRef<number | null>(null);
 
   const setInteractionModeGuarded: Dispatch<SetStateAction<"select" | "pan">> =
     useCallback(
@@ -658,6 +672,7 @@ export default function App() {
     cursorPositionRef,
     setInteractionMode: setInteractionModeGuarded,
     setDrawingTool: setDrawingToolGuarded,
+    setOpenTopbarPanel,
   });
 
   useEffect(() => {
@@ -873,7 +888,6 @@ export default function App() {
       } else {
         localStorage.removeItem(TIMER_STORAGE_KEY);
       }
-
     } catch {
       throw new Error("storage-quota-exceeded");
     }
@@ -984,6 +998,135 @@ export default function App() {
     [setScene],
   );
 
+  const getElementFocusBounds = useCallback((element: SceneElement) => {
+    if (
+      element.type === "rectangle" ||
+      element.type === "circle" ||
+      element.type === "image" ||
+      element.type === "draw" ||
+      element.type === "svg"
+    ) {
+      return {
+        x: element.x,
+        y: element.y,
+        width: Math.max(1, element.width),
+        height: Math.max(1, element.height),
+      };
+    }
+
+    if (element.type === "line") {
+      const points = [
+        { x: element.x, y: element.y },
+        { x: element.x + element.width, y: element.y + element.height },
+        ...(element.controlPoint ? [element.controlPoint] : []),
+      ];
+      const minX = Math.min(...points.map((point) => point.x));
+      const minY = Math.min(...points.map((point) => point.y));
+      const maxX = Math.max(...points.map((point) => point.x));
+      const maxY = Math.max(...points.map((point) => point.y));
+
+      return {
+        x: minX,
+        y: minY,
+        width: Math.max(1, maxX - minX),
+        height: Math.max(1, maxY - minY),
+      };
+    }
+
+    return {
+      x: getTextStartX(element),
+      y: element.y - element.fontSize,
+      width: Math.max(16, estimateTextWidth(element)),
+      height: Math.max(element.fontSize, estimateTextHeight(element)),
+    };
+  }, []);
+
+  const handleFocusElement = useCallback(
+    (id: string) => {
+      setInteractionModeGuarded("select");
+      setDrawingToolGuarded(null);
+
+      if (focusAnimationFrameRef.current !== null) {
+        cancelAnimationFrame(focusAnimationFrameRef.current);
+        focusAnimationFrameRef.current = null;
+      }
+
+      const startCamera = {
+        x: scene.camera.x,
+        y: scene.camera.y,
+      };
+
+      setSceneWithoutHistory((currentScene) => {
+        const element = currentScene.elements.find((item) => item.id === id);
+        if (!element) {
+          return currentScene;
+        }
+
+        const bounds = getElementFocusBounds(element);
+        const centerX = bounds.x + bounds.width / 2;
+        const centerY = bounds.y + bounds.height / 2;
+        const zoom = currentScene.camera.zoom;
+        const viewportWidth = window.innerWidth;
+        const viewportHeight = window.innerHeight;
+        const targetCameraX = centerX - viewportWidth / (2 * zoom);
+        const targetCameraY = centerY - viewportHeight / (2 * zoom);
+
+        const deltaX = targetCameraX - startCamera.x;
+        const deltaY = targetCameraY - startCamera.y;
+        const durationMs = 420;
+        const startTime = performance.now();
+
+        const animateCamera = (timestamp: number) => {
+          const progress = Math.min(1, (timestamp - startTime) / durationMs);
+          const eased =
+            progress < 0.5
+              ? 2 * progress * progress
+              : 1 - Math.pow(-2 * progress + 2, 2) / 2;
+
+          setSceneWithoutHistory((sceneForAnimation) => ({
+            ...sceneForAnimation,
+            camera: {
+              ...sceneForAnimation.camera,
+              x: startCamera.x + deltaX * eased,
+              y: startCamera.y + deltaY * eased,
+            },
+          }));
+
+          if (progress < 1) {
+            focusAnimationFrameRef.current =
+              requestAnimationFrame(animateCamera);
+          } else {
+            focusAnimationFrameRef.current = null;
+          }
+        };
+
+        focusAnimationFrameRef.current = requestAnimationFrame(animateCamera);
+
+        return {
+          ...currentScene,
+          selectedId: id,
+          selectedIds: [id],
+        };
+      });
+    },
+    [
+      getElementFocusBounds,
+      scene.camera.x,
+      scene.camera.y,
+      setDrawingToolGuarded,
+      setInteractionModeGuarded,
+      setSceneWithoutHistory,
+    ],
+  );
+
+  useEffect(() => {
+    return () => {
+      if (focusAnimationFrameRef.current !== null) {
+        cancelAnimationFrame(focusAnimationFrameRef.current);
+      }
+    };
+  }, []);
+
   const handleInsertImageFiles = useCallback(
     async (files: File[], anchor?: { x: number; y: number }) => {
       const images = await loadImageFiles(files);
@@ -1012,6 +1155,30 @@ export default function App() {
       });
     },
     [setScene],
+  );
+
+  const handleInsertLibrarySvg = useCallback(
+    (asset: LibrarySvgAsset) => {
+      setInteractionModeGuarded("select");
+      setDrawingToolGuarded(null);
+
+      setScene((currentScene) => {
+        const centerX =
+          currentScene.camera.x +
+          window.innerWidth / (2 * currentScene.camera.zoom);
+        const centerY =
+          currentScene.camera.y +
+          window.innerHeight / (2 * currentScene.camera.zoom);
+
+        return addSvgElementToScene(
+          currentScene,
+          asset,
+          centerX - asset.defaultWidth / 2,
+          centerY - asset.defaultHeight / 2,
+        );
+      });
+    },
+    [setDrawingToolGuarded, setInteractionModeGuarded, setScene],
   );
 
   useEffect(() => {
@@ -1082,130 +1249,171 @@ export default function App() {
   return (
     <div className="app-root">
       <TooltipProvider>
-        <div className="drawo-topbar">
-          <div className="drawo-topbar-left">
-            <MenuBar
+        <div
+          className={`app-shell ${isSidebarOpen ? "app-shell--sidebar-open" : ""}`}
+        >
+          <div className="app-workspace">
+            <div className="drawo-topbar">
+              <div className="drawo-topbar-left">
+                <MenuBar
+                  scene={scene}
+                  locale={locale}
+                  messages={messages}
+                  setLocale={setLocale}
+                  setScene={setScene}
+                  setSceneWithoutHistory={setSceneWithoutHistory}
+                  onExportProject={handleExportProject}
+                  onExportImage={handleExportImage}
+                  onOpenProject={handleOpenProject}
+                />
+              </div>
+              <div className="drawo-topbar-right">
+                <Timer
+                  messages={messages}
+                  isOpen={openTopbarPanel === "timer"}
+                  onOpenChange={(nextIsOpen) =>
+                    setOpenTopbarPanel(nextIsOpen ? "timer" : null)
+                  }
+                />
+                <MusicBar
+                  messages={messages}
+                  isOpen={openTopbarPanel === "music"}
+                  onOpenChange={(nextIsOpen) =>
+                    setOpenTopbarPanel(nextIsOpen ? "music" : null)
+                  }
+                />
+                <div
+                  className={`sidebar-launcher-wrap ${isSidebarOpen ? "active" : ""}`}
+                >
+                  <button
+                    type="button"
+                    className="sidebar-launcher"
+                    onClick={() =>
+                      setOpenTopbarPanel((current) =>
+                        current === "sidebar" ? null : "sidebar",
+                      )
+                    }
+                    aria-expanded={isSidebarOpen}
+                    aria-controls="search-library-sidebar"
+                    title="Abrir sidebar"
+                  >
+                    <SidebarMinimalistic weight="Bold" />
+                  </button>
+                </div>
+              </div>
+            </div>
+            <CanvasView
               scene={scene}
-              locale={locale}
-              messages={messages}
-              setLocale={setLocale}
-              setScene={setScene}
-              setSceneWithoutHistory={setSceneWithoutHistory}
-              onExportProject={handleExportProject}
-              onExportImage={handleExportImage}
-              onOpenProject={handleOpenProject}
-            />
-          </div>
-          <div className="drawo-topbar-right">
-            <Timer
-              messages={messages}
-              isOpen={openTopbarPanel === "timer"}
-              onOpenChange={(nextIsOpen) =>
-                setOpenTopbarPanel(nextIsOpen ? "timer" : null)
+              strokeColors={resolvedTheme.preset.strokeColors}
+              shapeColors={resolvedTheme.preset.shapeColors}
+              alignmentGuides={alignmentGuides}
+              interactionMode={effectiveInteractionMode}
+              drawingTool={effectiveDrawingTool}
+              onPointerDown={handlePointerDown}
+              onPointerMove={handlePointerMove}
+              onPointerUp={handlePointerUp}
+              onResizeStart={handleResizeStart}
+              onRotateStart={handleRotateStart}
+              onTextCommit={handleTextCommit}
+              onWheelPan={handleWheelPan}
+              onWheelZoom={handleWheelZoom}
+              onCreateElement={handleCreateElement}
+              onCreateDrawElement={handleCreateDrawElement}
+              onCreateLinePathElement={handleCreateLinePathElement}
+              onDrawingToolComplete={() => setDrawingToolGuarded(null)}
+              onDropImageFiles={(files, x, y) =>
+                void handleInsertImageFiles(files, { x, y })
               }
-            />
-            <MusicBar
-              messages={messages}
-              isOpen={openTopbarPanel === "music"}
-              onOpenChange={(nextIsOpen) =>
-                setOpenTopbarPanel(nextIsOpen ? "music" : null)
+              onSelectElements={handleSelectElements}
+              onGroupResizeStart={handleGroupResizeStart}
+              onGroupRotateStart={handleGroupRotateStart}
+              onTextFontFamilyChange={handleTextFontFamilyChange}
+              onTextFontSizeChange={handleTextFontSizeChange}
+              onTextFontWeightChange={handleTextFontWeightChange}
+              onTextFontStyleChange={handleTextFontStyleChange}
+              onTextAlignChange={handleTextAlignChange}
+              onTextColorChange={handleTextColorChange}
+              onDrawStrokeWidthChange={handleDrawStrokeWidthChange}
+              onDrawStrokeColorChange={handleDrawStrokeColorChange}
+              onShapeFillColorChange={handleShapeFillColorChange}
+              onShapeFillStyleChange={handleShapeFillStyleChange}
+              onElementsOpacityChange={handleElementsOpacityChange}
+              onShapeStrokeColorChange={handleShapeStrokeColorChange}
+              onShapeStrokeWidthChange={handleShapeStrokeWidthChange}
+              onShapeStrokeStyleChange={handleShapeStrokeStyleChange}
+              onDrawDefaultStrokeColorChange={
+                handleDrawDefaultStrokeColorChange
               }
+              onDrawDefaultStrokeWidthChange={
+                handleDrawDefaultStrokeWidthChange
+              }
+              onLineStartCapChange={handleLineStartCapChange}
+              onLineEndCapChange={handleLineEndCapChange}
+              onLineEditStart={handleLineEditStart}
+              onLineGeometryChange={handleLineGeometryChange}
+              onRectangleBorderRadiusChange={handleRectangleBorderRadiusChange}
+              onCopySelection={handleCopySelection}
+              onCutSelection={handleCutSelection}
+              onPasteAt={handlePasteAt}
+              onDuplicateSelection={handleDuplicateSelection}
+              onDeleteSelection={handleDeleteSelection}
+              onGroupSelection={handleGroupSelection}
+              onUngroupSelection={handleUngroupSelection}
+              onSelectGroupForElement={handleSelectGroupForElement}
+              onReorderSelection={handleReorderSelection}
+              onFlipSelection={handleFlipSelection}
+              localeMessages={messages}
             />
-          </div>
-        </div>
-        <CanvasView
-          scene={scene}
-          strokeColors={resolvedTheme.preset.strokeColors}
-          shapeColors={resolvedTheme.preset.shapeColors}
-          alignmentGuides={alignmentGuides}
-          interactionMode={effectiveInteractionMode}
-          drawingTool={effectiveDrawingTool}
-          onPointerDown={handlePointerDown}
-          onPointerMove={handlePointerMove}
-          onPointerUp={handlePointerUp}
-          onResizeStart={handleResizeStart}
-          onRotateStart={handleRotateStart}
-          onTextCommit={handleTextCommit}
-          onWheelPan={handleWheelPan}
-          onWheelZoom={handleWheelZoom}
-          onCreateElement={handleCreateElement}
-          onCreateDrawElement={handleCreateDrawElement}
-          onCreateLinePathElement={handleCreateLinePathElement}
-          onDrawingToolComplete={() => setDrawingToolGuarded(null)}
-          onDropImageFiles={(files, x, y) =>
-            void handleInsertImageFiles(files, { x, y })
-          }
-          onSelectElements={handleSelectElements}
-          onGroupResizeStart={handleGroupResizeStart}
-          onGroupRotateStart={handleGroupRotateStart}
-          onTextFontFamilyChange={handleTextFontFamilyChange}
-          onTextFontSizeChange={handleTextFontSizeChange}
-          onTextFontWeightChange={handleTextFontWeightChange}
-          onTextFontStyleChange={handleTextFontStyleChange}
-          onTextAlignChange={handleTextAlignChange}
-          onTextColorChange={handleTextColorChange}
-          onDrawStrokeWidthChange={handleDrawStrokeWidthChange}
-          onDrawStrokeColorChange={handleDrawStrokeColorChange}
-          onShapeFillColorChange={handleShapeFillColorChange}
-          onShapeFillStyleChange={handleShapeFillStyleChange}
-          onElementsOpacityChange={handleElementsOpacityChange}
-          onShapeStrokeColorChange={handleShapeStrokeColorChange}
-          onShapeStrokeWidthChange={handleShapeStrokeWidthChange}
-          onShapeStrokeStyleChange={handleShapeStrokeStyleChange}
-          onDrawDefaultStrokeColorChange={handleDrawDefaultStrokeColorChange}
-          onDrawDefaultStrokeWidthChange={handleDrawDefaultStrokeWidthChange}
-          onLineStartCapChange={handleLineStartCapChange}
-          onLineEndCapChange={handleLineEndCapChange}
-          onLineEditStart={handleLineEditStart}
-          onLineGeometryChange={handleLineGeometryChange}
-          onRectangleBorderRadiusChange={handleRectangleBorderRadiusChange}
-          onCopySelection={handleCopySelection}
-          onCutSelection={handleCutSelection}
-          onPasteAt={handlePasteAt}
-          onDuplicateSelection={handleDuplicateSelection}
-          onDeleteSelection={handleDeleteSelection}
-          onGroupSelection={handleGroupSelection}
-          onUngroupSelection={handleUngroupSelection}
-          onSelectGroupForElement={handleSelectGroupForElement}
-          onReorderSelection={handleReorderSelection}
-          onFlipSelection={handleFlipSelection}
-          localeMessages={messages}
-        />
 
-        <div className="drawo-bottomleft-bar">
-          <UndoBar
-            canUndo={canUndo}
-            canRedo={canRedo}
-            onUndo={() => dispatch({ type: "undo" })}
-            onRedo={() => dispatch({ type: "redo" })}
+            <div className="drawo-bottomleft-bar">
+              <UndoBar
+                canUndo={canUndo}
+                canRedo={canRedo}
+                onUndo={() => dispatch({ type: "undo" })}
+                onRedo={() => dispatch({ type: "redo" })}
+              />
+            </div>
+            <div className="drawo-bottomright-bar">
+              <ZoomBar
+                zoomPercent={Math.round(scene.camera.zoom * 100)}
+                canZoomOut={scene.camera.zoom > MIN_CAMERA_ZOOM}
+                canZoomIn={scene.camera.zoom < MAX_CAMERA_ZOOM}
+                onZoomOut={handleZoomOut}
+                onZoomIn={handleZoomIn}
+                onZoomReset={handleZoomReset}
+              />
+            </div>
+            <ToolBar
+              interactionMode={effectiveInteractionMode}
+              drawingTool={effectiveDrawingTool}
+              isPresentationMode={isPresentationMode}
+              messages={messages}
+              setInteractionMode={setInteractionModeGuarded}
+              setDrawingTool={setDrawingToolGuarded}
+              drawDefaults={scene.settings.drawDefaults}
+              invertPaletteInDarkMode={
+                isDarkMode && scene.settings.colorScheme === "drawo"
+              }
+              strokeColors={resolvedTheme.preset.strokeColors}
+              onDrawDefaultStrokeColorChange={
+                handleDrawDefaultStrokeColorChange
+              }
+              onDrawDefaultStrokeWidthChange={
+                handleDrawDefaultStrokeWidthChange
+              }
+              onSelectImageFiles={(files) => void handleInsertImageFiles(files)}
+            />
+          </div>
+          <SearchLibrarySidebar
+            scene={scene}
+            isOpen={isSidebarOpen}
+            onOpenChange={(nextIsOpen) =>
+              setOpenTopbarPanel(nextIsOpen ? "sidebar" : null)
+            }
+            onFocusElement={handleFocusElement}
+            onInsertLibraryAsset={handleInsertLibrarySvg}
           />
         </div>
-        <div className="drawo-bottomright-bar">
-          <ZoomBar
-            zoomPercent={Math.round(scene.camera.zoom * 100)}
-            canZoomOut={scene.camera.zoom > MIN_CAMERA_ZOOM}
-            canZoomIn={scene.camera.zoom < MAX_CAMERA_ZOOM}
-            onZoomOut={handleZoomOut}
-            onZoomIn={handleZoomIn}
-            onZoomReset={handleZoomReset}
-          />
-        </div>
-        <ToolBar
-          interactionMode={effectiveInteractionMode}
-          drawingTool={effectiveDrawingTool}
-          isPresentationMode={isPresentationMode}
-          messages={messages}
-          setInteractionMode={setInteractionModeGuarded}
-          setDrawingTool={setDrawingToolGuarded}
-          drawDefaults={scene.settings.drawDefaults}
-          invertPaletteInDarkMode={
-            isDarkMode && scene.settings.colorScheme === "drawo"
-          }
-          strokeColors={resolvedTheme.preset.strokeColors}
-          onDrawDefaultStrokeColorChange={handleDrawDefaultStrokeColorChange}
-          onDrawDefaultStrokeWidthChange={handleDrawDefaultStrokeWidthChange}
-          onSelectImageFiles={(files) => void handleInsertImageFiles(files)}
-        />
       </TooltipProvider>
     </div>
   );

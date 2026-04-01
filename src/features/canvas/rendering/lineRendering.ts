@@ -223,7 +223,7 @@ export const renderLineElement = ({
     ctx.translate(x, y);
     ctx.rotate(isEnd ? angle : angle + Math.PI);
     ctx.strokeStyle = toThemeColor(lineElement.stroke);
-    ctx.lineWidth = Math.max(2, lineElement.strokeWidth);
+    ctx.lineWidth = Math.max(1, lineElement.strokeWidth);
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
     ctx.beginPath();

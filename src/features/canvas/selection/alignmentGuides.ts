@@ -40,6 +40,7 @@ export interface SmartGuidesResult {
 }
 
 const SMART_GUIDE_SCREEN_THRESHOLD = 8;
+const GUIDE_DELTA_PRECISION = 1000;
 
 export type GuidePointKind = "start" | "center" | "end";
 
@@ -89,7 +90,11 @@ const getSnapBounds = (element: SceneElement): Bounds => {
     };
   }
 
-  if (element.type === "image" || element.type === "draw") {
+  if (
+    element.type === "image" ||
+    element.type === "draw" ||
+    element.type === "svg"
+  ) {
     return {
       x: element.x,
       y: element.y,
@@ -540,11 +545,18 @@ const findBestGuide = (
         }
 
         if (!bestMatch || Math.abs(delta) < Math.abs(bestMatch.delta)) {
+          const normalizedDelta =
+            Math.round(delta * GUIDE_DELTA_PRECISION) / GUIDE_DELTA_PRECISION;
+          const snappedMovingBounds =
+            axis === "x"
+              ? { ...movingBounds, x: movingBounds.x + normalizedDelta }
+              : { ...movingBounds, y: movingBounds.y + normalizedDelta };
+
           bestMatch = {
-            delta,
+            delta: normalizedDelta,
             guide: buildGuide(
               axis,
-              movingBounds,
+              snappedMovingBounds,
               target,
               targetPoint.value,
               movingPoint.kind,
@@ -630,15 +642,15 @@ export const getSmartGuidesForDrag = (
   const targetBounds = scene.elements
     .filter((element) => !selectedIdSet.has(element.id))
     .map((element) => getSnapBounds(element));
+  const axisTargets: AxisTarget[] = targetBounds.map((bounds) => ({ bounds }));
   const threshold = SMART_GUIDE_SCREEN_THRESHOLD / scene.camera.zoom;
 
-  const baseResult = getSmartGuidesForBounds(
-    scene,
-    movingBounds,
-    dragItems.map((item) => item.id),
-  );
-  const baseGuideX = baseResult.guides.find((guide) => guide.axis === "x");
-  const baseGuideY = baseResult.guides.find((guide) => guide.axis === "y");
+  const xBaseMatch = findBestGuide("x", movingBounds, axisTargets, threshold);
+  const yBaseMatch = findBestGuide("y", movingBounds, axisTargets, threshold);
+  const baseGuideX = xBaseMatch?.guide;
+  const baseGuideY = yBaseMatch?.guide;
+  const baseOffsetX = xBaseMatch?.delta ?? 0;
+  const baseOffsetY = yBaseMatch?.delta ?? 0;
 
   const spacingGuideX = findBestSpacingGuide(
     "x",
@@ -655,11 +667,11 @@ export const getSmartGuidesForDrag = (
 
   const useSpacingGuideX = Boolean(
     spacingGuideX &&
-      (!baseGuideX || Math.abs(spacingGuideX.delta) < Math.abs(baseResult.offsetX)),
+      (!baseGuideX || Math.abs(spacingGuideX.delta) < Math.abs(baseOffsetX)),
   );
   const useSpacingGuideY = Boolean(
     spacingGuideY &&
-      (!baseGuideY || Math.abs(spacingGuideY.delta) < Math.abs(baseResult.offsetY)),
+      (!baseGuideY || Math.abs(spacingGuideY.delta) < Math.abs(baseOffsetY)),
   );
 
   const nextGuides: SmartGuide[] = [];
@@ -676,8 +688,8 @@ export const getSmartGuidesForDrag = (
   }
 
   return {
-    offsetX: useSpacingGuideX ? (spacingGuideX?.delta ?? 0) : baseResult.offsetX,
-    offsetY: useSpacingGuideY ? (spacingGuideY?.delta ?? 0) : baseResult.offsetY,
+    offsetX: useSpacingGuideX ? (spacingGuideX?.delta ?? 0) : baseOffsetX,
+    offsetY: useSpacingGuideY ? (spacingGuideY?.delta ?? 0) : baseOffsetY,
     guides: nextGuides,
   };
 };

@@ -312,7 +312,9 @@ export const updateShapeElementsFillStyle = (
     elements: scene.elements.map((element) => {
       if (
         !targetIds.has(element.id) ||
-        (element.type !== "rectangle" && element.type !== "circle")
+        (element.type !== "rectangle" &&
+          element.type !== "circle" &&
+          element.type !== "svg")
       ) {
         return element;
       }
@@ -341,7 +343,9 @@ export const updateShapeElementsFillColor = (
     elements: scene.elements.map((element) => {
       if (
         !targetIds.has(element.id) ||
-        (element.type !== "rectangle" && element.type !== "circle")
+        (element.type !== "rectangle" &&
+          element.type !== "circle" &&
+          element.type !== "svg")
       ) {
         return element;
       }
@@ -370,7 +374,9 @@ export const updateShapeElementsStrokeColor = (
     elements: scene.elements.map((element) => {
       if (
         !targetIds.has(element.id) ||
-        (element.type !== "rectangle" && element.type !== "circle")
+        (element.type !== "rectangle" &&
+          element.type !== "circle" &&
+          element.type !== "svg")
       ) {
         return element;
       }
@@ -399,7 +405,9 @@ export const updateShapeElementsStrokeWidth = (
     elements: scene.elements.map((element) => {
       if (
         !targetIds.has(element.id) ||
-        (element.type !== "rectangle" && element.type !== "circle")
+        (element.type !== "rectangle" &&
+          element.type !== "circle" &&
+          element.type !== "svg")
       ) {
         return element;
       }
@@ -428,7 +436,9 @@ export const updateShapeElementsStrokeStyle = (
     elements: scene.elements.map((element) => {
       if (
         !targetIds.has(element.id) ||
-        (element.type !== "rectangle" && element.type !== "circle")
+        (element.type !== "rectangle" &&
+          element.type !== "circle" &&
+          element.type !== "svg")
       ) {
         return element;
       }

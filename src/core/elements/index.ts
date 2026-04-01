@@ -4,6 +4,7 @@ import type { RectangleElement } from "./rectangle";
 import type { TextElement } from "./text";
 import type { LineElement } from "./line";
 import type { ImageElement } from "./image";
+import type { SvgElement } from "./svg";
 
 export type SceneElement =
   | RectangleElement
@@ -11,7 +12,8 @@ export type SceneElement =
   | TextElement
   | DrawElement
   | LineElement
-  | ImageElement;
+  | ImageElement
+  | SvgElement;
 
 export type { CircleElement } from "./circle";
 export type { DrawElement, DrawPoint } from "./draw";
@@ -24,6 +26,7 @@ export {
   type LineElement,
 } from "./line";
 export type { ImageElement } from "./image";
+export type { SvgElement } from "./svg";
 
 export { hitTestCircle } from "./circle";
 export { createElementId } from "./createId";
@@ -31,6 +34,7 @@ export { hitTestDraw } from "./draw";
 export { hitTestRectangle } from "./rectangle";
 export { hitTestLine } from "./line";
 export { hitTestImage } from "./image";
+export { hitTestSvg } from "./svg";
 export {
   hitTestText,
   getTextFont,

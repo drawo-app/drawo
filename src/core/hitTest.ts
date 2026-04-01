@@ -5,6 +5,7 @@ import {
   hitTestText,
   hitTestLine,
   hitTestImage,
+  hitTestSvg,
   type SceneElement,
 } from "./elements";
 
@@ -31,6 +32,10 @@ export const hitTestElement = (
 
   if (element.type === "image") {
     return hitTestImage(element, pointX, pointY);
+  }
+
+  if (element.type === "svg") {
+    return hitTestSvg(element, pointX, pointY);
   }
 
   return hitTestText(element, pointX, pointY);

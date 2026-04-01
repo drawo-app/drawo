@@ -37,6 +37,14 @@ export const getTextAlignSelectValue = (
 };
 
 export const getResizeCursor = (handle: ResizeHandle): string => {
+  if (handle === "n" || handle === "s") {
+    return "ns-resize";
+  }
+
+  if (handle === "e" || handle === "w") {
+    return "ew-resize";
+  }
+
   if (handle === "nw" || handle === "se") {
     return "nwse-resize";
   }
@@ -73,6 +81,22 @@ export const getHandleCenter = (
 
   if (handle === "sw") {
     return { x: bounds.x, y: bounds.y + bounds.height };
+  }
+
+  if (handle === "n") {
+    return { x: bounds.x + bounds.width / 2, y: bounds.y };
+  }
+
+  if (handle === "e") {
+    return { x: bounds.x + bounds.width, y: bounds.y + bounds.height / 2 };
+  }
+
+  if (handle === "s") {
+    return { x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height };
+  }
+
+  if (handle === "w") {
+    return { x: bounds.x, y: bounds.y + bounds.height / 2 };
   }
 
   return { x: bounds.x + bounds.width, y: bounds.y + bounds.height };
@@ -121,6 +145,36 @@ export type CornerAction = {
   mode: "resize" | "rotate";
 };
 
+const isPointNearHorizontalEdge = (
+  pointX: number,
+  pointY: number,
+  startX: number,
+  endX: number,
+  edgeY: number,
+  tolerance: number,
+) => {
+  return (
+    pointX >= startX - tolerance &&
+    pointX <= endX + tolerance &&
+    Math.abs(pointY - edgeY) <= tolerance
+  );
+};
+
+const isPointNearVerticalEdge = (
+  pointX: number,
+  pointY: number,
+  edgeX: number,
+  startY: number,
+  endY: number,
+  tolerance: number,
+) => {
+  return (
+    pointY >= startY - tolerance &&
+    pointY <= endY + tolerance &&
+    Math.abs(pointX - edgeX) <= tolerance
+  );
+};
+
 export const findCornerAction = (
   bounds: ElementBounds,
   pointX: number,
@@ -144,6 +198,41 @@ export const findCornerAction = (
     if (distance <= rotateRadius) {
       return { handle, mode: "rotate" };
     }
+  }
+
+  return null;
+};
+
+export const findEdgeResizeAction = (
+  bounds: ElementBounds,
+  pointX: number,
+  pointY: number,
+  zoom: number,
+): CornerAction | null => {
+  const tolerance = HANDLE_RESIZE_RADIUS_PX / zoom;
+  const left = bounds.x;
+  const right = bounds.x + bounds.width;
+  const top = bounds.y;
+  const bottom = bounds.y + bounds.height;
+
+  if (
+    isPointNearHorizontalEdge(pointX, pointY, left, right, top, tolerance)
+  ) {
+    return { handle: "n", mode: "resize" };
+  }
+
+  if (
+    isPointNearHorizontalEdge(pointX, pointY, left, right, bottom, tolerance)
+  ) {
+    return { handle: "s", mode: "resize" };
+  }
+
+  if (isPointNearVerticalEdge(pointX, pointY, left, top, bottom, tolerance)) {
+    return { handle: "w", mode: "resize" };
+  }
+
+  if (isPointNearVerticalEdge(pointX, pointY, right, top, bottom, tolerance)) {
+    return { handle: "e", mode: "resize" };
   }
 
   return null;

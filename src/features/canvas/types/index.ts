@@ -14,7 +14,7 @@ import type {
 import type { LocaleMessages } from "@shared/i18n";
 import type { SmartGuide } from "@features/canvas/selection/alignmentGuides";
 
-export type ResizeHandle = "nw" | "ne" | "se" | "sw";
+export type ResizeHandle = "nw" | "ne" | "se" | "sw" | "n" | "e" | "s" | "w";
 export type BoxDrawingType = Exclude<
   NewElementType,
   "draw" | "marker" | "quill" | "image"

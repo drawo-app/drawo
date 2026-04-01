@@ -197,6 +197,9 @@ interface UseAppKeyboardShortcutsProps {
   cursorPositionRef: MutableRefObject<{ x: number; y: number } | null>;
   setInteractionMode: Dispatch<SetStateAction<"select" | "pan">>;
   setDrawingTool: Dispatch<SetStateAction<NewElementType | "laser" | null>>;
+  setOpenTopbarPanel: Dispatch<
+    SetStateAction<"music" | "timer" | "sidebar" | null>
+  >;
 }
 
 const getSelectedIds = (scene: Scene): string[] => {
@@ -214,6 +217,7 @@ export const useWorkspaceKeyboardShortcuts = ({
   cursorPositionRef,
   setInteractionMode,
   setDrawingTool,
+  setOpenTopbarPanel,
 }: UseAppKeyboardShortcutsProps) => {
   useEffect(() => {
     const isEditableTarget = (target: EventTarget | null): boolean => {
@@ -321,6 +325,21 @@ export const useWorkspaceKeyboardShortcuts = ({
               currentScene.elements.map((element) => element.id),
             ),
         });
+        return;
+      }
+
+      if (
+        hasShortcutModifier &&
+        !event.altKey &&
+        (event.code === "Backslash" ||
+          event.code === "IntlBackslash" ||
+          event.key === "\\" ||
+          event.key === "|")
+      ) {
+        event.preventDefault();
+        setOpenTopbarPanel((current) =>
+          current === "sidebar" ? null : "sidebar",
+        );
         return;
       }
 
@@ -688,6 +707,7 @@ export const useWorkspaceKeyboardShortcuts = ({
     scene,
     setDrawingTool,
     setInteractionMode,
+    setOpenTopbarPanel,
     cursorPositionRef,
   ]);
 };

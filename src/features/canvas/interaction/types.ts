@@ -59,6 +59,13 @@ export interface ResizeState {
         naturalHeight: number;
       }
     | {
+        type: "svg";
+        x: number;
+        y: number;
+        width: number;
+        height: number;
+      }
+    | {
         type: "draw";
         x: number;
         y: number;

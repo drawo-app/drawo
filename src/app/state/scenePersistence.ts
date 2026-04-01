@@ -33,6 +33,55 @@ const normalizeElement = (element: SceneElement): SceneElement => {
     };
   }
 
+  if (element.type === "svg") {
+    return {
+      ...element,
+      groupId: normalizeGroupId(element.groupId),
+      assetId:
+        typeof element.assetId === "string" && element.assetId.trim().length > 0
+          ? element.assetId
+          : "svg-asset",
+      viewBox:
+        typeof element.viewBox === "string" && element.viewBox.trim().length > 0
+          ? element.viewBox
+          : "0 0 24 24",
+      svg: typeof element.svg === "string" ? element.svg : "",
+      fillStyle:
+        element.fillStyle === "none"
+          ? "none"
+          : element.fillStyle === "hachure"
+            ? "hachure"
+            : "solid",
+      fill:
+        typeof element.fill === "string" && element.fill.trim().length > 0
+          ? element.fill
+          : "#f5f5f5",
+      stroke:
+        typeof element.stroke === "string" && element.stroke.trim().length > 0
+          ? element.stroke
+          : "#cccccc",
+      strokeWidth:
+        typeof element.strokeWidth === "number" &&
+        Number.isFinite(element.strokeWidth)
+          ? Math.max(0, element.strokeWidth)
+          : 1,
+      strokeStyle:
+        element.strokeStyle === "dashed" ||
+        element.strokeStyle === "none" ||
+        element.strokeStyle === "solid"
+          ? element.strokeStyle
+          : "solid",
+      width:
+        typeof element.width === "number" && Number.isFinite(element.width)
+          ? Math.max(1, element.width)
+          : 24,
+      height:
+        typeof element.height === "number" && Number.isFinite(element.height)
+          ? Math.max(1, element.height)
+          : 24,
+    };
+  }
+
   if (element.type === "rectangle" || element.type === "circle") {
     return {
       ...element,

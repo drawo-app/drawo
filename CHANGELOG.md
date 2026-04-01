@@ -1,3 +1,18 @@
+# [1.1.4] - 2026-03-29
+
+## 🔄 **Changed**
+- **Invisible full-edge resize zones (more comfortable transform UX)**
+  You can now resize selections not only from corner handles, but also from the full top/right/bottom/left edges.
+  - Edge resize areas are invisible (no extra visible handles).
+  - The hit area spans each full side, not just a small center point.
+  - Edge interactions are resize-only.
+- **Default line ending now arrow**
+  Newly created line elements now use `endCap: "line arrow"` by default.
+
+## 🐛 **Fixed**
+- **Line cap thickness mismatch at minimum stroke**
+  Fixed a rendering issue where the `line arrow` cap could look thicker than the line when stroke width was at its minimum.
+
 # [1.1.3] - 2026-03-29
 
 ## ✨ **Added**

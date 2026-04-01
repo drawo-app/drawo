@@ -103,6 +103,46 @@ export const getResizedBoundsFromCorner = (
     };
   }
 
+  if (handle === "n") {
+    const nextY = Math.min(pointerY, bottom - MIN_ELEMENT_SIZE);
+    return {
+      x: bounds.x,
+      y: nextY,
+      width: bounds.width,
+      height: bottom - nextY,
+    };
+  }
+
+  if (handle === "e") {
+    const nextRight = Math.max(pointerX, bounds.x + MIN_ELEMENT_SIZE);
+    return {
+      x: bounds.x,
+      y: bounds.y,
+      width: nextRight - bounds.x,
+      height: bounds.height,
+    };
+  }
+
+  if (handle === "s") {
+    const nextBottom = Math.max(pointerY, bounds.y + MIN_ELEMENT_SIZE);
+    return {
+      x: bounds.x,
+      y: bounds.y,
+      width: bounds.width,
+      height: nextBottom - bounds.y,
+    };
+  }
+
+  if (handle === "w") {
+    const nextX = Math.min(pointerX, right - MIN_ELEMENT_SIZE);
+    return {
+      x: nextX,
+      y: bounds.y,
+      width: right - nextX,
+      height: bounds.height,
+    };
+  }
+
   const nextRight = Math.max(pointerX, bounds.x + MIN_ELEMENT_SIZE);
   const nextBottom = Math.max(pointerY, bounds.y + MIN_ELEMENT_SIZE);
 
@@ -179,6 +219,48 @@ export const getAspectRatioLockedBounds = (
     };
   }
 
+  if (handle === "n") {
+    const anchorX = bounds.x + bounds.width / 2;
+    const anchorY = bounds.y + bounds.height;
+    return {
+      x: anchorX - lockedWidth / 2,
+      y: anchorY - lockedHeight,
+      width: lockedWidth,
+      height: lockedHeight,
+    };
+  }
+
+  if (handle === "e") {
+    const anchorY = bounds.y + bounds.height / 2;
+    return {
+      x: bounds.x,
+      y: anchorY - lockedHeight / 2,
+      width: lockedWidth,
+      height: lockedHeight,
+    };
+  }
+
+  if (handle === "s") {
+    const anchorX = bounds.x + bounds.width / 2;
+    return {
+      x: anchorX - lockedWidth / 2,
+      y: bounds.y,
+      width: lockedWidth,
+      height: lockedHeight,
+    };
+  }
+
+  if (handle === "w") {
+    const anchorX = bounds.x + bounds.width;
+    const anchorY = bounds.y + bounds.height / 2;
+    return {
+      x: anchorX - lockedWidth,
+      y: anchorY - lockedHeight / 2,
+      width: lockedWidth,
+      height: lockedHeight,
+    };
+  }
+
   return {
     x: bounds.x,
     y: bounds.y,
@@ -214,7 +296,8 @@ export const getElementBounds = (element: SceneElement): Bounds => {
   if (
     element.type === "rectangle" ||
     element.type === "circle" ||
-    element.type === "image"
+    element.type === "image" ||
+    element.type === "svg"
   ) {
     return {
       x: element.x,

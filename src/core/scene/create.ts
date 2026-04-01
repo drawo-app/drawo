@@ -185,7 +185,7 @@ export const addElementToScene = (
       strokeStyle: "solid",
       strokeWidth: 2,
       startCap: "none",
-      endCap: "none",
+      endCap: "line arrow",
       controlPoint: null,
     };
   } else {
@@ -337,7 +337,7 @@ export const addLinePathElementToScene = (
     strokeStyle: "solid",
     strokeWidth: scene.settings.drawDefaults.drawStrokeWidth,
     startCap: "none",
-    endCap: "none",
+    endCap: "line arrow",
     controlPoint: null,
     points: normalizedPoints,
   };
@@ -388,6 +388,48 @@ export const addImageElementToScene = (
     naturalWidth: image.naturalWidth,
     naturalHeight: image.naturalHeight,
     isAnimated: image.isAnimated ?? false,
+  };
+
+  return {
+    ...scene,
+    elements: [...scene.elements, element],
+    selectedId: element.id,
+    selectedIds: [element.id],
+  };
+};
+
+export const addSvgElementToScene = (
+  scene: Scene,
+  asset: {
+    id: string;
+    viewBox: string;
+    svg: string;
+    defaultWidth: number;
+    defaultHeight: number;
+  },
+  x: number,
+  y: number,
+): Scene => {
+  const width = Math.max(24, Math.round(asset.defaultWidth));
+  const height = Math.max(24, Math.round(asset.defaultHeight));
+
+  const element: SceneElement = {
+    id: createElementId("svg"),
+    type: "svg",
+    rotation: 0,
+    x,
+    y,
+    width,
+    height,
+    opacity: 100,
+    assetId: asset.id,
+    viewBox: asset.viewBox,
+    svg: asset.svg,
+    fillStyle: "solid",
+    fill: scene.settings.shapeDefaults.fill,
+    stroke: scene.settings.shapeDefaults.stroke,
+    strokeWidth: 1,
+    strokeStyle: "solid",
   };
 
   return {

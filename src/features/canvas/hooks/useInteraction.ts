@@ -85,6 +85,16 @@ export const useInteraction = ({
   const rotationStateRef = useRef<RotationState | null>(null);
   const groupRotationStateRef = useRef<GroupRotationState | null>(null);
   const interactionBeforeRef = useRef<Scene | null>(null);
+  const lastDragGuideRequestRef = useRef<{
+    dragState: DragState;
+    dx: number;
+    dy: number;
+    result: {
+      offsetX: number;
+      offsetY: number;
+      guides: SmartGuide[];
+    };
+  } | null>(null);
   const [alignmentGuides, setAlignmentGuides] = useState<SmartGuide[]>([]);
 
   const beginInteractionHistory = useCallback(() => {
@@ -99,11 +109,49 @@ export const useInteraction = ({
   };
 
   const getHorizontalActiveKind = (handle: ResizeHandle): GuidePointKind => {
-    return handle === "nw" || handle === "sw" ? "start" : "end";
+    if (handle === "nw" || handle === "sw" || handle === "w") {
+      return "start";
+    }
+
+    if (handle === "ne" || handle === "se" || handle === "e") {
+      return "end";
+    }
+
+    return "center";
   };
 
   const getVerticalActiveKind = (handle: ResizeHandle): GuidePointKind => {
-    return handle === "nw" || handle === "ne" ? "start" : "end";
+    if (handle === "nw" || handle === "ne" || handle === "n") {
+      return "start";
+    }
+
+    if (handle === "sw" || handle === "se" || handle === "s") {
+      return "end";
+    }
+
+    return "center";
+  };
+
+  const handleAffectsHorizontal = (handle: ResizeHandle): boolean => {
+    return (
+      handle === "nw" ||
+      handle === "ne" ||
+      handle === "se" ||
+      handle === "sw" ||
+      handle === "e" ||
+      handle === "w"
+    );
+  };
+
+  const handleAffectsVertical = (handle: ResizeHandle): boolean => {
+    return (
+      handle === "nw" ||
+      handle === "ne" ||
+      handle === "se" ||
+      handle === "sw" ||
+      handle === "n" ||
+      handle === "s"
+    );
   };
 
   const applyHorizontalResizeGuide = (
@@ -112,7 +160,7 @@ export const useInteraction = ({
     guide: SmartGuide,
     fromCenter: boolean,
   ): Bounds => {
-    if (guide.axis !== "x") {
+    if (guide.axis !== "x" || !handleAffectsHorizontal(handle)) {
       return bounds;
     }
 
@@ -176,7 +224,7 @@ export const useInteraction = ({
     guide: SmartGuide,
     fromCenter: boolean,
   ): Bounds => {
-    if (guide.axis !== "y") {
+    if (guide.axis !== "y" || !handleAffectsVertical(handle)) {
       return bounds;
     }
 
@@ -248,7 +296,7 @@ export const useInteraction = ({
 
       if (fromCenter) {
         nextBounds.x -= diff / 2;
-      } else if (handle === "nw" || handle === "sw") {
+      } else if (handle === "nw" || handle === "sw" || handle === "w") {
         nextBounds.x -= diff;
       }
 
@@ -260,7 +308,7 @@ export const useInteraction = ({
 
       if (fromCenter) {
         nextBounds.y -= diff / 2;
-      } else if (handle === "nw" || handle === "ne") {
+      } else if (handle === "nw" || handle === "ne" || handle === "n") {
         nextBounds.y -= diff;
       }
 
@@ -268,6 +316,36 @@ export const useInteraction = ({
     }
 
     return nextBounds;
+  };
+
+  const isRightHandle = (handle: ResizeHandle): boolean => {
+    return handle === "ne" || handle === "se" || handle === "e";
+  };
+
+  const isBottomHandle = (handle: ResizeHandle): boolean => {
+    return handle === "sw" || handle === "se" || handle === "s";
+  };
+
+  const isHorizontalOnlyHandle = (handle: ResizeHandle): boolean => {
+    return handle === "e" || handle === "w";
+  };
+
+  const isVerticalOnlyHandle = (handle: ResizeHandle): boolean => {
+    return handle === "n" || handle === "s";
+  };
+
+  const getResizePointerFromDelta = (
+    startBounds: Bounds,
+    handle: ResizeHandle,
+    dx: number,
+    dy: number,
+  ) => {
+    return {
+      pointerX:
+        startBounds.x + dx + (isRightHandle(handle) ? startBounds.width : 0),
+      pointerY:
+        startBounds.y + dy + (isBottomHandle(handle) ? startBounds.height : 0),
+    };
   };
 
   const applyResizeSmartGuides = (
@@ -308,9 +386,31 @@ export const useInteraction = ({
       options?.fromCenter === true,
     );
 
+    const dx = nextBounds.x - bounds.x;
+    const dy = nextBounds.y - bounds.y;
+    const stabilizedGuides = result.guides.map((guide) => ({
+      ...guide,
+      movingPoint: {
+        x: guide.movingPoint.x + dx,
+        y: guide.movingPoint.y + dy,
+      },
+      segmentStart: guide.segmentStart
+        ? {
+            x: guide.segmentStart.x + dx,
+            y: guide.segmentStart.y + dy,
+          }
+        : undefined,
+      segmentEnd: guide.segmentEnd
+        ? {
+            x: guide.segmentEnd.x + dx,
+            y: guide.segmentEnd.y + dy,
+          }
+        : undefined,
+    }));
+
     return {
       bounds: nextBounds,
-      guides: getSmartGuidesForBounds(scene, nextBounds, excludedIds).guides,
+      guides: stabilizedGuides,
     };
   };
 
@@ -323,6 +423,7 @@ export const useInteraction = ({
       internalSelectKey: boolean,
     ) => {
       setAlignmentGuides([]);
+      lastDragGuideRequestRef.current = null;
 
       setScene((currentScene) => {
         const hitId = findHitElement(currentScene.elements, x, y);
@@ -487,14 +588,12 @@ export const useInteraction = ({
           if (altKey) {
             const centerX = startBounds.x + startBounds.width / 2;
             const centerY = startBounds.y + startBounds.height / 2;
-            const halfWidth = Math.max(
-              MIN_ELEMENT_SIZE / 2,
-              Math.abs(x - centerX),
-            );
-            const halfHeight = Math.max(
-              MIN_ELEMENT_SIZE / 2,
-              Math.abs(y - centerY),
-            );
+            const halfWidth = isVerticalOnlyHandle(resizeState.handle)
+              ? Math.max(MIN_ELEMENT_SIZE / 2, startBounds.width / 2)
+              : Math.max(MIN_ELEMENT_SIZE / 2, Math.abs(x - centerX));
+            const halfHeight = isHorizontalOnlyHandle(resizeState.handle)
+              ? Math.max(MIN_ELEMENT_SIZE / 2, startBounds.height / 2)
+              : Math.max(MIN_ELEMENT_SIZE / 2, Math.abs(y - centerY));
 
             nextBounds = {
               x: centerX - halfWidth,
@@ -503,39 +602,46 @@ export const useInteraction = ({
               height: halfHeight * 2,
             };
           } else {
+            const { pointerX, pointerY } = getResizePointerFromDelta(
+              startBounds,
+              resizeState.handle,
+              dx,
+              dy,
+            );
             nextBounds = getResizedBoundsFromCorner(
               startBounds,
               resizeState.handle,
-              startBounds.x +
-                dx +
-                (resizeState.handle === "ne" || resizeState.handle === "se"
-                  ? startBounds.width
-                  : 0),
-              startBounds.y +
-                dy +
-                (resizeState.handle === "sw" || resizeState.handle === "se"
-                  ? startBounds.height
-                  : 0),
+              pointerX,
+              pointerY,
             );
           }
 
-          const imageStartElement =
+          const mediaLikeStartElement =
             resizeState.startElement.type === "image"
               ? resizeState.startElement
+              : resizeState.startElement.type === "svg"
+              ? resizeState.startElement
               : null;
-          const shouldLockAspect = imageStartElement ? !shiftKey : shiftKey;
+          const shouldLockAspect = mediaLikeStartElement ? !shiftKey : shiftKey;
 
           if (shouldLockAspect) {
             let startAspectRatio: number;
 
-            if (imageStartElement) {
-              startAspectRatio =
-                imageStartElement.naturalHeight > 0
-                  ? imageStartElement.naturalWidth /
-                    imageStartElement.naturalHeight
-                  : startBounds.height === 0
+            if (mediaLikeStartElement) {
+              if (mediaLikeStartElement.type === "image") {
+                startAspectRatio =
+                  mediaLikeStartElement.naturalHeight > 0
+                    ? mediaLikeStartElement.naturalWidth /
+                      mediaLikeStartElement.naturalHeight
+                    : startBounds.height === 0
+                      ? 1
+                      : startBounds.width / startBounds.height;
+              } else {
+                startAspectRatio =
+                  startBounds.height === 0
                     ? 1
                     : startBounds.width / startBounds.height;
+              }
             } else {
               startAspectRatio =
                 startBounds.height === 0
@@ -551,6 +657,7 @@ export const useInteraction = ({
             );
             const minSize =
               resizeState.startElement.type === "image" ||
+              resizeState.startElement.type === "svg" ||
               resizeState.startElement.type === "draw" ||
               resizeState.startElement.type === "line"
                 ? 1
@@ -566,6 +673,7 @@ export const useInteraction = ({
           if (scene.settings.smartGuides) {
             const minSize =
               resizeState.startElement.type === "image" ||
+              resizeState.startElement.type === "svg" ||
               resizeState.startElement.type === "draw" ||
               resizeState.startElement.type === "line"
                 ? 1
@@ -599,6 +707,7 @@ export const useInteraction = ({
                 : nextBounds.y,
               Math.max(
                 resizeState.startElement.type === "image" ||
+                  resizeState.startElement.type === "svg" ||
                   resizeState.startElement.type === "draw" ||
                   resizeState.startElement.type === "line"
                   ? 1
@@ -609,6 +718,7 @@ export const useInteraction = ({
               ),
               Math.max(
                 resizeState.startElement.type === "image" ||
+                  resizeState.startElement.type === "svg" ||
                   resizeState.startElement.type === "draw" ||
                   resizeState.startElement.type === "line"
                   ? 1
@@ -635,8 +745,12 @@ export const useInteraction = ({
           ? (() => {
               const centerX = startBounds.x + startBounds.width / 2;
               const centerY = startBounds.y + startBounds.height / 2;
-              const halfWidth = Math.max(8, Math.abs(x - centerX));
-              const halfHeight = Math.max(8, Math.abs(y - centerY));
+              const halfWidth = isVerticalOnlyHandle(resizeState.handle)
+                ? Math.max(8, startBounds.width / 2)
+                : Math.max(8, Math.abs(x - centerX));
+              const halfHeight = isHorizontalOnlyHandle(resizeState.handle)
+                ? Math.max(8, startBounds.height / 2)
+                : Math.max(8, Math.abs(y - centerY));
 
               return {
                 x: centerX - halfWidth,
@@ -645,20 +759,20 @@ export const useInteraction = ({
                 height: halfHeight * 2,
               };
             })()
-          : getResizedBoundsFromCorner(
-              startBounds,
-              resizeState.handle,
-              startBounds.x +
-                dx +
-                (resizeState.handle === "ne" || resizeState.handle === "se"
-                  ? startBounds.width
-                  : 0),
-              startBounds.y +
-                dy +
-                (resizeState.handle === "sw" || resizeState.handle === "se"
-                  ? startBounds.height
-                  : 0),
-            );
+          : (() => {
+              const { pointerX, pointerY } = getResizePointerFromDelta(
+                startBounds,
+                resizeState.handle,
+                dx,
+                dy,
+              );
+              return getResizedBoundsFromCorner(
+                startBounds,
+                resizeState.handle,
+                pointerX,
+                pointerY,
+              );
+            })();
 
         const widthRatio = nextBounds.width / startBounds.width;
         const heightRatio = nextBounds.height / startBounds.height;
@@ -725,18 +839,12 @@ export const useInteraction = ({
         const dx = x - groupResizeState.startPointerX;
         const dy = y - groupResizeState.startPointerY;
         const startBounds = groupResizeState.startGroupBounds;
-        const pointerX =
-          startBounds.x +
-          dx +
-          (groupResizeState.handle === "ne" || groupResizeState.handle === "se"
-            ? startBounds.width
-            : 0);
-        const pointerY =
-          startBounds.y +
-          dy +
-          (groupResizeState.handle === "sw" || groupResizeState.handle === "se"
-            ? startBounds.height
-            : 0);
+        const { pointerX, pointerY } = getResizePointerFromDelta(
+          startBounds,
+          groupResizeState.handle,
+          dx,
+          dy,
+        );
 
         let nextGroupBounds = getResizedBoundsFromCorner(
           startBounds,
@@ -806,6 +914,8 @@ export const useInteraction = ({
               const minSize =
                 startElement.type === "draw"
                   ? 1
+                  : startElement.type === "svg"
+                    ? 1
                   : startElement.type === "rectangle" ||
                       startElement.type === "circle"
                     ? MIN_ELEMENT_SIZE
@@ -817,6 +927,8 @@ export const useInteraction = ({
               const nextHeight = Math.max(
                 startElement.type === "draw"
                   ? 1
+                  : startElement.type === "svg"
+                    ? 1
                   : startElement.type === "rectangle" ||
                       startElement.type === "circle"
                     ? MIN_ELEMENT_SIZE
@@ -840,6 +952,8 @@ export const useInteraction = ({
                 ? Math.max(
                     startElement.type === "draw"
                       ? 1
+                      : startElement.type === "svg"
+                        ? 1
                       : startElement.type === "rectangle" ||
                           startElement.type === "circle"
                         ? MIN_ELEMENT_SIZE
@@ -929,6 +1043,16 @@ export const useInteraction = ({
                 };
               }
 
+              if (element.type === "svg") {
+                return {
+                  ...element,
+                  x: appliedX,
+                  y: appliedY,
+                  width: appliedWidth,
+                  height: appliedHeight,
+                };
+              }
+
               const scale = Math.max(widthRatio, heightRatio);
               const startFontSize = startElement.fontSize ?? element.fontSize;
               const nextFontSize = Math.max(
@@ -983,9 +1107,26 @@ export const useInteraction = ({
         }
       }
 
+      const cachedDragGuide = lastDragGuideRequestRef.current;
       const smartGuideResult = scene.settings.smartGuides
-        ? getSmartGuidesForDrag(scene, dragState.elements, dx, dy)
+        ? cachedDragGuide &&
+            cachedDragGuide.dragState === dragState &&
+            cachedDragGuide.dx === dx &&
+            cachedDragGuide.dy === dy
+          ? cachedDragGuide.result
+          : getSmartGuidesForDrag(scene, dragState.elements, dx, dy)
         : { offsetX: 0, offsetY: 0, guides: [] };
+
+      if (scene.settings.smartGuides) {
+        lastDragGuideRequestRef.current = {
+          dragState,
+          dx,
+          dy,
+          result: smartGuideResult,
+        };
+      } else {
+        lastDragGuideRequestRef.current = null;
+      }
 
       dx += smartGuideResult.offsetX;
       dy += smartGuideResult.offsetY;
@@ -1062,6 +1203,7 @@ export const useInteraction = ({
     }
 
     setAlignmentGuides([]);
+    lastDragGuideRequestRef.current = null;
 
     dragStateRef.current = null;
     resizeStateRef.current = null;
@@ -1205,6 +1347,23 @@ export const useInteraction = ({
         return;
       }
 
+      if (element.type === "svg") {
+        resizeStateRef.current = {
+          id,
+          handle,
+          startPointerX: pointerX,
+          startPointerY: pointerY,
+          startElement: {
+            type: "svg",
+            x: element.x,
+            y: element.y,
+            width: element.width,
+            height: element.height,
+          },
+        };
+        return;
+      }
+
       if (element.type === "draw") {
         resizeStateRef.current = {
           id,
@@ -1276,6 +1435,7 @@ export const useInteraction = ({
             element.type === "rectangle" ||
             element.type === "circle" ||
             element.type === "image" ||
+            element.type === "svg" ||
             element.type === "draw"
           ) {
             return {

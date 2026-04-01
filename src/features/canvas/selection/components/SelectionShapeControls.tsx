@@ -15,7 +15,7 @@ import {
   SelectValue,
 } from "@shared/ui/select";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@shared/ui/tooltip";
-import type { CircleElement, RectangleElement } from "@core/elements";
+import type { CircleElement, RectangleElement, SvgElement } from "@core/elements";
 import type { Scene } from "@core/scene";
 import type { LocaleMessages } from "@shared/i18n";
 import { parseColorForPicker } from "@features/canvas/rendering/color";
@@ -77,10 +77,7 @@ export const SelectionShapeControls = ({
   const selectedShapeElements = getSelectedShapeElements(
     scene.elements,
     selectedIds,
-  ).filter(
-    (element): element is RectangleElement | CircleElement =>
-      element.type === "rectangle" || element.type === "circle",
-  );
+  ) as Array<RectangleElement | CircleElement | SvgElement>;
   const selectedShapeIds = selectedShapeElements.map((element) => element.id);
 
   const sharedFillColor =

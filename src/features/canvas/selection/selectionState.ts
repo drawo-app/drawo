@@ -31,11 +31,16 @@ export const getSelectedTextElements = (
 export const getSelectedShapeElements = (
   elements: SceneElement[],
   selectedIds: string[],
-): EditableElement[] => {
+): Extract<SceneElement, { type: "rectangle" | "circle" | "svg" }>[] => {
   return elements.filter(
-    (element): element is EditableElement =>
+    (element): element is Extract<
+      SceneElement,
+      { type: "rectangle" | "circle" | "svg" }
+    > =>
       selectedIds.includes(element.id) &&
-      (element.type === "rectangle" || element.type === "circle"),
+      (element.type === "rectangle" ||
+        element.type === "circle" ||
+        element.type === "svg"),
   );
 };
 

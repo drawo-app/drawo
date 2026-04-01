@@ -65,7 +65,8 @@ const getElementBounds = (element: SceneElement): Bounds => {
   if (
     element.type === "rectangle" ||
     element.type === "circle" ||
-    element.type === "image"
+    element.type === "image" ||
+    element.type === "svg"
   ) {
     return {
       x: element.x,
@@ -301,7 +302,8 @@ export const updateRectangleElementBounds = (
     if (
       element.type === "rectangle" ||
       element.type === "circle" ||
-      element.type === "image"
+      element.type === "image" ||
+      element.type === "svg"
     ) {
       return {
         ...element,
