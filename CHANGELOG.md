@@ -2,7 +2,7 @@
 
 ## 🔄 **Changed**
 - **Invisible full-edge resize zones (more comfortable transform UX)**
-  You can now resize selections not only from corner handles, but also from the full top/right/bottom/left edges.
+  You can now resize selections not only from corner handles, but also from the full top/right/bottom/left e<adges.
   - Edge resize areas are invisible (no extra visible handles).
   - The hit area spans each full side, not just a small center point.
   - Edge interactions are resize-only.

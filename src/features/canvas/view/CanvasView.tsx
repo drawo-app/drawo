@@ -49,6 +49,7 @@ import {
 import {
   type CornerAction,
   findCornerAction,
+  findResizeAction,
   getAlignedStartX,
   getBoundsCenter,
   getHandleCenter,
@@ -493,6 +494,8 @@ export const CanvasView = ({
   const contextMenuPointRef = useRef<{ x: number; y: number } | null>(null);
   const panStateRef = useRef<{ screenX: number; screenY: number } | null>(null);
   const isMiddleMousePanningRef = useRef(false);
+  const spaceKeyRef = useRef(false);
+  const isSpacePanningRef = useRef(false);
   const shiftClickDeselectCandidateRef = useRef<{
     hitId: string;
     selectedIds: string[];
@@ -1042,9 +1045,9 @@ export const CanvasView = ({
   ) => {
     const handleSize = HANDLE_SIZE / zoom;
     const handleRadius = HANDLE_BORDER_RADIUS_PX / zoom;
-    const handles: ResizeHandle[] = ["nw", "ne", "se", "sw"];
+    const cornerHandles: ResizeHandle[] = ["nw", "ne", "se", "sw"];
 
-    for (const handle of handles) {
+    const drawHandle = (handle: ResizeHandle) => {
       const center = getHandleCenter(bounds, handle);
 
       const isHovered = hoveredResizeHandle === handle;
@@ -1125,6 +1128,97 @@ export const CanvasView = ({
       }
 
       ctx.restore();
+    };
+
+    const drawEdgeHandle = (handle: ResizeHandle) => {
+      const center = getHandleCenter(bounds, handle);
+
+      const isHovered = hoveredResizeHandle === handle;
+      const isActive = activeResizeHandle === handle;
+
+      let scale = 1;
+      let shadowBlur = 2 / zoom;
+      let shadowOpacity = 0.1;
+      let strokeWidth = 1 / zoom;
+
+      if (isActive) {
+        scale = 1.35;
+        shadowBlur = 8 / zoom;
+        shadowOpacity = 0.25;
+        strokeWidth = 2.5 / zoom;
+      } else if (isHovered) {
+        scale = 1.2;
+        shadowBlur = 5 / zoom;
+        shadowOpacity = 0.18;
+        strokeWidth = 1.5 / zoom;
+      }
+
+      const baseSize = handleSize * 0.5;
+      const scaledWidth = baseSize * scale;
+      const scaledHeight = handleSize * scale;
+      const isHorizontal = handle === "e" || handle === "w";
+
+      ctx.save();
+
+      ctx.shadowColor = `rgba(0, 0, 0, ${shadowOpacity})`;
+      ctx.shadowBlur = shadowBlur;
+      ctx.shadowOffsetX = 0;
+      ctx.shadowOffsetY = 1.5 / zoom;
+
+      ctx.fillStyle = isActive
+        ? accentColor
+        : toThemeColor(scene.settings.shapeDefaults.fill);
+      ctx.strokeStyle = accentColor;
+      ctx.lineWidth = strokeWidth;
+
+      const halfW = isHorizontal ? scaledHeight / 2 : scaledWidth / 2;
+      const halfH = isHorizontal ? scaledWidth / 2 : scaledHeight / 2;
+      const x = center.x - halfW;
+      const y = center.y - halfH;
+
+      drawRoundedRect(
+        ctx,
+        x,
+        y,
+        halfW * 2,
+        halfH * 2,
+        handleRadius * scale * 0.5,
+      );
+      ctx.fill();
+      ctx.stroke();
+
+      if (isHovered || isActive) {
+        ctx.strokeStyle = accentColor;
+        ctx.globalAlpha = isActive ? 0.15 : 0.08;
+        ctx.lineWidth = (4 + (isActive ? 2 : 0)) / zoom;
+
+        drawRoundedRect(
+          ctx,
+          x,
+          y,
+          halfW * 2,
+          halfH * 2,
+          handleRadius * scale * 0.5,
+        );
+        ctx.stroke();
+
+        ctx.globalAlpha = 1;
+      }
+
+      if (isHovered || isActive) {
+        ctx.fillStyle = isActive
+          ? "rgba(255, 255, 255, 0.25)"
+          : "rgba(255, 255, 255, 0.15)";
+        ctx.beginPath();
+        ctx.arc(center.x, center.y, scaledWidth * 0.25, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      ctx.restore();
+    };
+
+    for (const handle of cornerHandles) {
+      drawHandle(handle);
     }
   };
 
@@ -1358,7 +1452,7 @@ export const CanvasView = ({
         return null;
       }
 
-      return findCornerAction(selectionBounds, pointX, pointY, camera.zoom);
+      return findResizeAction(selectionBounds, pointX, pointY, camera.zoom);
     }
 
     if (!selectedElementId) {
@@ -1392,7 +1486,7 @@ export const CanvasView = ({
       -rotation,
     );
 
-    return findCornerAction(bounds, localPoint.x, localPoint.y, camera.zoom);
+    return findResizeAction(bounds, localPoint.x, localPoint.y, camera.zoom);
   };
 
   const getRectangleRadiusHandleCenter = (
@@ -1572,6 +1666,10 @@ export const CanvasView = ({
     pointY: number,
     altKey: boolean,
   ): string => {
+    if (spaceKeyRef.current && !editingText) {
+      return "grab";
+    }
+
     if (drawingTool && drawingTool !== "image") {
       return "crosshair";
     }
@@ -3013,6 +3111,17 @@ export const CanvasView = ({
         }
       }
 
+      if (event.key === " " || event.code === "Space") {
+        if (
+          event.target instanceof HTMLElement &&
+          !event.target.isContentEditable &&
+          event.target.tagName.toLowerCase() !== "input" &&
+          event.target.tagName.toLowerCase() !== "textarea"
+        ) {
+          spaceKeyRef.current = true;
+        }
+      }
+
       if (event.key === "Enter" && !editingText) {
         if (commitLineChain(lineChainRef.current)) {
           event.preventDefault();
@@ -3137,6 +3246,21 @@ export const CanvasView = ({
     onTextFontWeightChange,
     onTextFontStyleChange,
   ]);
+
+  useEffect(() => {
+    const handleKeyUp = (event: KeyboardEvent) => {
+      if (event.key === " " || event.code === "Space") {
+        spaceKeyRef.current = false;
+        isSpacePanningRef.current = false;
+      }
+    };
+
+    window.addEventListener("keyup", handleKeyUp);
+
+    return () => {
+      window.removeEventListener("keyup", handleKeyUp);
+    };
+  }, []);
 
   useEffect(() => {
     if (!editingText) {
@@ -3284,6 +3408,27 @@ export const CanvasView = ({
       return;
     }
 
+    if (
+      spaceKeyRef.current &&
+      !editingText &&
+      !drawingTool &&
+      !isMiddleMousePanningRef.current
+    ) {
+      isSpacePanningRef.current = true;
+      panStateRef.current = { screenX, screenY };
+      lineHandleDragRef.current = null;
+      setActiveLineHandle(null);
+      setActiveLinePointHandle(null);
+      setActiveRotatingHandle(null);
+      setActiveResizeHandle(null);
+      setMarqueeSelection(null);
+      setIsDraggingElement(false);
+      setIsDuplicateDragging(false);
+      setCanvasCursor("grabbing");
+      canvas.setPointerCapture(e.pointerId);
+      return;
+    }
+
     if (drawingTool && drawingTool !== "image") {
       if (editingText) {
         commitEditingText();
@@ -3361,31 +3506,38 @@ export const CanvasView = ({
       if (ctx) {
         const groupBounds = getSelectionBounds(selectedIds, ctx, true);
         if (groupBounds) {
-          const cornerAction = findCornerAction(
+          const resizeAction = findResizeAction(
             groupBounds,
             pointer.x,
             pointer.y,
             camera.zoom,
           );
 
-          if (cornerAction?.mode === "resize") {
+          if (resizeAction?.mode === "resize") {
             onGroupResizeStart(
-              cornerAction.handle,
+              resizeAction.handle,
               pointer.x,
               pointer.y,
               groupBounds,
               selectedIds,
             );
-            setActiveResizeHandle(cornerAction.handle);
+            setActiveResizeHandle(resizeAction.handle);
             setActiveRotatingHandle(null);
             setIsDraggingElement(false);
             setIsDuplicateDragging(false);
             setMarqueeSelection(null);
             setMarqueePreviewIds([]);
-            setCanvasCursor(getResizeCursor(cornerAction.handle));
+            setCanvasCursor(getResizeCursor(resizeAction.handle));
             canvas.setPointerCapture(e.pointerId);
             return;
           }
+
+          const cornerAction = findCornerAction(
+            groupBounds,
+            pointer.x,
+            pointer.y,
+            camera.zoom,
+          );
 
           if (cornerAction?.mode === "rotate") {
             const center = getBoundsCenter(groupBounds);
@@ -3555,6 +3707,36 @@ export const CanvasView = ({
             return;
           }
 
+          const resizeAction = findResizeAction(
+            bounds,
+            localPoint.x,
+            localPoint.y,
+            camera.zoom,
+          );
+
+          if (resizeAction?.mode === "resize") {
+            const contentBounds = getElementBounds(
+              selectedElementId,
+              ctx,
+              false,
+            );
+
+            onResizeStart(
+              selectedElementId,
+              resizeAction.handle,
+              pointer.x,
+              pointer.y,
+              contentBounds ?? bounds,
+            );
+            setActiveResizeHandle(resizeAction.handle);
+            setActiveRotatingHandle(null);
+            setIsDraggingElement(false);
+            setIsDuplicateDragging(false);
+            setCanvasCursor(getResizeCursor(resizeAction.handle));
+            canvas.setPointerCapture(e.pointerId);
+            return;
+          }
+
           const cornerAction = findCornerAction(
             bounds,
             localPoint.x,
@@ -3574,29 +3756,6 @@ export const CanvasView = ({
             setIsDraggingElement(false);
             setIsDuplicateDragging(false);
             setCanvasCursor(getRotateCursor(cornerAction.handle));
-            canvas.setPointerCapture(e.pointerId);
-            return;
-          }
-
-          if (cornerAction?.mode === "resize") {
-            const contentBounds = getElementBounds(
-              selectedElementId,
-              ctx,
-              false,
-            );
-
-            onResizeStart(
-              selectedElementId,
-              cornerAction.handle,
-              pointer.x,
-              pointer.y,
-              contentBounds ?? bounds,
-            );
-            setActiveResizeHandle(cornerAction.handle);
-            setActiveRotatingHandle(null);
-            setIsDraggingElement(false);
-            setIsDuplicateDragging(false);
-            setCanvasCursor(getResizeCursor(cornerAction.handle));
             canvas.setPointerCapture(e.pointerId);
             return;
           }
@@ -3691,6 +3850,22 @@ export const CanvasView = ({
     }
 
     if (isMiddleMousePanningRef.current) {
+      const panState = panStateRef.current;
+      if (panState) {
+        const deltaX = screenX - panState.screenX;
+        const deltaY = screenY - panState.screenY;
+
+        if (deltaX !== 0 || deltaY !== 0) {
+          onWheelPan(-deltaX, -deltaY);
+          panStateRef.current = { screenX, screenY };
+        }
+      }
+
+      setCanvasCursor("grabbing");
+      return;
+    }
+
+    if (isSpacePanningRef.current) {
       const panState = panStateRef.current;
       if (panState) {
         const deltaX = screenX - panState.screenX;
@@ -3917,11 +4092,19 @@ export const CanvasView = ({
           activeLineDrag.handle === "start" ||
           activeLineDrag.handle === "point"
         ) {
-          nextStart = localPointer;
+          nextStart = e.shiftKey
+            ? snapLinePointer(endPoint.x, endPoint.y, localPointer.x, localPointer.y)
+            : localPointer;
         } else if (activeLineDrag.handle === "end") {
-          nextEnd = localPointer;
+          nextEnd = e.shiftKey
+            ? snapLinePointer(startPoint.x, startPoint.y, localPointer.x, localPointer.y)
+            : localPointer;
         } else if (activeLineDrag.handle === "control") {
-          nextControl = { x: localPointer.x, y: localPointer.y };
+          const midX = (startPoint.x + endPoint.x) / 2;
+          const midY = (startPoint.y + endPoint.y) / 2;
+          nextControl = e.shiftKey
+            ? snapLinePointer(midX, midY, localPointer.x, localPointer.y)
+            : { x: localPointer.x, y: localPointer.y };
         }
 
         const snap = (value: number) =>
@@ -4087,6 +4270,25 @@ export const CanvasView = ({
 
     if (isMiddleMousePanningRef.current) {
       isMiddleMousePanningRef.current = false;
+      panStateRef.current = null;
+      setActiveRadiusElementId(null);
+      setActiveRadiusHandle(null);
+
+      const rect = canvas?.getBoundingClientRect();
+      if (rect) {
+        const screenX = e.clientX - rect.left;
+        const screenY = e.clientY - rect.top;
+        const pointer = screenToWorld(screenX, screenY);
+        lastPointerRef.current = pointer;
+        setCanvasCursor(resolveIdleCursor(pointer.x, pointer.y, e.altKey));
+      } else {
+        setCanvasCursor("default");
+      }
+      return;
+    }
+
+    if (isSpacePanningRef.current) {
+      isSpacePanningRef.current = false;
       panStateRef.current = null;
       setActiveRadiusElementId(null);
       setActiveRadiusHandle(null);

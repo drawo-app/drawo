@@ -183,9 +183,9 @@ export const findCornerAction = (
 ): CornerAction | null => {
   const resizeRadius = HANDLE_RESIZE_RADIUS_PX / zoom;
   const rotateRadius = HANDLE_ROTATE_RADIUS_PX / zoom;
-  const handles: ResizeHandle[] = ["nw", "ne", "se", "sw"];
+  const cornerHandles: ResizeHandle[] = ["nw", "ne", "se", "sw"];
 
-  for (const handle of handles) {
+  for (const handle of cornerHandles) {
     const center = getHandleCenter(bounds, handle);
     const dx = pointX - center.x;
     const dy = pointY - center.y;
@@ -203,13 +203,15 @@ export const findCornerAction = (
   return null;
 };
 
+const EDGE_RESIZE_TOLERANCE_PX = 8;
+
 export const findEdgeResizeAction = (
   bounds: ElementBounds,
   pointX: number,
   pointY: number,
   zoom: number,
 ): CornerAction | null => {
-  const tolerance = HANDLE_RESIZE_RADIUS_PX / zoom;
+  const tolerance = Math.max(EDGE_RESIZE_TOLERANCE_PX, HANDLE_RESIZE_RADIUS_PX) / zoom;
   const left = bounds.x;
   const right = bounds.x + bounds.width;
   const top = bounds.y;
@@ -236,4 +238,18 @@ export const findEdgeResizeAction = (
   }
 
   return null;
+};
+
+export const findResizeAction = (
+  bounds: ElementBounds,
+  pointX: number,
+  pointY: number,
+  zoom: number,
+): CornerAction | null => {
+  const cornerAction = findCornerAction(bounds, pointX, pointY, zoom);
+  if (cornerAction) {
+    return cornerAction;
+  }
+
+  return findEdgeResizeAction(bounds, pointX, pointY, zoom);
 };

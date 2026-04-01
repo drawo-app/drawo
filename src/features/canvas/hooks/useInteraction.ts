@@ -741,38 +741,67 @@ export const useInteraction = ({
           height: textStartElement.height,
         };
 
-        const nextBounds = altKey
-          ? (() => {
-              const centerX = startBounds.x + startBounds.width / 2;
-              const centerY = startBounds.y + startBounds.height / 2;
-              const halfWidth = isVerticalOnlyHandle(resizeState.handle)
-                ? Math.max(8, startBounds.width / 2)
-                : Math.max(8, Math.abs(x - centerX));
-              const halfHeight = isHorizontalOnlyHandle(resizeState.handle)
-                ? Math.max(8, startBounds.height / 2)
-                : Math.max(8, Math.abs(y - centerY));
+        const nextBounds = (() => {
+          if (altKey) {
+            const centerX = startBounds.x + startBounds.width / 2;
+            const centerY = startBounds.y + startBounds.height / 2;
+            const halfWidth = isVerticalOnlyHandle(resizeState.handle)
+              ? Math.max(8, startBounds.width / 2)
+              : Math.max(8, Math.abs(x - centerX));
+            const halfHeight = isHorizontalOnlyHandle(resizeState.handle)
+              ? Math.max(8, startBounds.height / 2)
+              : Math.max(8, Math.abs(y - centerY));
 
+            return {
+              x: centerX - halfWidth,
+              y: centerY - halfHeight,
+              width: halfWidth * 2,
+              height: halfHeight * 2,
+            };
+          }
+
+          const handle = resizeState.handle;
+          const isEdgeHandle = isHorizontalOnlyHandle(handle) || isVerticalOnlyHandle(handle);
+
+          if (isEdgeHandle) {
+            const aspectRatio = textStartElement.width / textStartElement.fontSize;
+            const centerX = startBounds.x + startBounds.width / 2;
+            const centerY = startBounds.y + startBounds.height / 2;
+
+            if (isHorizontalOnlyHandle(handle)) {
+              const halfWidth = Math.max(8, Math.abs(x - centerX));
+              const halfHeight = halfWidth / aspectRatio;
               return {
                 x: centerX - halfWidth,
                 y: centerY - halfHeight,
                 width: halfWidth * 2,
                 height: halfHeight * 2,
               };
-            })()
-          : (() => {
-              const { pointerX, pointerY } = getResizePointerFromDelta(
-                startBounds,
-                resizeState.handle,
-                dx,
-                dy,
-              );
-              return getResizedBoundsFromCorner(
-                startBounds,
-                resizeState.handle,
-                pointerX,
-                pointerY,
-              );
-            })();
+            } else {
+              const halfHeight = Math.max(8, Math.abs(y - centerY));
+              const halfWidth = halfHeight * aspectRatio;
+              return {
+                x: centerX - halfWidth,
+                y: centerY - halfHeight,
+                width: halfWidth * 2,
+                height: halfHeight * 2,
+              };
+            }
+          }
+
+          const { pointerX, pointerY } = getResizePointerFromDelta(
+            startBounds,
+            resizeState.handle,
+            dx,
+            dy,
+          );
+          return getResizedBoundsFromCorner(
+            startBounds,
+            resizeState.handle,
+            pointerX,
+            pointerY,
+          );
+        })();
 
         const widthRatio = nextBounds.width / startBounds.width;
         const heightRatio = nextBounds.height / startBounds.height;
@@ -799,7 +828,7 @@ export const useInteraction = ({
               resizeState.handle,
               [resizeState.id],
               {
-                fromCenter: altKey,
+                fromCenter: altKey || isHorizontalOnlyHandle(resizeState.handle) || isVerticalOnlyHandle(resizeState.handle),
                 minWidth: 16,
                 minHeight: nextHeight,
               },
