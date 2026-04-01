@@ -1,3 +1,5 @@
+import { rotatePointAroundCenter } from "./mathUtils";
+
 export interface CircleElement {
   id: string;
   groupId?: string | null;
@@ -22,24 +24,6 @@ export interface CircleElement {
   color: string;
   textAlign: CanvasTextAlign;
 }
-
-const rotatePointAroundCenter = (
-  pointX: number,
-  pointY: number,
-  centerX: number,
-  centerY: number,
-  angleRadians: number,
-) => {
-  const cos = Math.cos(angleRadians);
-  const sin = Math.sin(angleRadians);
-  const dx = pointX - centerX;
-  const dy = pointY - centerY;
-
-  return {
-    x: dx * cos - dy * sin + centerX,
-    y: dx * sin + dy * cos + centerY,
-  };
-};
 
 export const hitTestCircle = (
   circle: CircleElement,

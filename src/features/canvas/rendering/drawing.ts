@@ -30,21 +30,7 @@ export const drawRoundedRect = (
   const limitedRadius = Math.max(0, Math.min(radius, width / 2, height / 2));
 
   ctx.beginPath();
-  ctx.moveTo(x + limitedRadius, y);
-  ctx.lineTo(x + width - limitedRadius, y);
-  ctx.quadraticCurveTo(x + width, y, x + width, y + limitedRadius);
-  ctx.lineTo(x + width, y + height - limitedRadius);
-  ctx.quadraticCurveTo(
-    x + width,
-    y + height,
-    x + width - limitedRadius,
-    y + height,
-  );
-  ctx.lineTo(x + limitedRadius, y + height);
-  ctx.quadraticCurveTo(x, y + height, x, y + height - limitedRadius);
-  ctx.lineTo(x, y + limitedRadius);
-  ctx.quadraticCurveTo(x, y, x + limitedRadius, y);
-  ctx.closePath();
+  ctx.roundRect(x, y, width, height, limitedRadius);
 };
 
 export const drawSmoothStrokePath = (

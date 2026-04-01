@@ -34,13 +34,42 @@ export interface LineElement {
 export const hasLinePathPoints = (line: LineElement): boolean =>
   Array.isArray(line.points) && line.points.length >= 2;
 
+/**
+ * Returns the extra padding needed on each side of a line element to account
+ * for the visual size of its start/end arrow caps.
+ * Used in bounds calculations for hit testing and transforms.
+ */
+export const getLineCapPadding = (cap: LineCap, strokeWidth: number): number => {
+  if (
+    cap === "line arrow" ||
+    cap === "triangle arrow" ||
+    cap === "inverted triangle" ||
+    cap === "diamond arrow"
+  ) {
+    return Math.max(8, strokeWidth * 1.5);
+  }
+
+  if (cap === "circular arrow") {
+    return Math.max(4, strokeWidth * 0.75);
+  }
+
+  return 0;
+};
+
 export const getLinePathBounds = (
   points: Array<{ x: number; y: number }>,
 ): { x: number; y: number; width: number; height: number } => {
-  const minX = Math.min(...points.map((point) => point.x));
-  const minY = Math.min(...points.map((point) => point.y));
-  const maxX = Math.max(...points.map((point) => point.x));
-  const maxY = Math.max(...points.map((point) => point.y));
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+
+  for (const point of points) {
+    if (point.x < minX) minX = point.x;
+    if (point.y < minY) minY = point.y;
+    if (point.x > maxX) maxX = point.x;
+    if (point.y > maxY) maxY = point.y;
+  }
 
   return {
     x: minX,

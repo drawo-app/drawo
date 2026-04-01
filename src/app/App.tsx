@@ -100,7 +100,6 @@ import "@app/theme/themes/ayu-light.css";
 import "@app/theme/themes/ayu-dark.css";
 import { SidebarMinimalistic } from "@solar-icons/react";
 
-//const DRAWO_VERSION = "1.1.2";
 const DRAWO_PROJECT_FORMAT = "drawo-project";
 const DRAWO_PROJECT_VERSION_V1 = 1;
 const DRAWO_PROJECT_VERSION_V2 = 2;

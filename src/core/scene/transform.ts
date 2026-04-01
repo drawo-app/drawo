@@ -1,12 +1,13 @@
 import {
   estimateTextHeight,
   estimateTextWidth,
+  getLineCapPadding,
   getLinePathBounds,
   hasLinePathPoints,
   type DrawElement,
   type ImageElement,
   getTextStartX,
-  type LineCap,
+  getDrawPadding,
   type LineElement,
   type SceneElement,
 } from "../elements";
@@ -27,38 +28,6 @@ const getSelectedIds = (scene: Scene): string[] => {
     : scene.selectedId
       ? [scene.selectedId]
       : [];
-};
-
-const getDrawPadding = (
-  strokeWidth: number,
-  drawMode: "draw" | "marker" | "quill",
-): number => {
-  if (drawMode === "marker") {
-    return Math.max(6, strokeWidth * 0.65);
-  }
-
-  if (drawMode === "quill") {
-    return Math.max(4, strokeWidth * 1.45);
-  }
-
-  return Math.max(3, strokeWidth / 2);
-};
-
-const getLineCapPadding = (cap: LineCap, strokeWidth: number): number => {
-  if (
-    cap === "line arrow" ||
-    cap === "triangle arrow" ||
-    cap === "inverted triangle" ||
-    cap === "diamond arrow"
-  ) {
-    return Math.max(8, strokeWidth * 1.5);
-  }
-
-  if (cap === "circular arrow") {
-    return Math.max(4, strokeWidth * 0.75);
-  }
-
-  return 0;
 };
 
 const getElementBounds = (element: SceneElement): Bounds => {

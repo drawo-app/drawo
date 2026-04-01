@@ -359,8 +359,14 @@ html.dark .selection-toolbar {
   backdrop-filter: blur(12px);
   box-shadow: var(--panel-shadow);
 }
-
-.selection-toolbar .select-trigger {
+.drawo-select-trigger {
+  background: rgba(var(--text-rgb), 0.1) !important;
+  padding: 20px 20px !important;
+  corner-shape: squircle;
+  border-radius: 24px;
+}
+.selection-toolbar .select-trigger,
+.drawo-select-trigger {
   height: var(--selectiontoolbar-height);
   display: inline-flex;
   align-items: center;

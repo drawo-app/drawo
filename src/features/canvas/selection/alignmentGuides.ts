@@ -59,14 +59,19 @@ const getCombinedBounds = (boundsList: Bounds[]): Bounds | null => {
     return null;
   }
 
-  const left = Math.min(...boundsList.map((bounds) => bounds.x));
-  const top = Math.min(...boundsList.map((bounds) => bounds.y));
-  const right = Math.max(
-    ...boundsList.map((bounds) => bounds.x + bounds.width),
-  );
-  const bottom = Math.max(
-    ...boundsList.map((bounds) => bounds.y + bounds.height),
-  );
+  let left = Infinity;
+  let top = Infinity;
+  let right = -Infinity;
+  let bottom = -Infinity;
+
+  for (const bounds of boundsList) {
+    if (bounds.x < left) left = bounds.x;
+    if (bounds.y < top) top = bounds.y;
+    const r = bounds.x + bounds.width;
+    const b = bounds.y + bounds.height;
+    if (r > right) right = r;
+    if (b > bottom) bottom = b;
+  }
 
   return {
     x: left,

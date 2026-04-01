@@ -20,11 +20,13 @@ export type { DrawElement, DrawPoint } from "./draw";
 export type { RectangleElement } from "./rectangle";
 export type { TextElement } from "./text";
 export {
+  getLineCapPadding,
   getLinePathBounds,
   hasLinePathPoints,
   type LineCap,
   type LineElement,
 } from "./line";
+export { getDrawPadding } from "./draw";
 export type { ImageElement } from "./image";
 export type { SvgElement } from "./svg";
 

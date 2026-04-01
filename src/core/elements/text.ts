@@ -1,3 +1,5 @@
+import { rotatePointAroundCenter } from "./mathUtils";
+
 export interface TextElement {
   id: string;
   groupId?: string | null;
@@ -37,24 +39,6 @@ interface StoredRichTextBlock {
   type?: unknown;
   children?: unknown;
 }
-
-const rotatePointAroundCenter = (
-  pointX: number,
-  pointY: number,
-  centerX: number,
-  centerY: number,
-  angleRadians: number,
-) => {
-  const cos = Math.cos(angleRadians);
-  const sin = Math.sin(angleRadians);
-  const dx = pointX - centerX;
-  const dy = pointY - centerY;
-
-  return {
-    x: dx * cos - dy * sin + centerX,
-    y: dx * sin + dy * cos + centerY,
-  };
-};
 
 export const getTextFont = (textElement: TextElement): string => {
   return `${textElement.fontStyle} ${textElement.fontWeight} ${textElement.fontSize}px ${textElement.fontFamily}`;

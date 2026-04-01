@@ -30,7 +30,6 @@ import {
 import {
   ArrowDownToSquare,
   BroomMotion,
-  BucketPaint,
   ChevronsExpandUpRight,
   CrownDiamond,
   Cup,
@@ -76,7 +75,13 @@ import { Slider } from "@shared/ui/slider";
 import { Switch } from "@shared/ui/switch";
 import { ThemeDialog } from "@app/theme/themeDialog";
 import type { ExportImageFormat } from "@features/workspace/exportImage";
-import { Select, SelectItem } from "@shared/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@shared/ui/select";
 
 interface MenuBarProps {
   scene: Scene;
@@ -845,10 +850,17 @@ export const MenuBar = ({
                   }
                 }}
               >
-                <SelectItem value="png">PNG</SelectItem>
-                <SelectItem value="jpg">JPG</SelectItem>
-                <SelectItem value="svg">SVG</SelectItem>
-                <SelectItem value="pdf">PDF</SelectItem>
+                <SelectTrigger className="drawo-select-trigger">
+                  <SelectValue
+                    placeholder={messages.dialogs.exportImage.format}
+                  />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="png">PNG</SelectItem>
+                  <SelectItem value="jpg">JPG</SelectItem>
+                  <SelectItem value="svg">SVG</SelectItem>
+                  <SelectItem value="pdf">PDF</SelectItem>
+                </SelectContent>
               </Select>
             </div>
 

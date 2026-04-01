@@ -2,53 +2,14 @@ import {
   estimateTextHeight,
   estimateTextWidth,
   getTextStartX,
+  getDrawPadding,
+  getLineCapPadding,
 } from "@core/elements";
 import type { Scene } from "@core/scene";
 import type { SceneElement } from "@core/elements";
 import { MIN_ELEMENT_SIZE } from "./constants";
 import type { Bounds } from "./types";
 import type { ResizeHandle } from "@features/canvas/types";
-
-const getDrawPadding = (
-  strokeWidth: number,
-  drawMode: "draw" | "marker" | "quill",
-): number => {
-  if (drawMode === "marker") {
-    return Math.max(6, strokeWidth * 0.65);
-  }
-
-  if (drawMode === "quill") {
-    return Math.max(4, strokeWidth * 1.45);
-  }
-
-  return Math.max(3, strokeWidth / 2);
-};
-
-const getLineCapPadding = (
-  cap:
-    | "none"
-    | "line arrow"
-    | "triangle arrow"
-    | "inverted triangle"
-    | "circular arrow"
-    | "diamond arrow",
-  strokeWidth: number,
-): number => {
-  if (
-    cap === "line arrow" ||
-    cap === "triangle arrow" ||
-    cap === "inverted triangle" ||
-    cap === "diamond arrow"
-  ) {
-    return Math.max(8, strokeWidth * 1.5);
-  }
-
-  if (cap === "circular arrow") {
-    return Math.max(4, strokeWidth * 0.75);
-  }
-
-  return 0;
-};
 
 export const snapValue = (value: number, gridSize: number): number => {
   return Math.round(value / gridSize) * gridSize;

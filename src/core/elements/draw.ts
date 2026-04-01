@@ -1,3 +1,5 @@
+import { rotatePointAroundCenter } from "./mathUtils";
+
 export interface DrawPoint {
   x: number;
   y: number;
@@ -21,22 +23,24 @@ export interface DrawElement {
   strokeWidth: number;
 }
 
-const rotatePointAroundCenter = (
-  pointX: number,
-  pointY: number,
-  centerX: number,
-  centerY: number,
-  angleRadians: number,
-) => {
-  const cos = Math.cos(angleRadians);
-  const sin = Math.sin(angleRadians);
-  const dx = pointX - centerX;
-  const dy = pointY - centerY;
+/**
+ * Returns the padding to add on each side of a draw element's bounding box
+ * to account for stroke width depending on draw mode.
+ * Used in bounds calculations for hit testing and transforms.
+ */
+export const getDrawPadding = (
+  strokeWidth: number,
+  drawMode: "draw" | "marker" | "quill",
+): number => {
+  if (drawMode === "marker") {
+    return Math.max(6, strokeWidth * 0.65);
+  }
 
-  return {
-    x: dx * cos - dy * sin + centerX,
-    y: dx * sin + dy * cos + centerY,
-  };
+  if (drawMode === "quill") {
+    return Math.max(4, strokeWidth * 1.45);
+  }
+
+  return Math.max(3, strokeWidth / 2);
 };
 
 const getDistanceToSegment = (
