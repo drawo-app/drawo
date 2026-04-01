@@ -66,8 +66,12 @@ const getElementBounds = (element: SceneElement): Bounds => {
         : null;
     const startX = pathBounds ? pathBounds.x : element.x;
     const startY = pathBounds ? pathBounds.y : element.y;
-    const endX = pathBounds ? pathBounds.x + pathBounds.width : element.x + element.width;
-    const endY = pathBounds ? pathBounds.y + pathBounds.height : element.y + element.height;
+    const endX = pathBounds
+      ? pathBounds.x + pathBounds.width
+      : element.x + element.width;
+    const endY = pathBounds
+      ? pathBounds.y + pathBounds.height
+      : element.y + element.height;
     const minX = Math.min(startX, endX);
     const minY = Math.min(startY, endY);
     const maxX = Math.max(startX, endX);

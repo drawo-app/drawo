@@ -327,11 +327,12 @@ const getMidpointOnOverlap = (
     }
 
     return (
-      movingBounds.y +
-      movingBounds.height / 2 +
-      targetBounds.y +
-      targetBounds.height / 2
-    ) / 2;
+      (movingBounds.y +
+        movingBounds.height / 2 +
+        targetBounds.y +
+        targetBounds.height / 2) /
+      2
+    );
   }
 
   const overlapStart = Math.max(movingBounds.x, targetBounds.x);
@@ -345,11 +346,12 @@ const getMidpointOnOverlap = (
   }
 
   return (
-    movingBounds.x +
-    movingBounds.width / 2 +
-    targetBounds.x +
-    targetBounds.width / 2
-  ) / 2;
+    (movingBounds.x +
+      movingBounds.width / 2 +
+      targetBounds.x +
+      targetBounds.width / 2) /
+    2
+  );
 };
 
 const createSpacingGuide = (
@@ -440,7 +442,8 @@ const findBestSpacingGuide = (
       continue;
     }
 
-    const firstEnd = axis === "x" ? first.x + first.width : first.y + first.height;
+    const firstEnd =
+      axis === "x" ? first.x + first.width : first.y + first.height;
     const secondStart = axis === "x" ? second.x : second.y;
     const gap = secondStart - firstEnd;
 
@@ -672,11 +675,11 @@ export const getSmartGuidesForDrag = (
 
   const useSpacingGuideX = Boolean(
     spacingGuideX &&
-      (!baseGuideX || Math.abs(spacingGuideX.delta) < Math.abs(baseOffsetX)),
+    (!baseGuideX || Math.abs(spacingGuideX.delta) < Math.abs(baseOffsetX)),
   );
   const useSpacingGuideY = Boolean(
     spacingGuideY &&
-      (!baseGuideY || Math.abs(spacingGuideY.delta) < Math.abs(baseOffsetY)),
+    (!baseGuideY || Math.abs(spacingGuideY.delta) < Math.abs(baseOffsetY)),
   );
 
   const nextGuides: SmartGuide[] = [];

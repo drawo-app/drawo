@@ -39,7 +39,10 @@ export const hasLinePathPoints = (line: LineElement): boolean =>
  * for the visual size of its start/end arrow caps.
  * Used in bounds calculations for hit testing and transforms.
  */
-export const getLineCapPadding = (cap: LineCap, strokeWidth: number): number => {
+export const getLineCapPadding = (
+  cap: LineCap,
+  strokeWidth: number,
+): number => {
   if (
     cap === "line arrow" ||
     cap === "triangle arrow" ||
@@ -97,7 +100,10 @@ const pointToSegmentDistance = (
 
   const t = Math.max(
     0,
-    Math.min(1, ((pointX - startX) * dx + (pointY - startY) * dy) / lengthSquared),
+    Math.min(
+      1,
+      ((pointX - startX) * dx + (pointY - startY) * dy) / lengthSquared,
+    ),
   );
   const projectionX = startX + t * dx;
   const projectionY = startY + t * dy;

@@ -462,7 +462,10 @@ export const drawQuillStroke = (
     const rasterBounds = getQuillRasterBounds(smoothedPoints, widths);
     const rasterScale = 2;
     const rasterCanvas = document.createElement("canvas");
-    rasterCanvas.width = Math.max(1, Math.ceil(rasterBounds.width * rasterScale));
+    rasterCanvas.width = Math.max(
+      1,
+      Math.ceil(rasterBounds.width * rasterScale),
+    );
     rasterCanvas.height = Math.max(
       1,
       Math.ceil(rasterBounds.height * rasterScale),
@@ -548,4 +551,3 @@ export const getAnimatedDrawPointCount = (
   const eased = 1 - Math.pow(1 - progress, 3);
   return Math.max(2, Math.ceil(totalPoints * eased));
 };
-
