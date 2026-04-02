@@ -908,6 +908,16 @@ export const useInteraction = ({
                 };
               }
 
+              if (element.type === "svg") {
+                return {
+                  ...element,
+                  x: appliedX,
+                  y: appliedY,
+                  width: appliedWidth,
+                  height: appliedHeight,
+                };
+              }
+
               const scale = Math.max(widthRatio, heightRatio);
               const startFontSize = startElement.fontSize ?? element.fontSize;
               const nextFontSize = Math.max(
@@ -1211,6 +1221,23 @@ export const useInteraction = ({
         return;
       }
 
+      if (element.type === "svg") {
+        resizeStateRef.current = {
+          id,
+          handle,
+          startPointerX: pointerX,
+          startPointerY: pointerY,
+          startElement: {
+            type: element.type,
+            x: element.x,
+            y: element.y,
+            width: element.width,
+            height: element.height,
+          },
+        };
+        return;
+      }
+
       resizeStateRef.current = {
         id,
         handle,
@@ -1248,7 +1275,8 @@ export const useInteraction = ({
             element.type === "rectangle" ||
             element.type === "circle" ||
             element.type === "image" ||
-            element.type === "draw"
+            element.type === "draw" ||
+            element.type === "svg"
           ) {
             return {
               id: element.id,

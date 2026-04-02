@@ -971,7 +971,8 @@ export const CanvasView = ({
     if (
       element.type === "rectangle" ||
       element.type === "circle" ||
-      element.type === "image"
+      element.type === "image" ||
+      element.type === "svg"
     ) {
       return {
         x: element.x,
@@ -2721,6 +2722,10 @@ export const CanvasView = ({
       }
 
       if (editingText?.id === element.id) {
+        continue;
+      }
+
+      if (element.type === "svg") {
         continue;
       }
 

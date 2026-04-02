@@ -114,8 +114,9 @@ export const normalizeSvgMarkup = (
   }
 
   const root = document.documentElement;
-  const isSvgRoot = root.tagName.toLowerCase() === "svg";
-  const svgRoot = isSvgRoot
+  const isSvgRoot =
+    root instanceof window.SVGElement && root.tagName.toLowerCase() === "svg";
+  const svgRoot: SVGElement = isSvgRoot
     ? root
     : (() => {
         const wrapper = document.createElementNS(SVG_NS, "svg");
@@ -157,7 +158,7 @@ export const toSvgDataUri = (
   const parser = new window.DOMParser();
   const document = parser.parseFromString(svgMarkup, "image/svg+xml");
   const root = document.documentElement;
-  if (root.tagName.toLowerCase() !== "svg") {
+  if (!(root instanceof window.SVGElement) || root.tagName.toLowerCase() !== "svg") {
     return "";
   }
 

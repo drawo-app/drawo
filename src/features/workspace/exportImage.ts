@@ -304,7 +304,8 @@ const getElementBounds = (
   if (
     element.type === "rectangle" ||
     element.type === "circle" ||
-    element.type === "image"
+    element.type === "image" ||
+    element.type === "svg"
   ) {
     return rotateBounds(
       {
