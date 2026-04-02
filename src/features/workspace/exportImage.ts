@@ -84,7 +84,8 @@ const createThemeColorResolver = (
   systemPrefersDark: boolean,
 ): ((color: string | null | undefined) => string) => {
   const isDarkMode = getIsDarkMode(scene, systemPrefersDark);
-  const shouldInvertColors = isDarkMode && scene.settings.colorScheme === "drawo";
+  const shouldInvertColors =
+    isDarkMode && scene.settings.colorScheme === "drawo";
 
   return (color: string | null | undefined) => {
     const safeColor =
@@ -119,10 +120,15 @@ const getAlignedStartX = (
 const measureRichTextLayout = (
   ctx: CanvasRenderingContext2D,
   value: string,
-  style: Pick<TextElement, "fontFamily" | "fontSize" | "fontWeight" | "fontStyle">,
+  style: Pick<
+    TextElement,
+    "fontFamily" | "fontSize" | "fontWeight" | "fontStyle"
+  >,
 ) => {
   const lines = parseRichText(value);
-  const lineWidths = lines.map((line) => measureTextLineWidth(ctx, style, line));
+  const lineWidths = lines.map((line) =>
+    measureTextLineWidth(ctx, style, line),
+  );
   const width = Math.max(16, ...lineWidths);
   const lineHeight = getTextLineHeight(style.fontSize);
   const height = style.fontSize + (lines.length - 1) * lineHeight;
@@ -446,7 +452,10 @@ const buildImageCache = async (
   elements: SceneElement[],
 ): Promise<Map<string, HTMLImageElement>> => {
   const srcList = elements
-    .filter((element): element is SceneElement & { type: "image" } => element.type === "image")
+    .filter(
+      (element): element is SceneElement & { type: "image" } =>
+        element.type === "image",
+    )
     .map((element) => element.src)
     .filter((src) => typeof src === "string" && src.length > 0);
 
@@ -573,8 +582,11 @@ const renderElementsToCanvas = (
         x: bounds.x + bounds.width / 2,
         y: bounds.y + bounds.height / 2,
       };
-      const image = element.src ? imageCache.get(element.src) ?? null : null;
-      const cornerRadius = Math.min(16, Math.min(element.width, element.height) / 6);
+      const image = element.src ? (imageCache.get(element.src) ?? null) : null;
+      const cornerRadius = Math.min(
+        16,
+        Math.min(element.width, element.height) / 6,
+      );
 
       ctx.save();
       ctx.translate(center.x, center.y);
@@ -594,15 +606,40 @@ const renderElementsToCanvas = (
       ctx.shadowBlur = 18;
       ctx.shadowOffsetY = 6;
       ctx.fillStyle = toThemeColor(scene.settings.shapeDefaults.fill);
-      drawRoundedRect(ctx, element.x, element.y, element.width, element.height, cornerRadius);
+      drawRoundedRect(
+        ctx,
+        element.x,
+        element.y,
+        element.width,
+        element.height,
+        cornerRadius,
+      );
       ctx.fill();
 
       ctx.save();
-      drawRoundedRect(ctx, element.x, element.y, element.width, element.height, cornerRadius);
+      drawRoundedRect(
+        ctx,
+        element.x,
+        element.y,
+        element.width,
+        element.height,
+        cornerRadius,
+      );
       ctx.clip();
 
-      if (image && image.complete && image.naturalWidth > 0 && image.naturalHeight > 0) {
-        ctx.drawImage(image, element.x, element.y, element.width, element.height);
+      if (
+        image &&
+        image.complete &&
+        image.naturalWidth > 0 &&
+        image.naturalHeight > 0
+      ) {
+        ctx.drawImage(
+          image,
+          element.x,
+          element.y,
+          element.width,
+          element.height,
+        );
       } else {
         ctx.fillStyle = toThemeColor("#e6e7e8");
         ctx.fillRect(element.x, element.y, element.width, element.height);
@@ -612,7 +649,14 @@ const renderElementsToCanvas = (
       ctx.shadowColor = "transparent";
       ctx.strokeStyle = toThemeColor("rgba(15, 23, 42, 0.08)");
       ctx.lineWidth = 1;
-      drawRoundedRect(ctx, element.x, element.y, element.width, element.height, cornerRadius);
+      drawRoundedRect(
+        ctx,
+        element.x,
+        element.y,
+        element.width,
+        element.height,
+        cornerRadius,
+      );
       ctx.stroke();
       ctx.globalAlpha = previousAlpha;
 
@@ -633,7 +677,13 @@ const renderElementsToCanvas = (
       };
       const rectangleRadius =
         element.type === "rectangle"
-          ? Math.max(0, Math.min(element.borderRadius, Math.min(element.width, element.height) / 2))
+          ? Math.max(
+              0,
+              Math.min(
+                element.borderRadius,
+                Math.min(element.width, element.height) / 2,
+              ),
+            )
           : 0;
 
       ctx.save();
@@ -717,6 +767,10 @@ const renderElementsToCanvas = (
         hoveredLinePointIndex: null,
         activeLinePointIndex: null,
       });
+      continue;
+    }
+
+    if (element.type === "svg") {
       continue;
     }
 
@@ -840,11 +894,15 @@ export const exportSceneAsImage = async ({
     throw new Error("measurement-context-unavailable");
   }
 
-  const boundsList = sourceElements.map((element) => getElementBounds(element, measurementCtx));
+  const boundsList = sourceElements.map((element) =>
+    getElementBounds(element, measurementCtx),
+  );
   const minX = Math.min(...boundsList.map((bounds) => bounds.x));
   const minY = Math.min(...boundsList.map((bounds) => bounds.y));
   const maxX = Math.max(...boundsList.map((bounds) => bounds.x + bounds.width));
-  const maxY = Math.max(...boundsList.map((bounds) => bounds.y + bounds.height));
+  const maxY = Math.max(
+    ...boundsList.map((bounds) => bounds.y + bounds.height),
+  );
 
   const safePadding = clamp(padding, 0, 256);
   const worldX = minX - safePadding;
@@ -862,7 +920,9 @@ export const exportSceneAsImage = async ({
     scale = edgeScaleLimit;
   }
 
-  const pixelScaleLimit = Math.sqrt(MAX_EXPORT_PIXELS / (worldWidth * worldHeight));
+  const pixelScaleLimit = Math.sqrt(
+    MAX_EXPORT_PIXELS / (worldWidth * worldHeight),
+  );
   if (pixelScaleLimit < scale) {
     scale = pixelScaleLimit;
   }
