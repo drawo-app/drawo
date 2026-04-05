@@ -61,7 +61,6 @@ export function DrawoEmptyState({ children, config }: DrawoEmptyStateProps) {
         opacity: 0.5,
         flexDirection: "column",
         transform: "translate(-50%, -50%)",
-        pointerEvents: "none",
         userSelect: "none",
       }}
       className={config?.className}
