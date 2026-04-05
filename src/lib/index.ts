@@ -1,7 +1,7 @@
 export { Drawo } from "./Drawo";
 export { useDrawo } from "./context";
 export { DrawoProvider } from "./DrawoProvider";
-export type { DrawoProps, DrawoContextValue } from "./types";
+export type { DrawoProps, DrawoContextValue, DrawoEmptyStateConfig } from "./types";
 export type { ResolvedTheme } from "./theme";
 
 export { Timer, MusicBar } from "./optional";
@@ -11,6 +11,7 @@ export { DrawoCanvas } from "./components/DrawoCanvas";
 export { DrawoToolBar } from "./components/DrawoToolBar";
 export { DrawoUndoBar } from "./components/DrawoUndoBar";
 export { DrawoZoomBar } from "./components/DrawoZoomBar";
+export { DrawoEmptyState } from "./components/DrawoEmptyState";
 
 export { MenuBar } from "@features/workspace/components/MenuBar";
 export { ToolBar } from "@features/workspace/components/ToolBar";

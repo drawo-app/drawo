@@ -317,6 +317,7 @@ const strokeShapeOutline = (
 
 export const CanvasView = ({
   scene,
+  showDefaultEmptyState = true,
   shapeColors,
   strokeColors,
   alignmentGuides,
@@ -4971,7 +4972,8 @@ export const CanvasView = ({
           }}
         />
       </CanvasContextMenu>
-      {scene.elements.length === 0 &&
+      {showDefaultEmptyState &&
+        scene.elements.length === 0 &&
         !drawingSelection &&
         !drawSelection &&
         !lineChain && (

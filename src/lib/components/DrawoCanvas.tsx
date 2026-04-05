@@ -2,7 +2,11 @@ import { useDrawo } from "../context";
 import { CanvasView } from "@features/canvas/view/CanvasView";
 import type { CanvasViewProps } from "@features/canvas/types";
 
-export function DrawoCanvas() {
+export interface DrawoCanvasProps {
+  showDefaultEmptyState?: boolean;
+}
+
+export function DrawoCanvas({ showDefaultEmptyState = true }: DrawoCanvasProps) {
   const ctx = useDrawo();
   const {
     scene,
@@ -17,6 +21,7 @@ export function DrawoCanvas() {
 
   const canvasProps: CanvasViewProps = {
     scene,
+    showDefaultEmptyState,
     strokeColors: resolvedTheme.preset.strokeColors,
     shapeColors: resolvedTheme.preset.shapeColors,
     alignmentGuides: [],

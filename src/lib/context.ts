@@ -4,7 +4,7 @@ import type { LocaleCode, LocaleMessages } from "@shared/i18n";
 import type { ExportImageFormat } from "@features/workspace/exportImage";
 import type { LibrarySvgAsset } from "@features/library/catalog";
 import type { ResolvedTheme } from "./theme";
-import type { DrawoProps } from "./types";
+import type { DrawoProps, DrawoEmptyStateConfig } from "./types";
 
 export interface DrawoContextValue {
   scene: Scene;
@@ -19,6 +19,7 @@ export interface DrawoContextValue {
   openTopbarPanel: "music" | "timer" | "sidebar" | null;
   canUndo: boolean;
   canRedo: boolean;
+  emptyStateConfig: DrawoEmptyStateConfig;
   props: DrawoProps;
   setScene: (updater: React.SetStateAction<Scene>) => void;
   setSceneWithoutHistory: (updater: React.SetStateAction<Scene>) => void;

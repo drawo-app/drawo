@@ -1,4 +1,10 @@
-import { useMemo, type ReactNode } from "react";
+import {
+  Children,
+  cloneElement,
+  isValidElement,
+  type ReactElement,
+  type ReactNode,
+} from "react";
 import { TooltipProvider } from "@shared/ui/tooltip";
 import { DrawoProvider } from "./DrawoProvider";
 import { useDrawo } from "./context";
@@ -8,6 +14,7 @@ import { DrawoCanvas } from "./components/DrawoCanvas";
 import { DrawoToolBar } from "./components/DrawoToolBar";
 import { DrawoUndoBar } from "./components/DrawoUndoBar";
 import { DrawoZoomBar } from "./components/DrawoZoomBar";
+import { DrawoEmptyState } from "./components/DrawoEmptyState";
 import "@app/theme/base-tokens.css";
 import "@app/theme/themes/drawo-light.css";
 import "@app/theme/themes/drawo-dark.css";
@@ -35,7 +42,13 @@ import "@app/theme/themes/ayu-light.css";
 import "@app/theme/themes/ayu-dark.css";
 import "@app/App.css";
 
-type DrawoSubcomponent = React.FC<{ children?: ReactNode }>;
+type DrawoLayoutSlot =
+  | "topBar"
+  | "canvas"
+  | "toolBar"
+  | "undoBar"
+  | "zoomBar"
+  | "emptyState";
 
 function DrawoLayout({
   children,
@@ -50,26 +63,58 @@ function DrawoLayout({
   const { openTopbarPanel } = ctx;
   const isSidebarOpen = openTopbarPanel === "sidebar";
 
-  const childArray = useMemo(() => {
-    if (!children) return [];
-    return Array.isArray(children) ? children : [children];
-  }, [children]);
+  const slots: Partial<Record<DrawoLayoutSlot, ReactNode>> = {};
+  const extraChildren: ReactNode[] = [];
 
-  const hasTopBar = childArray.some(
-    (child) => (child as React.ReactElement)?.type === DrawoTopBar,
-  );
-  const hasCanvas = childArray.some(
-    (child) => (child as React.ReactElement)?.type === DrawoCanvas,
-  );
-  const hasToolBar = childArray.some(
-    (child) => (child as React.ReactElement)?.type === DrawoToolBar,
-  );
-  const hasUndoBar = childArray.some(
-    (child) => (child as React.ReactElement)?.type === DrawoUndoBar,
-  );
-  const hasZoomBar = childArray.some(
-    (child) => (child as React.ReactElement)?.type === DrawoZoomBar,
-  );
+  for (const child of Children.toArray(children)) {
+    if (isValidElement(child)) {
+      if (child.type === DrawoTopBar) {
+        slots.topBar ??= child;
+        continue;
+      }
+
+      if (child.type === DrawoCanvas) {
+        slots.canvas ??= child;
+        continue;
+      }
+
+      if (child.type === DrawoToolBar) {
+        slots.toolBar ??= child;
+        continue;
+      }
+
+      if (child.type === DrawoUndoBar) {
+        slots.undoBar ??= child;
+        continue;
+      }
+
+      if (child.type === DrawoZoomBar) {
+        slots.zoomBar ??= child;
+        continue;
+      }
+
+      if (child.type === DrawoEmptyState) {
+        slots.emptyState ??= child;
+        continue;
+      }
+    }
+
+    extraChildren.push(child);
+  }
+
+  const hasCustomEmptyState = slots.emptyState !== undefined;
+  const canvasNode =
+    slots.canvas ?? (
+      <DrawoCanvas showDefaultEmptyState={!hasCustomEmptyState} />
+    );
+  const resolvedCanvasNode = isValidElement(canvasNode)
+    ? cloneElement(
+        canvasNode as ReactElement<{ showDefaultEmptyState?: boolean }>,
+        {
+          showDefaultEmptyState: !hasCustomEmptyState,
+        },
+      )
+    : canvasNode;
 
   return (
     <div className={`app-root ${className ?? ""}`} style={style}>
@@ -78,12 +123,13 @@ function DrawoLayout({
           className={`app-shell ${isSidebarOpen ? "app-shell--sidebar-open" : ""}`}
         >
           <div className="app-workspace">
-            {hasTopBar ? null : <DrawoTopBar />}
-            {hasCanvas ? null : <DrawoCanvas />}
-            {hasToolBar ? null : <DrawoToolBar />}
-            {hasUndoBar ? null : <DrawoUndoBar />}
-            {hasZoomBar ? null : <DrawoZoomBar />}
-            {children}
+            {slots.topBar ?? <DrawoTopBar />}
+            {resolvedCanvasNode}
+            {slots.toolBar ?? <DrawoToolBar />}
+            {slots.undoBar ?? <DrawoUndoBar />}
+            {hasCustomEmptyState ? slots.emptyState : null}
+            {slots.zoomBar ?? <DrawoZoomBar />}
+            {extraChildren}
           </div>
         </div>
       </TooltipProvider>
@@ -109,6 +155,7 @@ const Drawo = Object.assign(DrawoComponent, {
   ToolBar: DrawoToolBar,
   UndoBar: DrawoUndoBar,
   ZoomBar: DrawoZoomBar,
+  EmptyState: DrawoEmptyState,
 });
 
 export { Drawo };

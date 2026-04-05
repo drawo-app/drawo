@@ -32,6 +32,32 @@ export interface DrawoProps {
   children?: ReactNode;
 }
 
+export interface DrawoEmptyStateConfig {
+  enabled?: boolean;
+  render?: (params: {
+    messages: LocaleMessages;
+    onInsertImage: () => void;
+  }) => ReactNode;
+  style?: React.CSSProperties;
+  className?: string;
+}
+
+export interface DrawoTopBarProps {
+  children?: ReactNode;
+  left?: ReactNode;
+  right?: ReactNode;
+  showMenuBar?: boolean;
+}
+
+export interface DrawoCanvasProps {
+  showDefaultEmptyState?: boolean;
+}
+
+export interface DrawoEmptyStateProps {
+  children?: ReactNode;
+  config?: DrawoEmptyStateConfig;
+}
+
 export interface Camera {
   x: number;
   y: number;
@@ -137,18 +163,20 @@ export function useDrawo(): DrawoContextValue;
 export function DrawoProvider(props: DrawoProps & { children: ReactNode }): JSX.Element;
 
 export const Drawo: React.FC<DrawoProps> & {
-  TopBar: React.FC<{ children?: ReactNode }>;
-  Canvas: React.FC;
+  TopBar: React.FC<DrawoTopBarProps>;
+  Canvas: React.FC<DrawoCanvasProps>;
   ToolBar: React.FC;
   UndoBar: React.FC;
   ZoomBar: React.FC;
+  EmptyState: React.FC<DrawoEmptyStateProps>;
 };
 
-export function DrawoTopBar(props: { children?: ReactNode }): JSX.Element;
-export function DrawoCanvas(): JSX.Element;
+export function DrawoTopBar(props: DrawoTopBarProps): JSX.Element;
+export function DrawoCanvas(props: DrawoCanvasProps): JSX.Element;
 export function DrawoToolBar(): JSX.Element;
 export function DrawoUndoBar(): JSX.Element;
 export function DrawoZoomBar(): JSX.Element;
+export function DrawoEmptyState(props: DrawoEmptyStateProps): JSX.Element;
 
 export function Timer(props: { isOpen: boolean; onOpenChange: (next: boolean) => void; messages: LocaleMessages }): JSX.Element;
 export function MusicBar(props: { isOpen: boolean; onOpenChange: (next: boolean) => void; messages: LocaleMessages }): JSX.Element;

@@ -139,7 +139,11 @@
   },
   "canvas": {
     "newText": "Nuevo texto",
-    "tagline": "Tus dibujos se guardan localmente en el almacenamiento de tu navegador."
+    "tagline": "Tus dibujos se guardan localmente en el almacenamiento de tu navegador.",
+    "themes": {
+      "light": "Claro",
+      "dark": "Oscuro"
+    }
   },
   "contextMenu": {
     "cut": "Cortar",

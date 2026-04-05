@@ -20,11 +20,16 @@ import {
   reorderSelectedElements,
   selectElements,
   ungroupSelectedElements,
+  initScene,
   type NewElementType,
   type Scene,
   updateRectangleElementsBorderRadius,
 } from "@core/scene";
 import { isLocaleCode, LOCALES, type LocaleCode } from "@shared/i18n";
+
+function createSafeScene(): Scene {
+  return initScene();
+}
 import {
   estimateTextHeight,
   estimateTextWidth,
@@ -79,7 +84,7 @@ const DRAWO_PROJECT_V2_MARKER_LINE = "# drawo_format: yaml-v2";
 interface DrawoProjectCommonFields {
   format: typeof DRAWO_PROJECT_FORMAT;
   exportedAt: string;
-  scene: Scene;
+  safeScene: Scene;
   locale: LocaleCode;
   openTopbarPanel: "music" | "timer" | "sidebar" | null;
   timerState: string | null;
@@ -108,7 +113,7 @@ const isDrawoProjectCommonFields = (
   return (
     candidate.format === DRAWO_PROJECT_FORMAT &&
     typeof candidate.exportedAt === "string" &&
-    Boolean(candidate.scene) &&
+    Boolean(candidate.safeScene) &&
     (candidate.locale === "es_ES" || candidate.locale === "en_US") &&
     (candidate.openTopbarPanel === "music" ||
       candidate.openTopbarPanel === "timer" ||
@@ -203,10 +208,10 @@ const loadImageFiles = async (files: File[]): Promise<LoadedImageFile[]> => {
   });
 };
 
-const toPersistableScene = (scene: Scene): Scene => {
+const toPersistableScene = (safeScene: Scene): Scene => {
   return {
-    ...scene,
-    elements: scene.elements.map((element) => {
+    ...safeScene,
+    elements: safeScene.elements.map((element) => {
       if (element.type !== "image" || !element.assetId) {
         return element;
       }
@@ -219,9 +224,9 @@ const toPersistableScene = (scene: Scene): Scene => {
   };
 };
 
-const toExportableScene = async (scene: Scene): Promise<Scene> => {
+const toExportableScene = async (safeScene: Scene): Promise<Scene> => {
   const nextElements = await Promise.all(
-    scene.elements.map(async (element) => {
+    safeScene.elements.map(async (element) => {
       if (element.type !== "image") {
         return element;
       }
@@ -248,7 +253,7 @@ const toExportableScene = async (scene: Scene): Promise<Scene> => {
   );
 
   return {
-    ...scene,
+    ...safeScene,
     elements: nextElements,
   };
 };
@@ -263,6 +268,7 @@ export function DrawoProvider({
   initialOpenTopbarPanel,
   disablePersistence,
   disableKeyboardShortcuts,
+  emptyState,
   onExportProject: onExportProjectProp,
   onExportImage: onExportImageProp,
   onOpenProject: onOpenProjectProp,
@@ -319,22 +325,25 @@ export function DrawoProvider({
     return window.matchMedia("(prefers-color-scheme: dark)").matches;
   });
   const scene = state.present;
+  const messages = LOCALES[locale];
+  
+  const safeScene = scene && scene.settings ? scene : createSafeScene();
+  
   const canUndo = state.past.length > 0;
   const canRedo = state.future.length > 0;
-  const messages = LOCALES[locale];
   const resolvedTheme = resolveThemeForSettings(
-    scene.settings,
+    safeScene.settings,
     systemPrefersDark,
   );
   const isDarkMode = resolvedTheme.isDark;
-  const isPresentationMode = scene.settings.presentationMode;
-  const isZenMode = scene.settings.zenMode;
+  const isPresentationMode = safeScene.settings.presentationMode;
+  const isZenMode = safeScene.settings.zenMode;
   const isSidebarOpen = openTopbarPanel === "sidebar";
   const effectiveInteractionMode = isPresentationMode ? "pan" : interactionMode;
   const effectiveDrawingTool = isPresentationMode ? null : drawingTool;
   const clipboardRef = useRef<SceneElement[] | null>(null);
   const cursorPositionRef = useRef<{ x: number; y: number } | null>(null);
-  const scenePersistenceQuotaWarnedRef = useRef(false);
+  const safeScenePersistenceQuotaWarnedRef = useRef(false);
   const loadingImageAssetsRef = useRef<Set<string>>(new Set());
   const missingImageAssetsRef = useRef<Set<string>>(new Set());
   const migratingLegacyImageIdsRef = useRef<Set<string>>(new Set());
@@ -388,7 +397,7 @@ export function DrawoProvider({
   }, []);
 
   useEffect(() => {
-    const candidates = scene.elements.filter(
+    const candidates = safeScene.elements.filter(
       (element): element is Extract<SceneElement, { type: "image" }> =>
         element.type === "image" &&
         Boolean(element.assetId) &&
@@ -470,10 +479,10 @@ export function DrawoProvider({
     return () => {
       cancelled = true;
     };
-  }, [scene.elements, setSceneWithoutHistory]);
+  }, [safeScene.elements, setSceneWithoutHistory]);
 
   useEffect(() => {
-    const legacyImages = scene.elements.filter(
+    const legacyImages = safeScene.elements.filter(
       (element): element is Extract<SceneElement, { type: "image" }> =>
         element.type === "image" &&
         !element.assetId &&
@@ -549,35 +558,35 @@ export function DrawoProvider({
     return () => {
       cancelled = true;
     };
-  }, [scene.elements, setSceneWithoutHistory]);
+  }, [safeScene.elements, setSceneWithoutHistory]);
 
   useEffect(() => {
     if (disablePersistence) return;
 
-    const sceneToPersist = toPersistableScene(scene);
+    const safeSceneToPersist = toPersistableScene(safeScene);
 
     try {
       localStorage.setItem(
         SETTINGS_STORAGE_KEY,
-        JSON.stringify(scene.settings),
+        JSON.stringify(safeScene.settings),
       );
     } catch {
       return;
     }
 
     try {
-      localStorage.setItem(SCENE_STORAGE_KEY, JSON.stringify(sceneToPersist));
-      scenePersistenceQuotaWarnedRef.current = false;
+      localStorage.setItem(SCENE_STORAGE_KEY, JSON.stringify(safeSceneToPersist));
+      safeScenePersistenceQuotaWarnedRef.current = false;
     } catch (error) {
-      if (!scenePersistenceQuotaWarnedRef.current) {
+      if (!safeScenePersistenceQuotaWarnedRef.current) {
         console.warn(
           "Scene autosave disabled because browser storage quota was exceeded.",
           error,
         );
-        scenePersistenceQuotaWarnedRef.current = true;
+        safeScenePersistenceQuotaWarnedRef.current = true;
       }
     }
-  }, [scene, disablePersistence]);
+  }, [safeScene, disablePersistence]);
 
   useEffect(() => {
     if (disablePersistence) return;
@@ -666,7 +675,7 @@ export function DrawoProvider({
 
   if (!disableKeyboardShortcuts) {
     useWorkspaceKeyboardShortcuts({
-      scene,
+      scene: safeScene,
       dispatch,
       clipboardRef,
       cursorPositionRef,
@@ -725,7 +734,7 @@ export function DrawoProvider({
     handleLineGeometryChange,
     alignmentGuides,
   } = useInteraction({
-    scene,
+    scene: safeScene,
     setScene,
     setSceneWithoutHistory,
     commitInteractionHistory,
@@ -742,20 +751,20 @@ export function DrawoProvider({
 
   const handleCopySelection = useCallback(() => {
     const selectedIds =
-      scene.selectedIds.length > 0
-        ? scene.selectedIds
-        : scene.selectedId
-          ? [scene.selectedId]
+      safeScene.selectedIds.length > 0
+        ? safeScene.selectedIds
+        : safeScene.selectedId
+          ? [safeScene.selectedId]
           : [];
 
     if (selectedIds.length === 0) {
       return;
     }
 
-    clipboardRef.current = scene.elements
+    clipboardRef.current = safeScene.elements
       .filter((element) => selectedIds.includes(element.id))
       .map((element) => ({ ...element }));
-  }, [scene]);
+  }, [safeScene]);
 
   const handleCutSelection = useCallback(() => {
     handleCopySelection();
@@ -775,13 +784,13 @@ export function DrawoProvider({
       return;
     }
 
-    const exportableScene = await toExportableScene(scene);
+    const exportableScene = await toExportableScene(safeScene);
     const payload: DrawoProjectFileV2 = {
       format: DRAWO_PROJECT_FORMAT,
       version: DRAWO_PROJECT_VERSION_V2,
       serialization: DRAWO_PROJECT_SERIALIZATION_V2,
       exportedAt: new Date().toISOString(),
-      scene: exportableScene,
+      safeScene: exportableScene,
       locale,
       openTopbarPanel,
       timerState: localStorage.getItem(TIMER_STORAGE_KEY),
@@ -809,7 +818,7 @@ export function DrawoProvider({
     link.click();
     link.remove();
     URL.revokeObjectURL(url);
-  }, [locale, openTopbarPanel, scene, onExportProjectProp]);
+  }, [locale, openTopbarPanel, safeScene, onExportProjectProp]);
 
   const handleExportImage = useCallback(
     async (options: {
@@ -824,7 +833,7 @@ export function DrawoProvider({
       }
 
       await exportSceneAsImage({
-        scene,
+        scene: safeScene,
         format: options.format,
         qualityScale: options.qualityScale,
         transparentBackground: options.transparentBackground,
@@ -832,7 +841,7 @@ export function DrawoProvider({
         systemPrefersDark,
       });
     },
-    [scene, systemPrefersDark, onExportImageProp],
+    [safeScene, systemPrefersDark, onExportImageProp],
   );
 
   const handleOpenProject = useCallback(
@@ -846,7 +855,7 @@ export function DrawoProvider({
       const { project: parsed } = parseDrawoProjectFile(rawText);
 
       const preparedElements = await Promise.all(
-        parsed.scene.elements.map(async (element) => {
+        parsed.safeScene.elements.map(async (element) => {
           if (element.type !== "image") {
             return element;
           }
@@ -878,13 +887,13 @@ export function DrawoProvider({
       );
 
       const importedScene: Scene = {
-        ...parsed.scene,
+        ...parsed.safeScene,
         elements: preparedElements,
       };
-      const sceneToPersist = toPersistableScene(importedScene);
+      const safeSceneToPersist = toPersistableScene(importedScene);
 
       try {
-        localStorage.setItem(SCENE_STORAGE_KEY, JSON.stringify(sceneToPersist));
+        localStorage.setItem(SCENE_STORAGE_KEY, JSON.stringify(safeSceneToPersist));
         localStorage.setItem(
           SETTINGS_STORAGE_KEY,
           JSON.stringify(importedScene.settings),
@@ -1083,8 +1092,8 @@ export function DrawoProvider({
       }
 
       const startCamera = {
-        x: scene.camera.x,
-        y: scene.camera.y,
+        x: safeScene.camera.x,
+        y: safeScene.camera.y,
       };
 
       setSceneWithoutHistory((currentScene) => {
@@ -1114,10 +1123,10 @@ export function DrawoProvider({
               ? 2 * progress * progress
               : 1 - Math.pow(-2 * progress + 2, 2) / 2;
 
-          setSceneWithoutHistory((sceneForAnimation) => ({
-            ...sceneForAnimation,
+          setSceneWithoutHistory((safeSceneForAnimation) => ({
+            ...safeSceneForAnimation,
             camera: {
-              ...sceneForAnimation.camera,
+              ...safeSceneForAnimation.camera,
               x: startCamera.x + deltaX * eased,
               y: startCamera.y + deltaY * eased,
             },
@@ -1142,8 +1151,8 @@ export function DrawoProvider({
     },
     [
       getElementFocusBounds,
-      scene.camera.x,
-      scene.camera.y,
+      safeScene.camera.x,
+      safeScene.camera.y,
       setDrawingToolGuarded,
       setInteractionModeGuarded,
       setSceneWithoutHistory,
@@ -1242,8 +1251,8 @@ export function DrawoProvider({
       return syncSceneThemeDefaults(currentScene, nextTheme.preset);
     });
   }, [
-    scene.settings.colorScheme,
-    scene.settings.theme,
+    safeScene.settings.colorScheme,
+    safeScene.settings.theme,
     setSceneWithoutHistory,
     systemPrefersDark,
   ]);
@@ -1259,13 +1268,13 @@ export function DrawoProvider({
       rootElement.classList.remove("dark");
     }
 
-    if (scene.settings.zenMode) {
+    if (safeScene.settings.zenMode) {
       rootElement.classList.add("drawo-zen-mode");
     } else {
       rootElement.classList.remove("drawo-zen-mode");
     }
 
-    if (scene.settings.presentationMode) {
+    if (safeScene.settings.presentationMode) {
       rootElement.classList.add("drawo-presentation-mode");
     } else {
       rootElement.classList.remove("drawo-presentation-mode");
@@ -1273,15 +1282,15 @@ export function DrawoProvider({
   }, [
     isDarkMode,
     resolvedTheme.dataTheme,
-    scene.settings.presentationMode,
-    scene.settings.zenMode,
+    safeScene.settings.presentationMode,
+    safeScene.settings.zenMode,
   ]);
 
   useEffect(() => {
     if (onSceneChange) {
-      onSceneChange(scene);
+      onSceneChange(safeScene);
     }
-  }, [scene, onSceneChange]);
+  }, [safeScene, onSceneChange]);
 
   useEffect(() => {
     if (onInteractionModeChange) {
@@ -1418,7 +1427,7 @@ export function DrawoProvider({
 
   const contextValue: DrawoContextValue = useMemo(
     () => ({
-      scene,
+      scene: safeScene,
       resolvedTheme,
       isDarkMode,
       isPresentationMode,
@@ -1430,6 +1439,7 @@ export function DrawoProvider({
       openTopbarPanel,
       canUndo,
       canRedo,
+      emptyStateConfig: emptyState ?? {},
       props: {
         theme,
         colorScheme,
@@ -1439,6 +1449,7 @@ export function DrawoProvider({
         initialOpenTopbarPanel,
         disablePersistence,
         disableKeyboardShortcuts,
+        emptyState,
       },
       setScene,
       setSceneWithoutHistory,
@@ -1453,7 +1464,7 @@ export function DrawoProvider({
       handlers,
     }),
     [
-      scene,
+      safeScene,
       resolvedTheme,
       isDarkMode,
       isPresentationMode,

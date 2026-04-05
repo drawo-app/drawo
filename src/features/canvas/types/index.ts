@@ -47,6 +47,7 @@ export interface ElementBounds {
 
 export interface CanvasViewProps {
   scene: Scene;
+  showDefaultEmptyState?: boolean;
   strokeColors: readonly string[];
   shapeColors: readonly [readonly string[], readonly string[]];
   alignmentGuides: SmartGuide[];

@@ -1,8 +1,22 @@
+import type { ReactNode, CSSProperties } from "react";
 import type { Scene, NewElementType } from "@core/scene";
 import type { LocaleCode, LocaleMessages } from "@shared/i18n";
 import type { ExportImageFormat } from "@features/workspace/exportImage";
-import type { LibrarySvgAsset } from "@features/library/catalog";
 import type { ResolvedTheme } from "./theme";
+
+export interface DrawoEmptyStateConfig {
+  /** Show or hide the empty state completely */
+  enabled?: boolean;
+  /** Full custom render function - replaces entire empty state */
+  render?: (params: {
+    messages: LocaleMessages;
+    onInsertImage: () => void;
+  }) => ReactNode;
+  /** Custom inline styles for the container */
+  style?: CSSProperties;
+  /** Custom CSS class for the container */
+  className?: string;
+}
 
 export interface DrawoProps {
   theme?: string;
@@ -26,6 +40,7 @@ export interface DrawoProps {
   disableKeyboardShortcuts?: boolean;
   className?: string;
   style?: React.CSSProperties;
+  emptyState?: DrawoEmptyStateConfig;
   onExportProject?: () => void;
   onExportImage?: (options: {
     format: ExportImageFormat;
@@ -43,7 +58,7 @@ export interface DrawoProps {
   onDrawingToolChange?: (tool: NewElementType | "laser" | null) => void;
   onLocaleChange?: (locale: LocaleCode) => void;
   onThemeChange?: (theme: string, colorScheme: "light" | "dark") => void;
-  children?: React.ReactNode;
+  children?: ReactNode;
 }
 
 export interface DrawoContextValue {
@@ -59,6 +74,7 @@ export interface DrawoContextValue {
   openTopbarPanel: "music" | "timer" | "sidebar" | null;
   canUndo: boolean;
   canRedo: boolean;
+  emptyStateConfig: DrawoEmptyStateConfig;
   props: DrawoProps;
   setScene: (updater: React.SetStateAction<Scene>) => void;
   setSceneWithoutHistory: (updater: React.SetStateAction<Scene>) => void;

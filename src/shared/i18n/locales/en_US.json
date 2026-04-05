@@ -139,7 +139,11 @@
   },
   "canvas": {
     "newText": "New text",
-    "tagline": "Your drawings are saved locally in your browser's storage."
+    "tagline": "Your drawings are saved locally in your browser's storage.",
+    "themes": {
+      "light": "Light",
+      "dark": "Dark"
+    }
   },
   "contextMenu": {
     "cut": "Cut",

@@ -110,6 +110,52 @@ That's it! You now have a fully functional whiteboard with:
 | `onOpenProject` | `(file: File) => Promise<void>` | - | Override project open |
 | `disablePersistence` | `boolean` | `false` | Disable localStorage persistence |
 | `disableKeyboardShortcuts` | `boolean` | `false` | Disable keyboard shortcuts |
+| `emptyState` | `DrawoEmptyStateConfig` | See below | Customization for the empty canvas state |
+
+### emptyState Prop
+
+Customize the empty state that appears when the canvas has no elements:
+
+```tsx
+<Drawo
+  emptyState={{
+    enabled: true,
+    text: "Start creating!",
+    subtitle: "Drop an image here",
+    showLogo: true,
+    showText: true,
+    showSubtitle: true,
+    hideDropHint: false,
+    style: { opacity: 0.8 },
+    className: "my-empty-state",
+    render: ({ messages, onInsertImage }) => (
+      <div>
+        <h2>Custom empty state!</h2>
+        <button onClick={onInsertImage}>Add Image</button>
+      </div>
+    ),
+  }}
+/>
+```
+
+#### DrawoEmptyStateConfig Properties
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `enabled` | `boolean` | `true` | Show or hide the empty state |
+| `text` | `string` | `"Start drawing"` | Custom main text |
+| `subtitle` | `string` | `"Drop an image or select a tool"` | Custom subtitle |
+| `render` | `(params) => ReactNode` | - | Full custom render function |
+| `style` | `CSSProperties` | - | Custom inline styles |
+| `className` | `string` | - | Custom CSS class |
+| `showLogo` | `boolean` | `true` | Show/hide the default logo |
+| `showText` | `boolean` | `true` | Show/hide the main text |
+| `showSubtitle` | `boolean` | `true` | Show/hide the subtitle |
+| `hideDropHint` | `boolean` | `false` | Hide the drop hint in subtitle |
+
+The `render` function receives:
+- `messages` - Current locale messages
+- `onInsertImage` - Callback to open file picker for images
 
 ---
 

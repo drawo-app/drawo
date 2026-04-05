@@ -7,9 +7,20 @@ import { SidebarMinimalistic } from "@solar-icons/react";
 
 interface DrawoTopBarProps {
   children?: ReactNode;
+  /** Content to render before MenuBar (left side) */
+  left?: ReactNode;
+  /** Content to render after MenuBar (right side) */
+  right?: ReactNode;
+  /** Show/hide the default MenuBar */
+  showMenuBar?: boolean;
 }
 
-export function DrawoTopBar({ children }: DrawoTopBarProps) {
+export function DrawoTopBar({
+  children,
+  left,
+  right,
+  showMenuBar = true,
+}: DrawoTopBarProps) {
   const ctx = useDrawo();
   const {
     scene,
@@ -25,12 +36,48 @@ export function DrawoTopBar({ children }: DrawoTopBarProps) {
 
   const isSidebarOpen = openTopbarPanel === "sidebar";
 
-  const hasCustomChildren = children !== undefined;
+  const defaultRightContent = (
+    <>
+      <Timer
+        messages={messages}
+        isOpen={openTopbarPanel === "timer"}
+        onOpenChange={(nextIsOpen) =>
+          setOpenTopbarPanel(nextIsOpen ? "timer" : null)
+        }
+      />
+      <MusicBar
+        messages={messages}
+        isOpen={openTopbarPanel === "music"}
+        onOpenChange={(nextIsOpen) =>
+          setOpenTopbarPanel(nextIsOpen ? "music" : null)
+        }
+      />
+      <div
+        className={`sidebar-launcher-wrap ${isSidebarOpen ? "active" : ""}`}
+      >
+        <button
+          type="button"
+          className="sidebar-launcher"
+          onClick={() =>
+            setOpenTopbarPanel((current) =>
+              current === "sidebar" ? null : "sidebar",
+            )
+          }
+          aria-expanded={isSidebarOpen}
+          aria-controls="search-library-sidebar"
+          title="Abrir sidebar"
+        >
+          <SidebarMinimalistic weight="Bold" />
+        </button>
+      </div>
+    </>
+  );
 
-  const defaultContent = useMemo(() => {
-    return (
-      <>
-        <div className="drawo-topbar-left">
+  return (
+    <div className="drawo-topbar">
+      <div className="drawo-topbar-left">
+        {children}
+        {showMenuBar && (
           <MenuBar
             scene={scene}
             locale={locale}
@@ -51,59 +98,14 @@ export function DrawoTopBar({ children }: DrawoTopBarProps) {
               handlers.handleOpenProject as (file: File) => Promise<void>
             }
           />
-        </div>
-        <div className="drawo-topbar-right">
-          <Timer
-            messages={messages}
-            isOpen={openTopbarPanel === "timer"}
-            onOpenChange={(nextIsOpen) =>
-              setOpenTopbarPanel(nextIsOpen ? "timer" : null)
-            }
-          />
-          <MusicBar
-            messages={messages}
-            isOpen={openTopbarPanel === "music"}
-            onOpenChange={(nextIsOpen) =>
-              setOpenTopbarPanel(nextIsOpen ? "music" : null)
-            }
-          />
-          <div
-            className={`sidebar-launcher-wrap ${isSidebarOpen ? "active" : ""}`}
-          >
-            <button
-              type="button"
-              className="sidebar-launcher"
-              onClick={() =>
-                setOpenTopbarPanel((current) =>
-                  current === "sidebar" ? null : "sidebar",
-                )
-              }
-              aria-expanded={isSidebarOpen}
-              aria-controls="search-library-sidebar"
-              title="Abrir sidebar"
-            >
-              <SidebarMinimalistic weight="Bold" />
-            </button>
-          </div>
-        </div>
-      </>
-    );
-  }, [
-    scene,
-    locale,
-    messages,
-    openTopbarPanel,
-    isSidebarOpen,
-    setLocale,
-    setScene,
-    setSceneWithoutHistory,
-    setOpenTopbarPanel,
-    handlers,
-  ]);
-
-  return (
-    <div className="drawo-topbar">
-      {hasCustomChildren ? children : defaultContent}
+        )}
+        {left}
+      </div>
+      <div className="drawo-topbar-right">
+        {right !== undefined ? right : defaultRightContent}
+      </div>
     </div>
   );
 }
+
+DrawoTopBar.displayName = "DrawoTopBar";

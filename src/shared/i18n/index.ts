@@ -145,6 +145,10 @@ export interface LocaleMessages {
   canvas: {
     newText: string;
     tagline: string;
+    themes: {
+      light: string;
+      dark: string;
+    };
   };
   contextMenu: {
     cut: string;
