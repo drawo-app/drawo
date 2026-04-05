@@ -213,7 +213,9 @@ function DropdownMenuSubTrigger({
       data-slot="dropdown-menu-sub-trigger"
       data-inset={inset}
       className={
-        "drawo-dropdown-subtrigger" + (className ? " " + className : "")
+        "drawo-dropdown-subtrigger" +
+        (props.disabled ? " disabled" : "") +
+        (className ? " " + className : "")
       }
       {...props}
     >

@@ -314,7 +314,7 @@ export const MenuBar = ({
             </DropdownMenuSubContent>
           </DropdownMenuSub>
           <DropdownMenuSub>
-            <DropdownMenuSubTrigger>
+            <DropdownMenuSubTrigger disabled>
               <PencilToSquare />
               {messages.menu.edit}
             </DropdownMenuSubTrigger>
@@ -419,14 +419,14 @@ export const MenuBar = ({
             </DropdownMenuSubContent>
           </DropdownMenuSub>
           <DropdownMenuSub>
-            <DropdownMenuSubTrigger>
+            <DropdownMenuSubTrigger disabled>
               <VectorSquare />
               {messages.menu.object}
             </DropdownMenuSubTrigger>
             <DropdownMenuSubContent></DropdownMenuSubContent>
           </DropdownMenuSub>
           <DropdownMenuSub>
-            <DropdownMenuSubTrigger>
+            <DropdownMenuSubTrigger disabled>
               <Text />
               {messages.menu.text}
             </DropdownMenuSubTrigger>
@@ -516,7 +516,11 @@ export const MenuBar = ({
           >
             <LogoGithub /> Github
           </DropdownMenuItem>
-          <DropdownMenuItem disabled>
+          <DropdownMenuItem
+            onClick={() => {
+              window.open("https://discord.gg/gKvwzZHav7", "_blank");
+            }}
+          >
             <DiscordIcon /> Discord
           </DropdownMenuItem>
           <DropdownMenuItem

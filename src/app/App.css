@@ -1013,6 +1013,10 @@ html.dark .canvas-text-editor-input *::selection {
   cursor: pointer;
   user-select: none;
 }
+.drawo-dropdown-subtrigger.disabled {
+  opacity: 0.5 !important;
+  cursor: not-allowed;
+}
 
 .bottompanel-separator {
   height: 70%;
@@ -1177,6 +1181,7 @@ html.dark .canvas-text-editor-input *::selection {
 .drawo-dropdown-item[data-variant="accent"],
 .drawo-contextmenu-item[data-variant="accent"] {
   color: rgb(var(--accent-rgb)) !important;
+  filter: brightness(0.5);
 }
 .drawo-dropdown-item[data-variant="destructive"]:hover,
 .drawo-contextmenu-item[data-variant="destructive"]:hover {
@@ -1447,14 +1452,13 @@ html.dark .canvas-text-editor-input *::selection {
   cursor: pointer;
   padding: 12px 4px;
   justify-content: center;
-  transition: .1s;
+  transition: 0.1s;
   align-items: center;
   gap: 8px;
   width: 100%;
 }
 .dark .drawo-tab.active {
   background-color: rgba(255, 255, 255, 0.1);
-
 }
 .drawo-tabs {
   display: flex;
@@ -1467,7 +1471,6 @@ html.dark .canvas-text-editor-input *::selection {
 }
 .dark .drawo-tabs {
   background: rgba(0, 0, 0, 0.2);
-
 }
 
 .size-full {
