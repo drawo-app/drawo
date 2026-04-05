@@ -14,6 +14,8 @@ dist
 dist-ssr
 *.local
 
+.claude*
+.pnpm-store*
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
@@ -26,3 +28,26 @@ dist-ssr
 *.sw?
 .aider*
 git.md
+.npmrc
+.eslintcache
+.prettiercache
+*.tsbuildinfo
+*.tgz
+*.zip
+*.tar.gz
+*.log
+*.bak
+*.tmp
+*.env
+*.env.local
+*.env.development
+*.env.test
+*.env.production
+*.env.*.local
+*.pem
+*.key
+*.crt
+*.pfx
+*.cer
+*.csr
+*.der
