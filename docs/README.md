@@ -22,15 +22,26 @@
 ### Installation
 
 ```bash
-npm install drawo
+npm install @drawo-app/drawo
 ```
 
-Drawo requires the following peer dependencies:
+### CSS Import
 
-```bash
-npm install react@^19 react-dom@^19
-npm install @gravity-ui/icons @solar-icons/react @uiw/react-color-chrome jspdf lucide-react radix-ui slate slate-dom slate-history slate-react yaml
+Drawo includes bundled CSS with themes, base styles, and all UI styling. Import it once in your app:
+
+```tsx
+// In your main entry file (e.g., App.tsx, main.tsx)
+import "@drawo-app/drawo/styles.css";
+
+// Then use the component
+import { Drawo } from "@drawo-app/drawo";
+
+function App() {
+  return <Drawo />;
+}
 ```
+
+> **Note:** The CSS import is required for the component to render correctly. This includes all 22 themes, cursors, and UI styles.
 
 ### Requirements
 

@@ -58,7 +58,7 @@ html {
   align-items: center;
   justify-content: center;
   background: var(--panel-bg);
-  backdrop-filter: blur(12px);
+  backdrop-filter: blur(24px);
   box-shadow: var(--panel-shadow);
 }
 
@@ -160,11 +160,11 @@ html.dark .switch-row {
   gap: 1px;
   align-items: center;
   cursor:
-    url("/cursors/default.svg") 12 12,
+    url("cursors/default.svg") 12 12,
     auto;
   padding: 4px;
   background: var(--panel-bg);
-  backdrop-filter: blur(12px);
+  backdrop-filter: blur(24px);
   box-shadow: var(--panel-shadow);
 }
 .drawtool-elem:hover .drawtool-icon {
@@ -195,7 +195,7 @@ html.dark .switch-row {
   background: var(--panel-bg);
   cursor: pointer;
   display: flex;
-  backdrop-filter: blur(12px);
+  backdrop-filter: blur(24px);
   align-items: center;
   justify-content: center;
   padding: 0;
@@ -205,7 +205,7 @@ html.dark .switch-row {
 .color-picker-button:hover {
   background: var(--panel-bg-hover);
   border-color: var(--panel-border-hover);
-  backdrop-filter: blur(12px);
+  backdrop-filter: blur(24px);
 }
 
 .color-preview {
@@ -227,12 +227,12 @@ html.dark .switch-row {
   gap: 1px;
   align-items: center;
   cursor:
-    url("/cursors/default.svg") 12 12,
+    url("cursors/default.svg") 12 12,
     auto;
   padding: 8px 9px;
   background: var(--panel-bg);
   box-shadow: var(--panel-shadow);
-  backdrop-filter: blur(12px);
+  backdrop-filter: blur(24px);
 }
 
 .insert-item:hover,
@@ -241,17 +241,17 @@ html.dark .switch-row {
 }
 .insert-item:active {
   cursor:
-    url("/cursors/grabbing.svg") 12 12,
+    url("../cursors/grabbing.svg") 12 12,
     auto;
 }
 .insert-item {
   cursor:
-    url("/cursors/grab.svg") 12 12,
+    url("../cursors/grab.svg") 12 12,
     auto;
 }
 .tool-item {
   cursor:
-    url("/cursors/pointer.svg") 12 12,
+    url("../cursors/pointer.svg") 12 12,
     auto;
 }
 .insert-item,
@@ -341,7 +341,7 @@ html.dark .tool-item {
   border-radius: 12px;
   color: white;
   corner-shape: squircle;
-  backdrop-filter: blur(12px);
+  backdrop-filter: blur(24px);
   background: var(--popover-dark, #1e1e1e);
   font:
     600 13px Inter,
@@ -356,7 +356,7 @@ html.dark .tool-item {
 
 html.dark .selection-toolbar {
   background: var(--popover-dark, #1e1e1e);
-  backdrop-filter: blur(12px);
+  backdrop-filter: blur(24px);
   box-shadow: var(--panel-shadow);
 }
 .drawo-select-trigger {
@@ -407,7 +407,7 @@ html.dark .selection-toolbar {
   transform: translateY(0px) !important;
   max-height: var(--radix-select-content-available-height);
   transform-origin: var(--radix-select-content-transform-origin);
-  backdrop-filter: blur(12px);
+  backdrop-filter: blur(24px);
   background: var(--popover-dark, #232323);
   border: 1px solid var(--panel-border);
   color: var(--popover-dark-text, #f3f4f6);
@@ -733,7 +733,7 @@ html.dark .canvas-text-editor-input *::selection {
   border-radius: 12px;
   background: var(--panel-bg, #fff);
   color: rgb(var(--text-rgb));
-  backdrop-filter: blur(12px);
+  backdrop-filter: blur(24px);
   min-width: 12rem;
   padding: 4px;
   font-family: Inter;
@@ -749,7 +749,7 @@ html.dark .canvas-text-editor-input *::selection {
 }
 .dark .drawo-contextmenu-content,
 .dark .drawo-contextmenu-subcontent {
-  backdrop-filter: blur(12px);
+  backdrop-filter: blur(24px);
   background: var(--popover-dark, #1f1f1f) !important;
 }
 
@@ -810,7 +810,7 @@ html.dark .canvas-text-editor-input *::selection {
 .drawo-contextmenu-subcontent {
   border-radius: 12px;
   background: var(--panel-bg, #fff);
-  backdrop-filter: blur(12px);
+  backdrop-filter: blur(24px);
   color: rgb(var(--text-rgb));
   min-width: 12rem;
   padding: 4px;
@@ -951,7 +951,7 @@ html.dark .canvas-text-editor-input *::selection {
   color: var(--popover-foreground, #111);
   min-width: 8rem;
   padding: 4px;
-  backdrop-filter: blur(12px);
+  backdrop-filter: blur(24px);
   box-shadow: var(--panel-shadow);
 
   z-index: 50;
@@ -969,7 +969,7 @@ html.dark .canvas-text-editor-input *::selection {
 }
 .dark .drawo-dropdown-content,
 .dark .drawo-dropdown-subcontent {
-  backdrop-filter: blur(12px);
+  backdrop-filter: blur(24px);
   background: var(--popover-dark, #1f1f1f);
   color: var(--popover-foreground-dark, #eee);
 }
@@ -1073,7 +1073,7 @@ html.dark .canvas-text-editor-input *::selection {
   display: flex;
 }
 .dark .bottompanel-bar {
-  backdrop-filter: blur(12px);
+  backdrop-filter: blur(24px);
   background: var(--popover-dark, #1f1f1f);
 }
 .bottompanel-bar * {
@@ -1271,6 +1271,7 @@ html.dark .canvas-text-editor-input *::selection {
   transform: translate(-50%, -50%);
   background: var(--background, #fff);
   border-radius: 18px;
+  backdrop-filter: blur(30px);
   padding: 16px 28px;
   font-size: 14px;
   corner-shape: squircle;
