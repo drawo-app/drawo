@@ -3,13 +3,13 @@
   --accent-dark: var(--accent);
   --logoduotone-firstcolor: #6f5af6;
   --logoduotone-secondcolor: #3119cf;
-  --logocolor: #1d00d7;
+  --logocolor: #4c4f69;
   --accent-rgb: 124, 92, 255;
   --text-rgb: 15, 15, 15;
   --background-rgb: 220, 220, 220;
   --panel-border: rgba(0, 0, 0, 0.1);
   --panel-shadow: 0 10px 24px rgba(0, 0, 0, 0.08);
-  --app-bg: #F5F4F4;
+  --app-bg: #f5f4f4;
   --app-fg: #1f2937;
   --panel-bg: rgba(255, 255, 255, 0.94);
   --popover-dark: rgba(26, 26, 26, 0.94);
