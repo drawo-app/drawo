@@ -1,5 +1,6 @@
 import {
   type ChangeEvent,
+  type ReactNode,
   useCallback,
   useRef,
   useState,
@@ -83,7 +84,7 @@ import {
   SelectValue,
 } from "@shared/ui/select";
 
-interface MenuBarProps {
+export interface MenuBarProps {
   scene: Scene;
   locale: LocaleCode;
   messages: LocaleMessages;
@@ -98,6 +99,18 @@ interface MenuBarProps {
     padding: number;
   }) => Promise<void>;
   onOpenProject: (file: File) => Promise<void>;
+  /** Extra items appended inside the File submenu (before the separator + Clear). */
+  extraFileItems?: ReactNode;
+  /** Extra items appended inside the View submenu. */
+  extraViewItems?: ReactNode;
+  /** Extra items appended inside the Settings submenu. */
+  extraSettingsItems?: ReactNode;
+  /** Custom top-level submenus inserted between Organize and the links section. */
+  extraMenuSections?: ReactNode;
+  /** Content rendered right before the links section (Github, Discord, Donate). */
+  beforeLinks?: ReactNode;
+  /** Content rendered after Settings (at the very end of the menu). */
+  afterSettings?: ReactNode;
 }
 
 export const MenuBar = ({
@@ -110,6 +123,12 @@ export const MenuBar = ({
   onExportProject,
   onExportImage,
   onOpenProject,
+  extraFileItems,
+  extraViewItems,
+  extraSettingsItems,
+  extraMenuSections,
+  beforeLinks,
+  afterSettings,
 }: MenuBarProps) => {
   const [isThemeDialogOpen, setIsThemeDialogOpen] = useState(false);
   const [isClearDialogOpen, setIsClearDialogOpen] = useState(false);
@@ -273,7 +292,7 @@ export const MenuBar = ({
       />
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <button type="button" className={`tool-item`} onClick={() => {}}>
+          <button type="button" className={`tool-item`} onClick={() => { }}>
             <MenuIcon />
           </button>
         </DropdownMenuTrigger>
@@ -304,6 +323,7 @@ export const MenuBar = ({
               >
                 <Picture /> {messages.menu.exportProject}
               </DropdownMenuItem>
+              {extraFileItems}
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 onClick={() => setIsClearDialogOpen(true)}
@@ -416,6 +436,7 @@ export const MenuBar = ({
               >
                 <Molecule /> {messages.menu.quillDrawOptimizations}
               </DropdownMenuCheckboxItem>
+              {extraViewItems}
             </DropdownMenuSubContent>
           </DropdownMenuSub>
           <DropdownMenuSub>
@@ -507,8 +528,10 @@ export const MenuBar = ({
               </DropdownMenuItem>
             </DropdownMenuSubContent>
           </DropdownMenuSub>
+          {extraMenuSections}
 
           <DropdownMenuSeparator />
+          {beforeLinks}
           <DropdownMenuItem
             onClick={() => {
               window.open("https://github.com/drawo-app/drawo", "_blank");
@@ -709,8 +732,10 @@ export const MenuBar = ({
               >
                 <LaserPointerStylusIcon /> {messages.dialogs.laserCanvas.label}
               </DropdownMenuItem>
+              {extraSettingsItems}
             </DropdownMenuSubContent>
           </DropdownMenuSub>
+          {afterSettings}
         </DropdownMenuContent>
       </DropdownMenu>
 
