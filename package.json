@@ -1,6 +1,6 @@
 {
   "name": "@drawo-app/drawo",
-  "version": "2.0.12",
+  "version": "2.0.13",
   "type": "module",
   "description": "A beautiful, customizable whiteboard component for React",
   "author": "drawo contributors",
