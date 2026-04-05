@@ -1,3 +1,110 @@
+# [2.0.0] - 2026-04-05
+
+## 🚀 **Major Changes**
+
+Drawo v2 is a complete rewrite from a standalone application into a **React component library**. You can now embed Drawo into any React application with a single line of code and customize every aspect of it.
+
+### Before (v1.x)
+Drawo was a standalone Vite/React application. You couldn't import it as a component.
+
+### After (v2.0)
+Drawo is now a library. Install it via npm and use it as `<Drawo />` in your app.
+
+---
+
+## ✨ **Added**
+
+### Component API
+
+```tsx
+import { Drawo } from "drawo";
+
+// Out of the box
+<Drawo />
+
+// With full customization
+<Drawo theme="catppuccin-mocha" locale="en_US">
+  <Drawo.TopBar>
+    <MyCustomHeader />
+  </Drawo.TopBar>
+</Drawo>
+```
+
+### Compound Components
+
+All UI elements are now composable subcomponents:
+
+- `<Drawo />` — The full whiteboard with default layout
+- `<Drawo.TopBar />` — Top bar (MenuBar, Timer, MusicBar, Sidebar)
+- `<Drawo.Canvas />` — The canvas itself
+- `<Drawo.ToolBar />` — Bottom tool bar
+- `<Drawo.UndoBar />` — Undo/Redo controls
+- `<Drawo.ZoomBar />` — Zoom controls
+
+### Optional Components
+
+Timer and MusicBar are now **optional** and exported separately:
+
+```tsx
+import { Drawo, Timer, MusicBar } from "drawo";
+
+<Drawo>
+  <Drawo.TopBar>
+    <Drawo.MenuBar />
+    <Timer />
+    <MusicBar />
+  </Drawo.TopBar>
+</Drawo>;
+```
+
+### useDrawo Hook
+
+Access the full Drawo state from within your custom components:
+
+```tsx
+import { useDrawo } from "drawo";
+
+function MyWidget() {
+  const { scene, undo, redo, canUndo, canRedo } = useDrawo();
+  // ...
+}
+```
+
+### Theme System
+
+All 22 themes are included (11 light + 11 dark variants):
+
+- Drawo, Catppuccin, Nord, Solarized, Gruvbox, Tokyo Night, Rose Pine, Everforest, Kanagawa, Dracula, One, Ayu
+
+### Exported Types
+
+Full TypeScript support with exported types:
+
+```tsx
+import type { Scene, SceneElement, LocaleCode, LocaleMessages } from "drawo";
+```
+
+---
+
+## ⚠️ **Breaking Changes**
+
+1. **No longer a standalone app** — Must be imported as a component
+2. **Peer dependencies** — All UI libraries must be installed by the consumer
+3. **CSS is bundled** — Theme CSS is included in the bundle automatically
+4. **LocalStorage keys unchanged** — Existing saved data will still work
+
+---
+
+## 📦 Package Info
+
+- **Name:** `drawo`
+- **Version:** 2.0.0
+- **Peer Dependencies:** React 19+, all UI libraries
+- **Bundle Size:** ~580KB ESM (gzipped: ~133KB)
+- **TypeScript:** Full type definitions included
+
+---
+
 # [1.1.4] - 2026-03-29
 
 ## 🔄 **Changed**

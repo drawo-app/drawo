@@ -333,7 +333,7 @@ export const SelectionStrokeControls = ({
         </TooltipContent>
       </Tooltip>
       <Select
-        open={activeSelectId === "draw-stroke-width" || undefined}
+        open={activeSelectId === "draw-stroke-width"}
         onOpenChange={(isOpen) => {
           if (isOpen) {
             setActiveSelectId("draw-stroke-width");
@@ -405,8 +405,7 @@ export const SelectionStrokeControls = ({
         <Select
           open={
             activeSelectId === "line-stroke-color" ||
-            isCustomDrawColorPickerOpen ||
-            undefined
+            isCustomDrawColorPickerOpen
           }
           onOpenChange={(isOpen) => {
             if (isOpen) {
@@ -553,7 +552,7 @@ export const SelectionStrokeControls = ({
     return (
       <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
         <Select
-          open={activeSelectId === "line-start-cap" || undefined}
+          open={activeSelectId === "line-start-cap"}
           onOpenChange={(isOpen) => {
             if (isOpen) {
               setActiveSelectId("line-start-cap");
@@ -632,7 +631,7 @@ padding: 8px 0px!important;
         <div className="selectionbar-separator" />
 
         <Select
-          open={activeSelectId === "line-end-cap" || undefined}
+          open={activeSelectId === "line-end-cap"}
           onOpenChange={(isOpen) => {
             if (isOpen) {
               setActiveSelectId("line-end-cap");
@@ -712,7 +711,7 @@ padding: 8px 0px!important;
 
   const renderLineStrokeWidthSelector = () => (
     <Select
-      open={activeSelectId === "line-stroke-width" || undefined}
+      open={activeSelectId === "line-stroke-width"}
       onOpenChange={(isOpen) => {
         if (isOpen) {
           setActiveSelectId("line-stroke-width");

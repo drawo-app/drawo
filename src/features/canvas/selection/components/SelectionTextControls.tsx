@@ -457,7 +457,7 @@ export const SelectionTextControls = ({
         </TooltipContent>
       </Tooltip>
       <Select
-        open={activeSelectId === "text-font-family" || undefined}
+        open={activeSelectId === "text-font-family"}
         onOpenChange={(isOpen) => {
           if (isOpen) {
             setActiveSelectId("text-font-family");
@@ -515,7 +515,7 @@ export const SelectionTextControls = ({
       </Select>
       <div className="selectionbar-separator" />
       <Select
-        open={activeSelectId === "text-font-size" || undefined}
+        open={activeSelectId === "text-font-size"}
         onOpenChange={(isOpen) => {
           if (isOpen) {
             setActiveSelectId("text-font-size");
@@ -702,7 +702,7 @@ export const SelectionTextControls = ({
         </Tooltip>
         <div className="selectionbar-separator" />
         <Select
-          open={activeSelectId === "text-align" || undefined}
+          open={activeSelectId === "text-align"}
           onOpenChange={(isOpen) => {
             if (isOpen) {
               setActiveSelectId("text-align");

@@ -1,0 +1,76 @@
+import { useDrawo } from "../context";
+import { CanvasView } from "@features/canvas/view/CanvasView";
+import type { CanvasViewProps } from "@features/canvas/types";
+
+export function DrawoCanvas() {
+  const ctx = useDrawo();
+  const {
+    scene,
+    resolvedTheme,
+    isPresentationMode,
+    interactionMode,
+    drawingTool,
+    messages,
+    handlers,
+    setDrawingTool,
+  } = ctx;
+
+  const canvasProps: CanvasViewProps = {
+    scene,
+    strokeColors: resolvedTheme.preset.strokeColors,
+    shapeColors: resolvedTheme.preset.shapeColors,
+    alignmentGuides: [],
+    interactionMode,
+    drawingTool,
+    localeMessages: messages,
+    onPointerDown: handlers.handlePointerDown as CanvasViewProps["onPointerDown"],
+    onPointerMove: handlers.handlePointerMove as CanvasViewProps["onPointerMove"],
+    onPointerUp: handlers.handlePointerUp as CanvasViewProps["onPointerUp"],
+    onResizeStart: handlers.handleResizeStart as CanvasViewProps["onResizeStart"],
+    onRotateStart: handlers.handleRotateStart as CanvasViewProps["onRotateStart"],
+    onTextCommit: handlers.handleTextCommit as CanvasViewProps["onTextCommit"],
+    onWheelPan: handlers.handleWheelPan as CanvasViewProps["onWheelPan"],
+    onWheelZoom: handlers.handleWheelZoom as CanvasViewProps["onWheelZoom"],
+    onCreateElement: handlers.handleCreateElement as CanvasViewProps["onCreateElement"],
+    onCreateDrawElement: handlers.handleCreateDrawElement as CanvasViewProps["onCreateDrawElement"],
+    onCreateLinePathElement: handlers.handleCreateLinePathElement as CanvasViewProps["onCreateLinePathElement"],
+    onDrawingToolComplete: () => setDrawingTool(null),
+    onDropImageFiles: handlers.handleInsertImageFiles as CanvasViewProps["onDropImageFiles"],
+    onSelectElements: handlers.handleSelectElements as CanvasViewProps["onSelectElements"],
+    onGroupResizeStart: handlers.handleGroupResizeStart as CanvasViewProps["onGroupResizeStart"],
+    onGroupRotateStart: handlers.handleGroupRotateStart as CanvasViewProps["onGroupRotateStart"],
+    onTextFontFamilyChange: handlers.handleTextFontFamilyChange as CanvasViewProps["onTextFontFamilyChange"],
+    onTextFontSizeChange: handlers.handleTextFontSizeChange as CanvasViewProps["onTextFontSizeChange"],
+    onTextFontWeightChange: handlers.handleTextFontWeightChange as CanvasViewProps["onTextFontWeightChange"],
+    onTextFontStyleChange: handlers.handleTextFontStyleChange as CanvasViewProps["onTextFontStyleChange"],
+    onTextAlignChange: handlers.handleTextAlignChange as CanvasViewProps["onTextAlignChange"],
+    onTextColorChange: handlers.handleTextColorChange as CanvasViewProps["onTextColorChange"],
+    onDrawStrokeWidthChange: handlers.handleDrawStrokeWidthChange as CanvasViewProps["onDrawStrokeWidthChange"],
+    onDrawStrokeColorChange: handlers.handleDrawStrokeColorChange as CanvasViewProps["onDrawStrokeColorChange"],
+    onShapeFillColorChange: handlers.handleShapeFillColorChange as CanvasViewProps["onShapeFillColorChange"],
+    onShapeFillStyleChange: handlers.handleShapeFillStyleChange as CanvasViewProps["onShapeFillStyleChange"],
+    onElementsOpacityChange: handlers.handleElementsOpacityChange as CanvasViewProps["onElementsOpacityChange"],
+    onShapeStrokeColorChange: handlers.handleShapeStrokeColorChange as CanvasViewProps["onShapeStrokeColorChange"],
+    onShapeStrokeWidthChange: handlers.handleShapeStrokeWidthChange as CanvasViewProps["onShapeStrokeWidthChange"],
+    onShapeStrokeStyleChange: handlers.handleShapeStrokeStyleChange as CanvasViewProps["onShapeStrokeStyleChange"],
+    onDrawDefaultStrokeColorChange: handlers.handleDrawDefaultStrokeColorChange as CanvasViewProps["onDrawDefaultStrokeColorChange"],
+    onDrawDefaultStrokeWidthChange: handlers.handleDrawDefaultStrokeWidthChange as CanvasViewProps["onDrawDefaultStrokeWidthChange"],
+    onLineStartCapChange: handlers.handleLineStartCapChange as CanvasViewProps["onLineStartCapChange"],
+    onLineEndCapChange: handlers.handleLineEndCapChange as CanvasViewProps["onLineEndCapChange"],
+    onLineEditStart: handlers.handleLineEditStart as CanvasViewProps["onLineEditStart"],
+    onLineGeometryChange: handlers.handleLineGeometryChange as CanvasViewProps["onLineGeometryChange"],
+    onRectangleBorderRadiusChange: handlers.handleRectangleBorderRadiusChange as CanvasViewProps["onRectangleBorderRadiusChange"],
+    onCopySelection: handlers.handleCopySelection as CanvasViewProps["onCopySelection"],
+    onCutSelection: handlers.handleCutSelection as CanvasViewProps["onCutSelection"],
+    onPasteAt: handlers.handlePasteAt as CanvasViewProps["onPasteAt"],
+    onDuplicateSelection: handlers.handleDuplicateSelection as CanvasViewProps["onDuplicateSelection"],
+    onDeleteSelection: handlers.handleDeleteSelection as CanvasViewProps["onDeleteSelection"],
+    onGroupSelection: handlers.handleGroupSelection as CanvasViewProps["onGroupSelection"],
+    onUngroupSelection: handlers.handleUngroupSelection as CanvasViewProps["onUngroupSelection"],
+    onSelectGroupForElement: handlers.handleSelectGroupForElement as CanvasViewProps["onSelectGroupForElement"],
+    onReorderSelection: handlers.handleReorderSelection as CanvasViewProps["onReorderSelection"],
+    onFlipSelection: handlers.handleFlipSelection as CanvasViewProps["onFlipSelection"],
+  };
+
+  return <CanvasView {...canvasProps} />;
+}
