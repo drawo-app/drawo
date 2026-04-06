@@ -26,6 +26,9 @@ html {
   background: var(--app-bg);
   color: var(--app-fg);
 }
+.app-root * {
+  user-select: none !important;
+}
 
 .app-shell {
   width: 100%;
@@ -2281,6 +2284,7 @@ p.label {
   width: 46px;
   display: flex;
   box-shadow: var(--panel-shadow);
+  backdrop-filter: blur(8px);
   align-items: center;
   border: 1px solid var(--panel-border);
   cursor: pointer;
@@ -2379,4 +2383,76 @@ p.label {
   .drawo-dropdown-content .custom-element .custom-select-trigger {
     border-radius: 24px;
   }
+}
+
+/* TAILWIND FIXES */
+
+html,
+:host {
+  line-height: unset !important;
+  -webkit-text-size-adjust: unset !important;
+  tab-size: unset !important;
+  font-feature-settings: unset !important;
+  font-variation-settings: unset !important;
+  -webkit-tap-highlight-color: transparent;
+}
+h1 {
+  display: block !important;
+  font-size: 2em !important;
+  margin-top: 0.67em !important;
+  margin-bottom: 0.67em !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  font-weight: bold !important;
+}
+h2 {
+  display: block !important;
+  font-size: 1.5em !important;
+  margin-top: 0.83em !important;
+  margin-bottom: 0.83em !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  font-weight: bold !important;
+}
+h3 {
+  display: block !important;
+  font-size: 1.17em !important;
+  margin-top: 1em !important;
+  margin-bottom: 1em !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  font-weight: bold !important;
+}
+h4 {
+  display: block !important;
+  margin-top: 1.33em !important;
+  margin-bottom: 1.33em !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  font-weight: bold !important;
+}
+h5 {
+  display: block !important;
+  font-size: 0.83em !important;
+  margin-top: 1.67em !important;
+  margin-bottom: 1.67em !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  font-weight: bold !important;
+}
+h6 {
+  display: block !important;
+  font-size: 0.67em !important;
+  margin-top: 2.33em !important;
+  margin-bottom: 2.33em !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  font-weight: bold !important;
+}
+p {
+  display: block !important;
+  margin-top: 1em !important;
+  margin-bottom: 1em !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
 }

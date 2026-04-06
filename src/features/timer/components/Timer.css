@@ -91,7 +91,7 @@
 }
 .timer-content {
   font-size: calc(280px / 4);
-  margin: 0px;
+  margin: 0px !important;
 }
 
 /* ── Controls ────────────────────────────────────── */
