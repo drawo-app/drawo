@@ -3,6 +3,7 @@ import type { Scene, NewElementType } from "@core/scene";
 import type { LocaleCode, LocaleMessages } from "@shared/i18n";
 import type { ExportImageFormat } from "@features/workspace/exportImage";
 import type { ResolvedTheme } from "./theme";
+import type { LibrarySvgAsset } from "@features/library/catalog";
 
 export interface DrawoEmptyStateConfig {
   /** Show or hide the empty state completely */
@@ -95,5 +96,35 @@ export interface DrawoContextValue {
   setLocale: (locale: LocaleCode) => void;
   undo: () => void;
   redo: () => void;
+  onExportProject: () => Promise<void>;
+  onExportImage: (options: {
+    format: ExportImageFormat;
+    qualityScale: number;
+    transparentBackground: boolean;
+    padding: number;
+  }) => Promise<void>;
+  onOpenProject: (file: File) => Promise<void>;
+  onZoomIn: () => void;
+  onZoomOut: () => void;
+  onZoomReset: () => void;
+  onCopySelection: () => void;
+  onCutSelection: () => void;
+  onPasteAt: (x: number, y: number) => void;
+  onDuplicateSelection: () => void;
+  onDeleteSelection: () => void;
+  onReorderSelection: (
+    direction: "forward" | "backward" | "front" | "back",
+  ) => void;
+  onGroupSelection: () => void;
+  onUngroupSelection: () => void;
+  onFlipSelection: (axis: "horizontal" | "vertical") => void;
+  onSelectGroupForElement: (id: string) => void;
+  onFocusElement: (id: string) => void;
+  onInsertImageFiles: (
+    files: File[],
+    anchor?: { x: number; y: number },
+  ) => Promise<void>;
+  onInsertLibrarySvg: (asset: LibrarySvgAsset) => void;
+  onSetRectangleBorderRadius: (ids: string[], borderRadius: number) => void;
   handlers: Record<string, (...args: unknown[]) => void>;
 }

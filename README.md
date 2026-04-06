@@ -1,5 +1,9 @@
 <div align="center">
 
+# -- FULL DOCUMENTATION SOON --
+
+<hr>
+
 # 🎨 Drawo
 
 ### Open-source visual whiteboard **component** for React

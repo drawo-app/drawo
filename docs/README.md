@@ -12,6 +12,7 @@
 - [Themes](#themes)
 - [Internationalization](#internationalization)
 - [useDrawo Hook](#usedrawo-hook)
+- [useDrawo Methods Guide](./useDrawo-methods.md)
 - [API Reference](#api-reference)
 - [Migration Guide](#migration-guide)
 
@@ -323,6 +324,11 @@ function MyCustomWidget() {
     setLocale,
     undo,
     redo,
+    onOpenProject,
+    onExportProject,
+    onZoomIn,
+    onZoomOut,
+    onZoomReset,
   } = useDrawo();
 
   return (
@@ -332,6 +338,10 @@ function MyCustomWidget() {
       <p>Zoom: {Math.round(scene.camera.zoom * 100)}%</p>
       <button onClick={undo} disabled={!canUndo}>Undo</button>
       <button onClick={redo} disabled={!canRedo}>Redo</button>
+      <button onClick={() => onZoomIn()}>Zoom in</button>
+      <button onClick={() => onZoomOut()}>Zoom out</button>
+      <button onClick={() => onZoomReset()}>Zoom reset</button>
+      <button onClick={() => onExportProject()}>Export .drawo</button>
     </div>
   );
 }
@@ -360,6 +370,23 @@ function MyCustomWidget() {
 | `setLocale` | `Dispatch<SetStateAction<LocaleCode>>` | Set locale |
 | `undo` | `() => void` | Perform undo |
 | `redo` | `() => void` | Perform redo |
+| `onOpenProject` | `(file: File) => Promise<void>` | Open/import a `.drawo` file |
+| `onExportProject` | `() => Promise<void>` | Export current scene as `.drawo` |
+| `onExportImage` | `(options) => Promise<void>` | Export image (`png`, `jpg`, `svg`, `pdf`) |
+| `onZoomIn / onZoomOut / onZoomReset` | `() => void` | Programmatic zoom controls |
+| `onCopySelection / onCutSelection / onPasteAt` | `() => void` / `(x, y) => void` | Clipboard-style selection actions |
+| `onDuplicateSelection / onDeleteSelection` | `() => void` | Duplicate/delete selected elements |
+| `onReorderSelection` | `(direction) => void` | Move selection in z-index |
+| `onGroupSelection / onUngroupSelection` | `() => void` | Group/ungroup current selection |
+| `onFlipSelection` | `(axis) => void` | Flip selected elements horizontally/vertically |
+| `onFocusElement` | `(id: string) => void` | Focus camera + selection on an element |
+| `onInsertImageFiles` | `(files, anchor?) => Promise<void>` | Insert one or more image files |
+| `onInsertLibrarySvg` | `(asset) => void` | Insert a catalog/library SVG asset |
+| `onSetRectangleBorderRadius` | `(ids, borderRadius) => void` | Update border radius for rectangle ids |
+
+For full signatures and practical examples, see:
+
+- [useDrawo Methods Guide](./useDrawo-methods.md)
 
 ---
 
