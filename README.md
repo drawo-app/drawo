@@ -35,8 +35,8 @@ Everything runs client-side with local browser storage.
 - **Grouping**, multi-selection, smart guides, snap to grid
 - **Undo/Redo** with full history
 - **Export**: png, jpg, svg, pdf with quality controls
-- **Project files**: save/open `.drawo` files
-- **22 themes**: Drawo, Catppuccin, Nord, Solarized, Gruvbox, Tokyo Night, Rose Pine, Everforest, Kanagawa, Dracula, One, Ayu
+- **Project files**: save/open `.drawo` files (TIP: Share a .drawo with ChatGPT/Claude/...)
+- **22 themes**: Drawo, Catppuccin, Nord, Solarized, Gruvbox, Tokyo Night, Rose Pine, Everforest, Kanagawa, Dracula, One, Ayu...
 - **Internationalization**: English & Spanish
 - **Special modes**: Zen Mode, Presentation Mode
 - **Optional**: Timer, MusicBar, Search & Library sidebar
@@ -107,8 +107,12 @@ function ElementCounter() {
   return (
     <div>
       <p>{scene.elements.length} elements</p>
-      <button onClick={undo} disabled={!canUndo}>Undo</button>
-      <button onClick={redo} disabled={!canRedo}>Redo</button>
+      <button onClick={undo} disabled={!canUndo}>
+        Undo
+      </button>
+      <button onClick={redo} disabled={!canRedo}>
+        Redo
+      </button>
     </div>
   );
 }
@@ -127,25 +131,25 @@ See the [docs](./docs/README.md) for:
 
 ## ⌨️ Keyboard Shortcuts
 
-| Shortcut | Action |
-|----------|--------|
-| `V` | Selection tool |
-| `H` | Hand (pan) tool |
-| `1` | Text tool |
-| `2` | Rectangle tool |
-| `3` | Circle tool |
-| `4` | Draw tool |
-| `K` | Laser tool |
-| `Ctrl/Cmd + Z` | Undo |
-| `Ctrl/Cmd + Shift + Z` / `Ctrl/Cmd + Y` | Redo |
-| `Ctrl/Cmd + A` | Select all |
-| `Ctrl/Cmd + D` | Duplicate |
-| `Ctrl/Cmd + G` | Group |
-| `Ctrl/Cmd + Shift + G` | Ungroup |
-| `Ctrl/Cmd + +/-/0` | Zoom in/out/reset |
-| `Alt + Z` | Toggle Zen Mode |
-| `Alt + R` | Toggle Presentation Mode |
-| `Delete/Backspace` | Delete selection |
+| Shortcut                                | Action                   |
+| --------------------------------------- | ------------------------ |
+| `V`                                     | Selection tool           |
+| `H`                                     | Hand (pan) tool          |
+| `1`                                     | Text tool                |
+| `2`                                     | Rectangle tool           |
+| `3`                                     | Circle tool              |
+| `4`                                     | Draw tool                |
+| `K`                                     | Laser tool               |
+| `Ctrl/Cmd + Z`                          | Undo                     |
+| `Ctrl/Cmd + Shift + Z` / `Ctrl/Cmd + Y` | Redo                     |
+| `Ctrl/Cmd + A`                          | Select all               |
+| `Ctrl/Cmd + D`                          | Duplicate                |
+| `Ctrl/Cmd + G`                          | Group                    |
+| `Ctrl/Cmd + Shift + G`                  | Ungroup                  |
+| `Ctrl/Cmd + +/-/0`                      | Zoom in/out/reset        |
+| `Alt + Z`                               | Toggle Zen Mode          |
+| `Alt + R`                               | Toggle Presentation Mode |
+| `Delete/Backspace`                      | Delete selection         |
 
 ## 🛠️ Development
 
@@ -165,14 +169,14 @@ pnpm build
 
 ## 📦 Package Info
 
-| | |
-|---|---|
-| **Name** | `drawo` |
-| **Version** | 2.0.0 |
-| **License** | MIT |
-| **Bundle** | ~2.6MB (637KB gzipped) |
-| **Peer Deps** | React 19+, React DOM 19+ |
-| **TypeScript** | Full type definitions |
+|                |                          |
+| -------------- | ------------------------ |
+| **Name**       | `drawo`                  |
+| **Version**    | 2.0.0                    |
+| **License**    | MIT                      |
+| **Bundle**     | ~2.6MB (637KB gzipped)   |
+| **Peer Deps**  | React 19+, React DOM 19+ |
+| **TypeScript** | Full type definitions    |
 
 ## 📄 Changelog
 
