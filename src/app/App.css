@@ -185,9 +185,7 @@ html.dark .switch-row {
   corner-shape: squircle;
   gap: 1px;
   align-items: center;
-  cursor:
-    var(--drawo-cursor-default),
-    auto;
+  cursor: var(--drawo-cursor-default), auto;
   padding: 4px;
   background: var(--panel-bg);
   backdrop-filter: blur(24px);
@@ -252,9 +250,7 @@ html.dark .switch-row {
   corner-shape: squircle;
   gap: 1px;
   align-items: center;
-  cursor:
-    var(--drawo-cursor-default),
-    auto;
+  cursor: var(--drawo-cursor-default), auto;
   padding: 8px 9px;
   background: var(--panel-bg);
   box-shadow: var(--panel-shadow);
@@ -266,19 +262,13 @@ html.dark .switch-row {
   background: rgba(var(--text-rgb), 0.1) !important;
 }
 .insert-item:active {
-  cursor:
-    var(--drawo-cursor-grabbing),
-    auto;
+  cursor: var(--drawo-cursor-grabbing), auto;
 }
 .insert-item {
-  cursor:
-    var(--drawo-cursor-grab),
-    auto;
+  cursor: var(--drawo-cursor-grab), auto;
 }
 .tool-item {
-  cursor:
-    var(--drawo-cursor-pointer),
-    auto;
+  cursor: var(--drawo-cursor-pointer), auto;
 }
 .insert-item,
 .tool-item {
@@ -1702,14 +1692,9 @@ p.label {
 
 /* tamaños */
 
-.drawo-switch[data-size="default"] {
+.drawo-switch {
   width: calc(24px * 1.7);
   height: 20px;
-}
-
-.drawo-switch[data-size="sm"] {
-  width: 24px;
-  height: 12px;
 }
 
 /* estados */
@@ -1765,28 +1750,19 @@ p.label {
 
 /* tamaños thumb */
 
-.drawo-switch[data-size="default"] .drawo-switch-thumb {
+.drawo-switch .drawo-switch-thumb {
   width: 24px;
   height: 16px;
-}
-
-.drawo-switch[data-size="sm"] .drawo-switch-thumb {
-  width: 12px;
-  height: 12px;
 }
 
 /* posición */
 
 .drawo-switch[data-state="unchecked"] .drawo-switch-thumb {
-  transform: translateX(calc(-50% * 0.5));
+  transform: translateX(0px);
 }
 
-.drawo-switch[data-state="checked"][data-size="default"] .drawo-switch-thumb {
-  transform: translateX(calc(50% * 0.7));
-}
-
-.drawo-switch[data-state="checked"][data-size="sm"] .drawo-switch-thumb {
-  transform: translateX(50%);
+.drawo-switch[data-state="checked"] .drawo-switch-thumb {
+  transform: translateX(14px);
 }
 
 /* dark thumb */
@@ -2428,7 +2404,8 @@ h1 {
   margin-right: 0 !important;
   font-weight: bold !important;
 }
-h2 {
+h2,
+.drawo-dialog-title {
   display: block !important;
   font-size: 1.5em !important;
   margin-top: 0.83em !important;
