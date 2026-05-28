@@ -59,6 +59,7 @@ import {
   Text,
   Thunderbolt,
   VectorSquare,
+  Shapes3,
 } from "@gravity-ui/icons";
 import {
   Dialog,
@@ -435,6 +436,19 @@ export const MenuBar = ({
                 }}
               >
                 <Molecule /> {messages.menu.quillDrawOptimizations}
+              </DropdownMenuCheckboxItem>
+              <DropdownMenuCheckboxItem
+                checked={scene.settings.shapeRecognition}
+                onClick={() => {
+                  setSceneWithoutHistory((currentScene) =>
+                    updateSceneSettings(currentScene, {
+                      shapeRecognition:
+                        !currentScene.settings.shapeRecognition,
+                    }),
+                  );
+                }}
+              >
+                <Shapes3 /> {messages.menu.shapeRecognition}
               </DropdownMenuCheckboxItem>
               {extraViewItems}
             </DropdownMenuSubContent>

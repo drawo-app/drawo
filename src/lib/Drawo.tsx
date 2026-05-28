@@ -2,6 +2,7 @@ import {
   Children,
   cloneElement,
   isValidElement,
+  useEffect,
   type ReactElement,
   type ReactNode,
 } from "react";
@@ -49,6 +50,40 @@ type DrawoLayoutSlot =
   | "undoBar"
   | "zoomBar"
   | "emptyState";
+
+const DRAWO_GOOGLE_FONTS_URL =
+  "https://fonts.googleapis.com/css2?family=Cascadia+Code:ital,wght@0,200..700;1,200..700&family=Imbue:opsz,wght@10..100,100..900&family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=Rubik:ital,wght@0,300..900;1,300..900&family=Shantell+Sans:ital,wght@0,300..800;1,300..800&display=swap";
+
+function ensureDrawoFonts() {
+  if (typeof document === "undefined") {
+    return;
+  }
+
+  if (!document.querySelector('link[data-drawo-fonts="preconnect-google"]')) {
+    const preconnectGoogle = document.createElement("link");
+    preconnectGoogle.rel = "preconnect";
+    preconnectGoogle.href = "https://fonts.googleapis.com";
+    preconnectGoogle.setAttribute("data-drawo-fonts", "preconnect-google");
+    document.head.appendChild(preconnectGoogle);
+  }
+
+  if (!document.querySelector('link[data-drawo-fonts="preconnect-gstatic"]')) {
+    const preconnectGstatic = document.createElement("link");
+    preconnectGstatic.rel = "preconnect";
+    preconnectGstatic.href = "https://fonts.gstatic.com";
+    preconnectGstatic.crossOrigin = "anonymous";
+    preconnectGstatic.setAttribute("data-drawo-fonts", "preconnect-gstatic");
+    document.head.appendChild(preconnectGstatic);
+  }
+
+  if (!document.querySelector('link[data-drawo-fonts="stylesheet"]')) {
+    const stylesheet = document.createElement("link");
+    stylesheet.rel = "stylesheet";
+    stylesheet.href = DRAWO_GOOGLE_FONTS_URL;
+    stylesheet.setAttribute("data-drawo-fonts", "stylesheet");
+    document.head.appendChild(stylesheet);
+  }
+}
 
 function DrawoLayout({
   children,
@@ -139,6 +174,9 @@ function DrawoLayout({
 
 function DrawoComponent(props: DrawoProps) {
   const { children, className, style, ...providerProps } = props;
+  useEffect(() => {
+    ensureDrawoFonts();
+  }, []);
 
   return (
     <DrawoProvider {...providerProps}>

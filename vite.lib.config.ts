@@ -6,6 +6,7 @@ export default defineConfig({
   plugins: [react()],
   publicDir: "public",
   build: {
+    assetsInlineLimit: 0,
     lib: {
       entry: resolve(__dirname, "src/lib/index.ts"),
       formats: ["es", "cjs"],

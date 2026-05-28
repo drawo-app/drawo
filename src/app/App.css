@@ -8,6 +8,29 @@ html {
   overscroll-behavior: none;
 }
 
+:root {
+  --drawo-cursor-default: url("./cursors/default.svg") 12 12;
+  --drawo-cursor-pointer: url("./cursors/pointer.svg") 12 12;
+  --drawo-cursor-grab: url("./cursors/grab.svg") 12 12;
+  --drawo-cursor-grabbing: url("./cursors/grabbing.svg") 12 12;
+  --drawo-cursor-crosshair: url("./cursors/crosshair.svg") 12 12;
+  --drawo-cursor-clone: url("./cursors/clone.svg") 12 12;
+  --drawo-cursor-laser: url("./cursors/laser.svg") 12 12;
+  --drawo-cursor-text: url("./cursors/text.svg") 12 12;
+  --drawo-cursor-marker: url("./cursors/marker.svg") -4 26;
+  --drawo-cursor-pencil: url("./cursors/pencil.svg") -4 26;
+  --drawo-cursor-quill: url("./cursors/quill.svg") -4 26;
+  --drawo-cursor-move: url("./cursors/move.svg") 12 12;
+  --drawo-cursor-ns-resize: url("./cursors/ns-resize.svg") 12 12;
+  --drawo-cursor-ew-resize: url("./cursors/ew-resize.svg") 12 12;
+  --drawo-cursor-nwse-resize: url("./cursors/nwse-resize.svg") 12 12;
+  --drawo-cursor-nesw-resize: url("./cursors/nesw-resize.svg") 12 12;
+  --drawo-cursor-rotate-up-left: url("./cursors/rotate-up-left.svg") 12 12;
+  --drawo-cursor-rotate-up-right: url("./cursors/rotate-up-right.svg") 12 12;
+  --drawo-cursor-rotate-down-left: url("./cursors/rotate-down-left.svg") 12 12;
+  --drawo-cursor-rotate-down-right: url("./cursors/rotate-down-right.svg") 12 12;
+}
+
 *,
 *::before,
 *::after {
@@ -163,7 +186,7 @@ html.dark .switch-row {
   gap: 1px;
   align-items: center;
   cursor:
-    url("cursors/default.svg") 12 12,
+    var(--drawo-cursor-default),
     auto;
   padding: 4px;
   background: var(--panel-bg);
@@ -230,7 +253,7 @@ html.dark .switch-row {
   gap: 1px;
   align-items: center;
   cursor:
-    url("cursors/default.svg") 12 12,
+    var(--drawo-cursor-default),
     auto;
   padding: 8px 9px;
   background: var(--panel-bg);
@@ -244,17 +267,17 @@ html.dark .switch-row {
 }
 .insert-item:active {
   cursor:
-    url("../cursors/grabbing.svg") 12 12,
+    var(--drawo-cursor-grabbing),
     auto;
 }
 .insert-item {
   cursor:
-    url("../cursors/grab.svg") 12 12,
+    var(--drawo-cursor-grab),
     auto;
 }
 .tool-item {
   cursor:
-    url("../cursors/pointer.svg") 12 12,
+    var(--drawo-cursor-pointer),
     auto;
 }
 .insert-item,

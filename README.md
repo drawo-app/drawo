@@ -56,6 +56,7 @@ npm install react@^19 react-dom@^19
 ## 🚀 Quick Start
 
 ```tsx
+import "drawo/styles.css";
 import { Drawo } from "drawo";
 
 function App() {
@@ -63,7 +64,8 @@ function App() {
 }
 ```
 
-That's it. Full whiteboard, zero config.
+That single CSS import is required and includes themes, cursors, and editor typography.
+`<Drawo />` also injects the required Google Fonts (`Inter`, `Rubik`, `Shantell Sans`, `Imbue`, `Cascadia Code`) automatically.
 
 ## 🎨 Customization
 

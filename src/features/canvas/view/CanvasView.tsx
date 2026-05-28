@@ -4958,16 +4958,7 @@ export const CanvasView = ({
           }}
           style={{
             display: "block",
-            cursor:
-              'url("../cursors/' +
-              canvasCursor +
-              '.svg")' +
-              (["default", "pointer", "clone", "laser"].includes(canvasCursor)
-                ? ""
-                : ["marker", "pencil", "quill"].includes(canvasCursor)
-                  ? " -4 26"
-                  : " 12 12") +
-              ', url("../cursors/default.svg"), auto',
+            cursor: `var(--drawo-cursor-${canvasCursor}, var(--drawo-cursor-default)), auto`,
             touchAction: "none",
           }}
         />

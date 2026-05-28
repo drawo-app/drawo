@@ -4,6 +4,7 @@ import {
   estimateTextWidth,
   getTextStartX,
   createElementId,
+  recognizeShape,
 } from "@core/elements";
 import { findHitElement } from "@core/hitTest";
 import {
@@ -1722,6 +1723,158 @@ export const useInteraction = ({
               t: point.t,
             }))
           : points;
+
+        if (currentScene.settings.shapeRecognition) {
+          const result = recognizeShape(nextPoints);
+          if (result && result.confidence > 0.55) {
+            const drawMode =
+              style?.drawMode === "marker"
+                ? "marker"
+                : style?.drawMode === "quill"
+                  ? "quill"
+                  : "draw";
+            const stroke =
+              typeof style?.stroke === "string" && style.stroke.trim().length > 0
+                ? style.stroke
+                : drawMode === "marker"
+                  ? currentScene.settings.drawDefaults.markerStroke
+                  : drawMode === "quill"
+                    ? currentScene.settings.drawDefaults.quillStroke
+                    : currentScene.settings.drawDefaults.drawStroke;
+            const strokeWidth =
+              typeof style?.strokeWidth === "number" && Number.isFinite(style.strokeWidth)
+                ? Math.max(1, style.strokeWidth)
+                : drawMode === "marker"
+                  ? currentScene.settings.drawDefaults.markerStrokeWidth
+                  : drawMode === "quill"
+                    ? currentScene.settings.drawDefaults.quillStrokeWidth
+                    : currentScene.settings.drawDefaults.drawStrokeWidth;
+
+            if (result.shape.type === "rectangle") {
+              const rect = result.shape;
+              const newElement: SceneElement = {
+                id: createElementId("rectangle"),
+                type: "rectangle",
+                rotation: 0,
+                x: rect.x,
+                y: rect.y,
+                width: Math.max(20, rect.width),
+                height: Math.max(20, rect.height),
+                borderRadius: 12,
+                fillStyle: "solid",
+                fill: currentScene.settings.shapeDefaults.fill,
+                opacity: 100,
+                stroke,
+                strokeWidth,
+                strokeStyle: "solid",
+                text: "",
+                fontFamily: "Shantell Sans, sans-serif",
+                fontSize: 20,
+                fontWeight: "200",
+                fontStyle: "normal",
+                color: currentScene.settings.shapeDefaults.textColor,
+                textAlign: "center",
+              };
+              return {
+                ...currentScene,
+                elements: [...currentScene.elements, newElement],
+                selectedId: newElement.id,
+                selectedIds: [newElement.id],
+              };
+            }
+
+            if (result.shape.type === "circle") {
+              const circle = result.shape;
+              const newElement: SceneElement = {
+                id: createElementId("circle"),
+                type: "circle",
+                rotation: 0,
+                x: circle.cx - circle.rx,
+                y: circle.cy - circle.ry,
+                width: Math.max(20, circle.rx * 2),
+                height: Math.max(20, circle.ry * 2),
+                fillStyle: "solid",
+                fill: currentScene.settings.shapeDefaults.fill,
+                stroke,
+                opacity: 100,
+                strokeWidth,
+                strokeStyle: "solid",
+                text: "",
+                fontFamily: "Shantell Sans, sans-serif",
+                fontSize: 20,
+                fontWeight: "200",
+                fontStyle: "normal",
+                color: currentScene.settings.shapeDefaults.textColor,
+                textAlign: "center",
+              };
+              return {
+                ...currentScene,
+                elements: [...currentScene.elements, newElement],
+                selectedId: newElement.id,
+                selectedIds: [newElement.id],
+              };
+            }
+
+            if (result.shape.type === "line") {
+              const line = result.shape;
+              const minX = Math.min(line.start.x, line.end.x);
+              const minY = Math.min(line.start.y, line.end.y);
+              const newElement: SceneElement = {
+                id: createElementId("line"),
+                type: "line",
+                rotation: 0,
+                x: minX,
+                y: minY,
+                width: Math.max(1, Math.abs(line.end.x - line.start.x)),
+                height: Math.max(1, Math.abs(line.end.y - line.start.y)),
+                opacity: 100,
+                stroke,
+                strokeStyle: "solid",
+                strokeWidth,
+                startCap: "none",
+                endCap: "line arrow",
+                controlPoint: null,
+              };
+              return {
+                ...currentScene,
+                elements: [...currentScene.elements, newElement],
+                selectedId: newElement.id,
+                selectedIds: [newElement.id],
+              };
+            }
+
+            if (result.shape.type === "triangle") {
+              const tri = result.shape;
+              const minX = Math.min(tri.p1.x, tri.p2.x, tri.p3.x);
+              const minY = Math.min(tri.p1.y, tri.p2.y, tri.p3.y);
+              const maxX = Math.max(tri.p1.x, tri.p2.x, tri.p3.x);
+              const maxY = Math.max(tri.p1.y, tri.p2.y, tri.p3.y);
+              const newElement: SceneElement = {
+                id: createElementId("draw"),
+                type: "draw",
+                drawMode,
+                createdAt: Date.now(),
+                rotation: 0,
+                x: minX,
+                y: minY,
+                opacity: 100,
+                width: Math.max(1, maxX - minX),
+                height: Math.max(1, maxY - minY),
+                points: [tri.p1, tri.p2, tri.p3, { x: tri.p1.x, y: tri.p1.y }].map(
+                  (p) => ({ x: p.x - minX, y: p.y - minY }),
+                ),
+                stroke,
+                strokeWidth,
+              };
+              return {
+                ...currentScene,
+                elements: [...currentScene.elements, newElement],
+                selectedId: newElement.id,
+                selectedIds: [newElement.id],
+              };
+            }
+          }
+        }
 
         return addDrawElementToScene(currentScene, nextPoints, style);
       });

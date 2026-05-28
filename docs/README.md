@@ -43,6 +43,9 @@ function App() {
 ```
 
 > **Note:** The CSS import is required for the component to render correctly. This includes all 22 themes, cursors, and UI styles.
+> `<Drawo />` auto-loads the required Google Fonts for editor typography: `Inter`, `Rubik`, `Shantell Sans`, `Imbue`, and `Cascadia Code`.
+> If your app uses CSP, allow `https://fonts.googleapis.com` (`style-src`) and `https://fonts.gstatic.com` (`font-src`).
+> You do not need to copy cursor files manually when importing from the package.
 
 ### Requirements
 

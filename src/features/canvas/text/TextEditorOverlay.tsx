@@ -161,7 +161,7 @@ export const TextEditorOverlay = ({
         padding: 0,
         border: "none",
         outline: "none",
-        cursor: 'url("../cursors/text.svg") 12 12, auto',
+        cursor: "var(--drawo-cursor-text), auto",
         background: "transparent",
         boxShadow: "none",
         color: toThemeColor(editingText.style.color),

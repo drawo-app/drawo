@@ -48,3 +48,4 @@ export {
   measureTextLineWidth,
   getTextStartX,
 } from "./text";
+export { recognizeShape, type RecognizedShape } from "./shapeRecognizer";

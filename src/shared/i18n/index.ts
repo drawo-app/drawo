@@ -12,6 +12,7 @@ export interface LocaleMessages {
     snapToGrid: string;
     smartGuides: string;
     quillDrawOptimizations: string;
+    shapeRecognition: string;
     themes: string;
     theme: string;
     language: string;
